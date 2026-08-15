@@ -1,19 +1,22 @@
 # Requirements
 
-Authoritative specialized product law for **cli-template** lives here.
+Authoritative specialized product law for **nginx-cli** lives here.
 
-**Current state (2026-08-13):** Specialized **software-development** product. Left genesis. **This product is the Type 0 bootstrap origin** (no live parent). Registry is populated — see `index.md`.
+**Current state (2026-08-15):** Specialized **software-development** product. Left genesis. **This product is B** (`nginx-cli`). **Origin A** is `cli-template` (frozen at `src/cli-template`). Do not reverse-copy B onto A. Registry is populated — see `index.md`.
 
 ## Product identity (summary)
 
 | Field | Value |
 |-------|--------|
-| Product / `APP_NAME` | `cli-template` |
-| Version SSOT | `1.0.0` (ship unit hard-assign) |
-| Ship unit | `src/cli-template` |
-| Default install | `~/.local/bin/cli-template` |
+| Product / `APP_NAME` | `nginx-cli` |
+| Version SSOT | `1.1.0` (ship unit hard-assign) |
+| Ship unit | `src/nginx-cli` |
+| Origin A (frozen) | `src/cli-template` |
+| Default install | `~/.local/bin/nginx-cli` |
 | Install mode | **Local-only** |
-| Domain surface | **None** (Type 0 bootstrap/template: version, install, about, help) |
+| Domain surface | **Active** — `requirement-domain-nginx-cli.md` (nginx-conf request/approve) |
+| Privilege peers | `requirement-least-privilege-user` · `requirement-three-layer-privilege-model` · `requirement-privilege-prevention-set` |
+| Prompt / temp REQs | **Not added** — interactive + storage already own those surfaces |
 
 ## Class requirement gate
 
@@ -45,4 +48,7 @@ Typical: `draft` · `Active` · `approved` · `in-progress` · `done` · `deprec
 2. Class files only via class process; non-class via create-specific process.  
 3. Never dump harness inventories into this versioned surface.  
 4. Online install requirements stay **absent** unless product mode is explicitly changed.  
-5. Do **not** create a hollow `requirement-domain-*` that restates Type 0, and do **not** add host `setup`.
+5. Domain SSOT is **one** Active file: `requirement-domain-nginx-cli.md`. Do not add a second domain SSOT.  
+6. Dest law names this product `nginx-cli`. `cli-template` is origin A only — do not retarget notes back to A, and do not reverse-copy onto `src/cli-template`.  
+7. Do **not** invent a product block that is not a row in `requirement-privilege-prevention-set.md`.  
+8. Do **not** add `requirement-shell-prompt` or `requirement-shell-temp-file-system` while interactive / storage remain the owners.

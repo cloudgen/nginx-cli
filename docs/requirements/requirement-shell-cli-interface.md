@@ -1,14 +1,14 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 2.0.0)  
+**Status**: Active (Version 2.1.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-interface`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for the **POSIX shell CLI interface** of cli-template: command surface, privilege typing, global flags, dispatcher behavior, help/about contracts, and mode rules.
+This requirement is the **project Single Source of Truth** for the **POSIX shell CLI interface** of nginx-cli: command surface, privilege typing, global flags, dispatcher behavior, help/about contracts, and mode rules.
 
-It defines a **Type 0–centric local self-managed shell CLI** with **no domain verbs**. Full lifecycle rules live in `requirement-shell-local-self-management.md`.
+Type 0 lifecycle verbs live here. **Domain verbs** (`setup`, `request`, `approve`, …) are owned by `requirement-domain-nginx-cli.md`. Full lifecycle rules live in `requirement-shell-local-self-management.md`.
 
 ---
 
@@ -21,8 +21,8 @@ Every command **MUST** map to exactly one privilege type. Unclassified commands 
 | Category | Privilege | Meaning |
 |----------|-----------|---------|
 | **Type 0 – CLI lifecycle + diagnostics** | Invoking user | `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` |
-| **Type 1 – Narrow elevated host ops** | Controlled sudo | **Not in scope** |
-| **Type 2 – Dedicated system user app ops** | Dedicated app user | **Not in scope** |
+| **Type 1 – Narrow elevated host ops** | Controlled sudo / root | **Domain** — `setup`, `remove-lpu` (see domain SSOT) |
+| **Gated domain** | root / nginx-adm / submit sudoers | **Domain** — request, list, approve, reject, map-* (see domain SSOT) |
 
 ### 2.2 Global flags (portable)
 
@@ -62,19 +62,19 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 
 ### 2.5 Implementation Notes (this project)
 
-| Item | Value for cli-template |
+| Item | Value for nginx-cli |
 |------|-------------------------|
-| **Product / binary name** | `cli-template` (`APP_NAME`) |
-| **Primary executable** | `src/cli-template` (POSIX `/bin/sh`, single-file ship unit) |
+| **Product / binary name** | `nginx-cli` (`APP_NAME`) |
+| **Primary executable** | `src/nginx-cli` (POSIX `/bin/sh`, single-file ship unit) |
 | **Dispatcher** | `app_main` |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION="1.0.0"` hard-assign in ship unit |
+| **Version SSOT** | `VERSION="1.1.0"` hard-assign in ship unit |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`; User: `USER_BIN` default `${HOME}/.local/bin` |
-| **Primary install story** | User bin: `~/.local/bin/cli-template` |
+| **Primary install story** | User bin: `~/.local/bin/nginx-cli` |
 | **Online channel env** | **Not product UX** (trimmed) |
-| **Type 1 / Type 2 commands** | None |
-| **Dedicated system user** | Not required |
-| **About** | Type 0 only; no domain fields |
+| **Type 1 / gated domain** | Owned by `requirement-domain-nginx-cli.md` |
+| **Dedicated system user** | `nginx-adm` (UID/GID 1999) after `setup` |
+| **About** | Type 0 plus nginx-adm domain fields |
 
 #### Supported commands (normative for this project)
 
@@ -100,18 +100,16 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 
 #### Dispatcher acceptance criteria
 
-1. Unknown token after flag parse → `out_die` with pointer to `cli-template help`.  
+1. Unknown token after flag parse → `out_die` with pointer to `nginx-cli help`.  
 2. Zero-arg → help (not install).  
-3. Command routing table in `app_main` **must** include every row above and **no** trimmed parent verbs.  
-4. Help text **must** stay aligned with that table.
+3. Command routing table in `app_main` **must** include Type 0 rows above **and** domain verbs from `requirement-domain-nginx-cli.md`.  
+4. Help text **must** stay aligned with both catalogs.
 
 #### Explicitly out of scope
 
 - Online: `version-check`, `self-update`, `self-uninstall`, channel `install` via URL  
-- Domain: `backup`, `restore`  
-- Sudoers-file: `print-sudoers`, `print-sudoers-install-script`, `remove-project-sudoers`  
-- Type 1 host-mutating setup  
-- Type 2 app runtime under a dedicated system user  
+- Archive-deposit: `backup`, `restore`  
+- print-sudoers / sudoers-install-script / remove-draft  
 
 ### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
 
@@ -119,8 +117,8 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 - **CIAO Principle 2 – Intentional**: Every command has one privilege type and one handler family.  
 - **CIAO Principle 5 – Single Source of Output**: Central `out_*`.  
 - **CIAO Principle 6 – Single Point of Entry**: `app_main` is the dispatcher SSOT.  
-- **CIAO Principle 9 – Three Types of Commands**: Type 0 lifecycle only.  
-- **CIAO Principle 10 – Least-Privilege User**: No invented system-user requirement for binary lifecycle.  
+- **CIAO Principle 9 – Three Types of Commands**: Type 0 lifecycle plus domain Type 1 / gated verbs.  
+- **CIAO Principle 10 – Least-Privilege User**: nginx-adm created by domain `setup`, not by Type 0 install.  
 - **CIAO Principle 16 – Interactive vs Non-Interactive**: No hang in non-interactive mode.  
 - **CIAO Principle 4 / 20 – Over-protect**: Protection Rule blocks privilege and UX regressions.
 
@@ -129,9 +127,9 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 ## 3. Design Principles (CIAO / CIAO-Lite)
 
 - **Caution**: Fail closed on unknown verbs, including trimmed parent verbs.  
-- **Intentional**: Type 0 catalog is the whole product surface.  
-- **Anti-fragile**: Same dispatcher contract as parent.  
-- **Over-protect**: Do not silently restore domain verbs “because the name is cli-template.”
+- **Intentional**: Type 0 catalog plus domain verbs owned by `requirement-domain-nginx-cli.md`.  
+- **Anti-fragile**: Same dispatcher contract as origin A.  
+- **Over-protect**: Do not restore folder-backup verbs, and do not drop domain verbs because origin A had none.
 
 ---
 
@@ -139,7 +137,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
 
-1. Add domain or sudoers verbs without a new Active requirement and explicit user order.  
+1. Add further domain verbs without updating `requirement-domain-nginx-cli.md` and this catalog pointer.  
 2. Change empty argv from Type N help to install-ensure.  
 3. Bypass `out_*` for user-facing messages.  
 4. Advertise an online install channel in help/about.  
@@ -168,6 +166,8 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | `requirement-shell-local-self-management` | install / uninstall / where-is-me |
 | `requirement-shell-output-requirements` | `out_*` |
 | `requirement-bootstrap-chain` | Trimmed surfaces |
+| `requirement-domain-nginx-cli` | Domain verbs |
+| `requirement-three-layer-privilege-model` | Type map + F6 Table A |
 | `docs/requirements/index.md` | Registry |
 
 ---
@@ -188,9 +188,10 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 |------|--------|------|
 | 2026-08-03 | Active 1.0.0 | folder-backup Type 0 + domain verbs |
 | 2026-08-13 | Active 2.0.0 | cli-template Type 0 only |
+| 2026-08-15 | Active 2.1.0 | Notes name this product nginx-cli 1.1.0; domain catalog pointer stays |
 
 ---
 
-**Last Updated**: 2026-08-13  
+**Last Updated**: 2026-08-15  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

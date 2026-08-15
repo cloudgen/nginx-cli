@@ -1,25 +1,28 @@
-# cli-template - Type 0 self-managed CLI template (local and global install)
+# nginx-cli - Nginx least-privilege admin CLI
 
-![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.1.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
-[![Stars](https://img.shields.io/github/stars/cloudgen/cli-template?style=flat-square)](https://github.com/cloudgen/cli-template)
+[![Stars](https://img.shields.io/github/stars/cloudgen/nginx-cli?style=flat-square)](https://github.com/cloudgen/nginx-cli)
 
-POSIX `/bin/sh` **Type 0 template** CLI: `install`, `uninstall`, `where-is-me`, `version`, `about`, and `help`. It does **not** manage the operating system (no `setup`, packages, `/etc`, or sudoers emit). This product **is** the Type 0 bootstrap origin (no live parent).
+POSIX `/bin/sh` CLI specialized from **cli-template**: Type 0 local install plus Type 1 **nginx-adm** setup and a **config request / approve / reject** workflow. It does **not** provide an online `curl|sh` channel.
 
 Install **location** is still **both**:
-- **local** → `~/.local/bin/cli-template` (normal user)
-- **global** → `/usr/local/bin/cli-template` (root / `--global`)
-
-The *channel* is local-only (no online `curl|sh`). Local vs global here means where the binary is placed, not an online vs offline download.
+- **local** → `~/.local/bin/nginx-cli` (normal user)
+- **global** → `/usr/local/bin/nginx-cli` (root / `--global`)
 
 ## Features
 
-- **Self-management**: `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` (local **and** global place/remove)
-- **Type N empty argv**: no arguments shows help (not install-ensure)
-- **Managed binary mode 0755**: global install stays readable and runnable for every user
-- **Fail-closed**: unknown commands (including trimmed parent verbs) exit non-zero
-- **CIAO / CIAO-Lite** defensive design (Protection Zones, `out_*` output SSOT)
+- **Self-management**: `install`, `uninstall`, `where-is-me`, `version`, `about`, `help`
+- **nginx-adm LPU**: `setup` creates UID/GID **1999**, home `/etc/nginx-adm`, sites ownership, restricted sudoers
+- **Request queues** under `/var/nginx-cli`: `config-request` (`2770`, group `nginx-cli-submit`), `config-approved`, `config-rejected`; **user-domain-map** stays under nginx-adm home
+- **Submit gate**: only root, nginx-adm, or logins listed in `/etc/sudoers.d/nginx-cli-submit` **and** in group `nginx-cli-submit`
+- **Request names**: `yyyyMMdd-user-domain-n` with `#` intention header + nginx conf body
+- **Approve**: snapshot inbound, publish to `sites-available` / enable-dir symlink, unlink inbound (do not `mv`)
+- **Reject**: snapshot inbound into rejected archive, unlink inbound (no publish)
+- **Interactive approval** and optional nginx-adm `.bashrc` login hook
+- **Type N empty argv**: no arguments shows help
+- **CIAO / CIAO-Lite** defensive design (`out_*` output SSOT)
 
 ## Quick Installation
 
@@ -27,81 +30,93 @@ The *channel* is local-only (no online `curl|sh`). Local vs global here means wh
 
 ```sh
 # From this repository checkout
-sh src/cli-template install
+sh src/nginx-cli install
 # or force refresh after updates
-sh src/cli-template install --force
+sh src/nginx-cli install --force
 
 # Ensure ~/.local/bin is on PATH, then:
-cli-template version
+nginx-cli version
 ```
 
 **Global (multi-user hosts):**
 
 ```sh
-sudo sh src/cli-template install
-# or: cli-template install --global   # needs write access to /usr/local/bin
-# Managed binary mode is always 0755 so every user can run the shell ship unit.
+sudo sh src/nginx-cli install
 ```
 
-This product is **local-only** for its install channel (no default `SCRIPT_URL` online install). Global vs local here means install *location*, not an online channel.
+**Host operator (Type 1):**
 
-**Source repository:** [cloudgen/cli-template](https://github.com/cloudgen/cli-template)  
-Config identity: `REPO_USER=cloudgen`, `REPO_NAME=cli-template` (override with env if needed; does not enable online install while `SCRIPT_URL` is empty).
+```sh
+sudo nginx-cli setup
+```
+
+This product is **local-only** for its install channel (no default `SCRIPT_URL` online install). Bootstrap origin: [cloudgen/cli-template](https://github.com/cloudgen/cli-template).
 
 ## Usage
 
 ```sh
-cli-template help
-cli-template about
-cli-template --json about
+nginx-cli help
+nginx-cli about
+nginx-cli --json about
 
-cli-template install
-cli-template where-is-me
-cli-template uninstall --force
+sudo nginx-cli setup
+nginx-cli request example.com ./site.conf
+nginx-cli list-requests
+nginx-cli approve
+nginx-cli reject 20260813-alice-example.com-1
+sudo nginx-cli remove-lpu --force
 ```
+
+**Submit privilege:** root, `nginx-adm`, or a login listed in `/etc/sudoers.d/nginx-cli-submit` and in group `nginx-cli-submit`. Other users cannot submit. Type 0 writes the public inbound as the invoker (no `sudo -u nginx-adm` deposit).
 
 **Environment (selected):**
 
 | Variable | Role |
 |----------|------|
-| `REPO_USER` | Git host owner (default `cloudgen`) |
-| `REPO_NAME` | Git repository name (default `cli-template`) |
+| `REPO_USER` / `REPO_NAME` | Repository identity |
 | `SCRIPT_URL` | Online install channel (default **empty** — local only) |
-| `USER_BIN` | Per-user install destination (default `~/.local/bin`) |
-| `GLOBAL_BIN` | Global install destination (default `/usr/local/bin`) |
+| `USER_BIN` / `GLOBAL_BIN` | Install destinations |
+| `NGINX_ADM_HOME` | Override LPU home |
+| `NGINX_QUEUE_ROOT` | Public queue root (default `/var/nginx-cli`) |
+| `NGINX_CONF_ROOT` | Conf root (default `/etc/nginx`) |
 
 ## Examples
 
 ```sh
-# Local install (user bin)
-sh src/cli-template install
+# Local install
+sh src/nginx-cli install
 
-# Global install (system bin)
-sudo sh src/cli-template install
+# Create nginx-adm and queues
+sudo nginx-cli setup
 
-# Diagnostics
-cli-template about
-cli-template --json version
+# Map a submitter's domain, then submit
+sudo nginx-cli map-set alice example.com
+# (alice listed in /etc/sudoers.d/nginx-cli-submit)
+nginx-cli request example.com ./example.com.conf
+
+# Approver login (or run explicitly)
+nginx-cli approve
 ```
+
+Request files must start with `#` comments describing intention / objectives / update, then a normal nginx `server` block.
 
 ## Platform Compatibility
 
 | Platform | Status |
 |----------|--------|
 | Linux, `/bin/sh` (dash/bash) | Supported |
-| `mktemp`, `date` | Required |
-| macOS / BSD | Not primary; GNU `stat`/`sed -E` assumptions may differ |
+| `useradd` / `userdel` / `visudo` | Required for `setup` / `remove-lpu` |
+| macOS / BSD | Not primary |
 
 ## Related Projects
 
-- [selfmanaged](https://github.com/cloudgen/selfmanaged) — related Type 0 product (online channel); **not** this product’s origin
-- [folder-backup](https://github.com/cloudgen/folder-backup) — related product (backup/restore/sudoers); **not** this product’s origin
+- [cli-template](https://github.com/cloudgen/cli-template) — bootstrap origin (Type 0 template)
 - [CIAO Defensive Programming](https://github.com/cloudgen/ciao)
 - [CIAO-Lite](https://github.com/cloudgen/ciao-lite)
 
 ## Contributing
 
-Keep changes surgical. Honor **CIAO-Lite Protection Zones** in `src/cli-template`. Product behavior must stay consistent with live `docs/requirements/requirement-*.md`. Run `sh tests/run.sh` before proposing commits.
+Keep changes surgical. Honor **CIAO-Lite Protection Zones** in `src/nginx-cli`. Product behavior must stay consistent with live `docs/requirements/requirement-*.md`. Run `sh tests/run.sh` before proposing commits.
 
 ## License
 
@@ -109,4 +124,4 @@ MIT License — see [`LICENSE.md`](./LICENSE.md).
 
 ## Last Update
 
-2026-08-13 — version **1.0.0** (Type 0 bootstrap origin; forge **cloudgen/cli-template**; author-email **wongcf22@gmail.com**).
+2026-08-15 — version **1.1.0** (public `/var/nginx-cli` queues, group `2770`, snapshot approve).

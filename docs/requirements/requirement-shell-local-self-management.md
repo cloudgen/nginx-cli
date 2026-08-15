@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-shell-local-self-management.md  
-**Status**: Active (Version 1.3.0)  
+**Status**: Active (Version 1.4.0)  
 **Area**: shell  
 **Key**: `requirement-shell-local-self-management`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for **local self-managed lifecycle** of the cli-template POSIX shell CLI: **`install`**, **`uninstall`**, and **`where-is-me`**, plus the local diagnostics package contract for **`version`**, **`about`**, and **`help`** (wiring owned with CLI interface).
+This requirement is the **project Single Source of Truth** for **local self-managed lifecycle** of the nginx-cli POSIX shell CLI: **`install`**, **`uninstall`**, and **`where-is-me`**, plus the local diagnostics package contract for **`version`**, **`about`**, and **`help`** (wiring owned with CLI interface).
 
 **Install mode:** **local-only**. Online channel install, remote version-check, self-update, and self-uninstall are **out of scope** (intentionally absent).
 
@@ -81,8 +81,8 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 
 | Variable | Role | Default / note |
 |----------|------|----------------|
-| `APP_NAME` | Binary basename SSOT | hard-assign `cli-template` |
-| `VERSION` | Local version SSOT | hard-assign `1.0.0` |
+| `APP_NAME` | Binary basename SSOT | hard-assign `nginx-cli` |
+| `VERSION` | Local version SSOT | hard-assign `1.1.0` |
 | `GLOBAL_BIN` | System-wide bin | `/usr/local/bin` |
 | `USER_BIN` | Per-user bin | `${HOME}/.local/bin` |
 | `FORCE` | Replace / skip confirm | `0` |
@@ -93,9 +93,10 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 
 | Item | Value |
 |------|--------|
-| **Product / binary** | `cli-template` |
-| **Ship unit** | `src/cli-template` |
-| **Primary install path story** | Type 0 day-to-day: `${HOME}/.local/bin/cli-template`; multi-user: `/usr/local/bin/cli-template` |
+| **Product / binary** | `nginx-cli` |
+| **Ship unit** | `src/nginx-cli` |
+| **Origin A (frozen)** | `src/cli-template` — Type 0 lifecycle inherited; do not reverse-copy |
+| **Primary install path story** | Type 0 day-to-day: `${HOME}/.local/bin/nginx-cli`; multi-user: `/usr/local/bin/nginx-cli` |
 | **Handlers** | `inst_local_install`, `inst_local_uninstall`, `app_where_is_me`, `app_version` |
 | **Detect** | `inst_is_installed` / privilege-correct path helpers |
 | **Online package** | **Absent by design** (bootstrap trim) |
@@ -178,9 +179,10 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 |------|--------|------|
 | 2026-08-03 | Active | Local-only lifecycle for folder-backup |
 | 2026-08-09 | Active 1.2.0 | §2.3.1 mode **0755** multi-user; ban `chmod +x`→`0711` trap; AC-6..8; TP-LC-09/10 |
+| 2026-08-15 | Active 1.4.0 | Notes/`APP_NAME`/`VERSION` name this product nginx-cli 1.1.0 |
 
 ---
 
-**Last Updated**: 2026-08-09  
+**Last Updated**: 2026-08-15  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

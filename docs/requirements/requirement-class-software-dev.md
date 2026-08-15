@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-class-software-dev.md  
-**Status**: Active (Version 1.3.0 – cli-template class law + residual stack)  
+**Status**: Active (Version 1.5.0 – nginx-cli class law + residual stack)  
 **Area**: class  
 **Key**: `requirement-class-software-dev`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -21,7 +21,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 3. **MUST NOT** register an Active `requirement-class-server-maintenance.md` while class is software-development.  
 4. **MUST** retain portable harness knowledge; specialized product knowledge lives in this and peer `requirement-*.md` files.  
 5. **MUST** apply software-development SSOT/gate posture when claimed (identity, ship unit, precommit when git is used — as applicable).  
-5a. When git is used on a **multi-vault host**, **MUST** treat forge push identity as **product repository-user SSOT** (Config `REPO_USER` / project-repository owner), not ambient default SSH face: agents **MUST** run precommit / SSH-profile gates (pre-git report; vault bind via activate or one-shot identity for push). Host vault basenames are **not** product law — portable process lives in harness skills (`skill-commit-check`, `skill-ssh-user-profile`).  
+5a. When git is used on a **multi-vault host**, **MUST** treat forge push identity as **product repository-user SSOT** (Config `REPO_USER` / project-repository owner), not ambient default SSH face: agents **MUST** run a pre-git report and bind SSH transport (activate or one-shot identity) before push. Host vault basenames are **not** product law.  
 6. **MUST NOT** invent hollow product docs solely to look specialized; collect real values or defer explicitly.
 
 ### 2.1 Residual collection principle (SSOT hygiene)
@@ -66,9 +66,9 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 
 ### 2.7 Implementation Notes (this project)
 
-| Field | Value (cli-template) |
+| Field | Value (nginx-cli) |
 |-------|---------------------|
-| **Project display name** | `cli-template` |
+| **Project display name** | `nginx-cli` |
 | **Project class** | software-development |
 | **Class requirement basename** | `requirement-class-software-dev.md` |
 | **Primary language(s)** | `posix-sh` (`/bin/sh`) |
@@ -84,9 +84,9 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | **Primary runtime / OS family** | POSIX Linux (and compatible UNIX where `/bin/sh` + `mktemp` + `date` exist) |
 | **Architectures supported** | any arch with POSIX sh and the external tools the script invokes |
 | **Git surface** | used when product is published |
-| **Ship unit / install** | yes — `src/cli-template` → `${USER_BIN}/cli-template` (default `~/.local/bin/cli-template`); **local-only** install (no online channel) |
-| **Product version SSOT** | `VERSION="1.0.0"` hard-assign in `src/cli-template` |
-| **Bootstrap origin** | **this product** (`cli-template`) — hop 0 Type 0 template. No live parent. |
+| **Ship unit / install** | yes — `src/nginx-cli` → `${USER_BIN}/nginx-cli` (default `~/.local/bin/nginx-cli`); **local-only** install (no online channel) |
+| **Product version SSOT** | `VERSION="1.1.0"` hard-assign in `src/nginx-cli` |
+| **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) — this product is B. No live parent hop. |
 
 **Residual ownership table:**
 
@@ -95,7 +95,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Project class membership | **this file** | Fixed |
 | Primary language + toolchain policy | **this file** | posix-sh, unconstrained |
 | Package/build tool + lockfile | **this file** | none / not used |
-| Bootstrap lineage / keep-trim | `requirement-bootstrap-chain` | cli-template is hop 0 (no live parent) |
+| Bootstrap lineage / keep-trim | `requirement-bootstrap-chain` | A = cli-template (frozen); this product is B |
 | Project layout / ship path | `requirement-project-folder` | `src/` + bin targets |
 | Type 0 CLI surface / flags / dispatch | `requirement-shell-cli-interface` | Do not duplicate |
 | Empty argv Type N help | `requirement-shell-cli-zero-arguments` | Local-only |
@@ -105,10 +105,13 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Idempotency / re-run safety | `requirement-shell-idempotency` | Do not duplicate |
 | Interactive vs non-interactive | `requirement-shell-interactive-vs-noninteractive` | Do not duplicate |
 | Modular prefixes / single-file layout | `requirement-shell-modular-function-design` | Do not duplicate |
-| Privilege / sudoers-file emit | **intentionally absent** | Not this product’s domain |
+| Privilege / Type map / F6 Cmnds | `requirement-three-layer-privilege-model` | two families; no print-sudoers verb |
+| LPU identity F1–F7 | `requirement-least-privilege-user` | nginx-adm 1999; inbound 2770 |
+| Prevention catalog | `requirement-privilege-prevention-set` | closed block / must-remain-open |
 | Folder archive backup / restore / retention | **intentionally absent** | Not this product’s domain (sibling folder-backup) |
-| Domain surface (`requirement-domain-*`) | **intentionally absent** | Type 0 bootstrap/template; not host-OS setup |
-| Online install / remote self-management / companion checksum | **intentionally absent** | Not this origin’s channel |
+| Domain surface (`requirement-domain-*`) | `requirement-domain-nginx-cli` | nginx-conf request/approve machine |
+| Prompt helper bodies / temp leaves | **intentionally absent as extra REQs** | interactive + storage |
+| Online install / remote self-management / companion checksum | **intentionally absent** | Not this product’s channel |
 
 ---
 
@@ -166,7 +169,11 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 
 | Key | Relationship |
 |-----|--------------|
-| `requirement-bootstrap-chain` | This product is hop 0 / origin |
+| `requirement-bootstrap-chain` | Origin A = cli-template; this product is B |
+| `requirement-domain-nginx-cli` | Domain SSOT (nginx-conf request/approve) |
+| `requirement-least-privilege-user` | nginx-adm F1–F7 |
+| `requirement-three-layer-privilege-model` | Type map + Tables A/B/C |
+| `requirement-privilege-prevention-set` | Closed prevention catalog |
 | `requirement-project-folder` | Layout and install locations |
 | `requirement-shell-cli-interface` | Command surface, flags, dispatch |
 | `requirement-shell-cli-zero-arguments` | Type N empty argv |
@@ -188,9 +195,11 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | 2026-08-13 | Active 1.1.0 | Retarget to cli-template; drop domain/privilege residual owners |
 | 2026-08-13 | Active 1.2.0 | Bootstrap origin = selfmanaged; folder-backup hop retired (no longer maintain bootstrap from it) |
 | 2026-08-13 | Active 1.3.0 | This product is hop 0; selfmanaged is not origin |
+| 2026-08-15 | Active 1.4.0 | Notes retarget to nginx-cli 1.1.0; domain residual owner; drop skill-name catalog from §2.0.5a |
+| 2026-08-15 | Active 1.5.0 | Residual owners: LPU / three-layer / prevention; no prompt/temp REQs |
 
 ---
 
-**Last Updated**: 2026-08-13  
+**Last Updated**: 2026-08-15  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

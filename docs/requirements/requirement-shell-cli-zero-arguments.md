@@ -1,16 +1,16 @@
 **file**: docs/requirements/requirement-shell-cli-zero-arguments.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-zero-arguments`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for **zero-argument (empty argv) dispatcher behavior** of the cli-template POSIX shell CLI.
+This requirement is the **project Single Source of Truth** for **zero-argument (empty argv) dispatcher behavior** of the nginx-cli POSIX shell CLI.
 
 ### 1.0 Product type
 
-| Field | Value for cli-template |
+| Field | Value for nginx-cli |
 |-------|-------------------------|
 | **Empty-argv type** | **Type N — Non-online-install** |
 | **Rationale** | Product is **local-only**; no `curl \| sh` channel; empty argv shows **help**, not install-ensure |
@@ -25,24 +25,24 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 
 1. When **argv is empty** (`$# -eq 0` at entry to `app_main`), the dispatcher **MUST** route to **`help`** / usage (`app_help`).  
 2. Empty argv **MUST NOT** perform install or any state-changing ensure.  
-3. Explicit `cli-template help` remains a valid full-usage path (same content family as empty argv).  
-4. Explicit `cli-template install` remains the only first-time local install path (plus documented force refresh).  
+3. Explicit `nginx-cli help` remains a valid full-usage path (same content family as empty argv).  
+4. Explicit `nginx-cli install` remains the only first-time local install path (plus documented force refresh).  
 5. Script entry **MUST** always call `app_main "$@"` (no basename product-name gate that blocks dispatch).
 
 ### 2.2 Normative matrix
 
 | Invocation | Behavior |
 |------------|----------|
-| `cli-template` (no args) | Show help; exit 0 |
-| `cli-template help` | Show help; exit 0 |
-| `cli-template install` | Local install ensure |
+| `nginx-cli` (no args) | Show help; exit 0 |
+| `nginx-cli help` | Show help; exit 0 |
+| `nginx-cli install` | Local install ensure |
 | Flags only (e.g. `--json` with no command) | **MUST** still resolve to help (or fail with clear usage if product chooses fail-closed) — default: **help** after flag parse with no command token |
 
 ### 2.3 Implementation Notes (this project)
 
 | Item | Value |
 |------|--------|
-| **Product** | `cli-template` |
+| **Product** | `nginx-cli` |
 | **Type** | **Type N** |
 | **Default COMMAND** | `help` |
 | **Contrast Type O** | Type O install-ensure is **not** this origin’s empty-argv law |
@@ -111,9 +111,10 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 | Date | Status | Note |
 |------|--------|------|
 | 2026-08-03 | Active | Type N for local-only folder-backup |
+| 2026-08-15 | Active 1.1.0 | Notes/examples name this product nginx-cli |
 
 ---
 
-**Last Updated**: 2026-08-03  
+**Last Updated**: 2026-08-15  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

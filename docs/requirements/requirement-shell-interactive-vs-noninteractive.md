@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-shell-interactive-vs-noninteractive.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Area**: shell  
 **Key**: `requirement-shell-interactive-vs-noninteractive`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for how cli-template behaves in **interactive** (human + TTY) versus **non-interactive** (automation, CI/CD, pipes, `--json` / often `--quiet`) environments.
+This requirement is the **project Single Source of Truth** for how nginx-cli behaves in **interactive** (human + TTY) versus **non-interactive** (automation, CI/CD, pipes, `--json` / often `--quiet`) environments.
 
 ---
 
@@ -23,7 +23,7 @@ This requirement is the **project Single Source of Truth** for how cli-template 
 
 | Signal | Variable / check | Meaning |
 |--------|------------------|---------|
-| TTY | `TTY=1` when stdin and stdout are terminals | Interactive UX possible |
+| TTY | `TTY=1` when stdin and stdout are terminals — measured **once in the main process** (top-level, outside functions); helpers **MUST** consume `TTY` | Interactive UX possible |
 | Quiet | `QUIET=1` | Suppress non-essential human chatter |
 | JSON | `JSON=1` (implies quiet) | Machine output; no human hang |
 | Debug | `DEBUG=1` | Extra stderr diagnostics |
@@ -39,7 +39,8 @@ Rules:
 
 | Action | Interactive | Non-interactive |
 |--------|-------------|-----------------|
-| `uninstall` | Confirm unless `--force` | **Fail closed** without `--force` (`confirm_required`) |
+| `uninstall` / `remove-lpu` | Confirm unless `--force` | **Fail closed** without `--force` (`confirm_required`) |
+| `approve` (no basename) | One-by-one via `prompt_*` | **Fail closed** — pass a basename |
 | `install` | May inform; no required confirm for first install | Proceed without hang |
 | Missing required operand | Clear error | Clear error; non-zero exit |
 
@@ -47,7 +48,7 @@ Rules:
 
 | Item | Value |
 |------|--------|
-| **Product** | `cli-template` |
+| **Product** | `nginx-cli` |
 | **No curl\|sh auto-install path** | Local-only; non-interactive does not mean Type O install-ensure |
 | **Prompt helper** | `prompt_yes_no` for uninstall (and any future destructive confirm) |
 
@@ -107,9 +108,10 @@ Rules:
 | Date | Status | Note |
 |------|--------|------|
 | 2026-08-03 | Active | Interactive vs non-interactive for folder-backup |
+| 2026-08-15 | Active 1.1.0 | Purpose names this product nginx-cli |
 
 ---
 
-**Last Updated**: 2026-08-03  
+**Last Updated**: 2026-08-15  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

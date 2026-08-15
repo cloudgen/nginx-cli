@@ -1,14 +1,14 @@
 **file**: docs/requirements/requirement-shell-output-requirements.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Area**: shell  
 **Key**: `requirement-shell-output-requirements`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for **all CLI output** of cli-template: human messages, machine JSON, channel split (stdout vs stderr), and mode behavior (normal / quiet / JSON / debug).
+This requirement is the **project Single Source of Truth** for **all CLI output** of nginx-cli: human messages, machine JSON, channel split (stdout vs stderr), and mode behavior (normal / quiet / JSON / debug).
 
-This origin owns the `out_*` family. No domain messages.
+This product keeps the inherited `out_*` family. Domain verbs emit through the same SSOT; domain wording is owned by `requirement-domain-nginx-cli.md`.
 
 ---
 
@@ -61,7 +61,7 @@ Rules:
 
 1. Fatal paths use `out_die` / `out_json_error`.  
 2. JSON mode: no colors, banners, or progress mixed into stdout JSON.  
-3. Capture pattern: `cli-template --json <cmd> 2>err.log`.  
+3. Capture pattern: `nginx-cli --json <cmd> 2>err.log`.  
 4. **No secrets** on either channel (tokens, passwords, private keys, full private key material).
 
 ### 2.4 Mode behavior
@@ -77,11 +77,11 @@ Rules:
 
 | Item | Value |
 |------|--------|
-| **Product** | `cli-template` |
-| **Ship unit** | `src/cli-template` |
+| **Product** | `nginx-cli` |
+| **Ship unit** | `src/nginx-cli` |
 | **Human prefixes** | `[INFO]`, `[OK]`, `[WARN]`, `[ERROR]` (or equivalent consistent set) |
-| **Domain messages** | None (Type 0 only) |
-| **Bootstrap role** | This product is hop 0; `out_*` is this origin’s family |
+| **Domain messages** | Same `out_*` family; wording in `requirement-domain-nginx-cli.md` |
+| **Bootstrap role** | Inherited `out_*` from origin A (`cli-template`); this product is B |
 
 ### 2.6 Why This Requirement Exists (CIAO)
 
@@ -141,9 +141,10 @@ Rules:
 |------|--------|------|
 | 2026-08-03 | Active | Output SSOT for folder-backup |
 | 2026-08-13 | Active | Retarget to cli-template; drop domain message law |
+| 2026-08-15 | Active 1.1.0 | Notes name this product nginx-cli; domain messages use same `out_*` |
 
 ---
 
-**Last Updated**: 2026-08-13  
+**Last Updated**: 2026-08-15  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-project-folder.md  
-**Status**: Active (Version 2.0.0)  
+**Status**: Active (Version 2.1.0)  
 **Area**: architecture  
 **Key**: `requirement-project-folder`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-Define **project folder structure** and path ownership for the cli-template CLI: source layout, install locations, and scratch/cache. This product has **no** durable host backup deposit.
+Define **project folder structure** and path ownership for the nginx-cli CLI: source layout, install locations, and scratch/cache. This product has **no** durable host backup deposit.
 
 ---
 
@@ -16,7 +16,8 @@ Define **project folder structure** and path ownership for the cli-template CLI:
 
 | Path | Role |
 |------|------|
-| `src/cli-template` | **Ship unit** — single POSIX shell executable source |
+| `src/nginx-cli` | **Ship unit** — single POSIX shell executable source |
+| `src/cli-template` | **Frozen bootstrap origin** — do not reverse-copy B onto A |
 | `tests/` | CLI tests when present |
 | `docs/requirements/` | Product law (this surface) |
 | Product root README / CHANGELOG / LICENSE / SECURITY | Product user docs when specialized |
@@ -30,8 +31,8 @@ Define **project folder structure** and path ownership for the cli-template CLI:
 
 | Mode | Binary path | Default |
 |------|-------------|---------|
-| **Per-user (normal)** | `${USER_BIN}/${APP_NAME}` | `${HOME}/.local/bin/cli-template` |
-| **Global (root)** | `${GLOBAL_BIN}/${APP_NAME}` | `/usr/local/bin/cli-template` |
+| **Per-user (normal)** | `${USER_BIN}/${APP_NAME}` | `${HOME}/.local/bin/nginx-cli` |
+| **Global (root)** | `${GLOBAL_BIN}/${APP_NAME}` | `/usr/local/bin/nginx-cli` |
 
 Rules:
 
@@ -58,11 +59,12 @@ Rules:
 
 | Item | Value |
 |------|--------|
-| **APP_NAME** | `cli-template` |
-| **Ship unit path** | `src/cli-template` |
+| **APP_NAME** | `nginx-cli` |
+| **Ship unit path** | `src/nginx-cli` |
+| **Origin A (frozen)** | `src/cli-template` — do not reverse-copy B onto A |
 | **USER_BIN default** | `${HOME}/.local/bin` |
 | **GLOBAL_BIN default** | `/usr/local/bin` |
-| **Config dir (optional)** | `${HOME}/.config/cli-template/` if needed later |
+| **Config dir (optional)** | `${HOME}/.config/nginx-cli/` if needed later |
 | **No Type 2 app data tree** | No dedicated system app user for routine ops |
 | **No backup deposit** | `/var/backup` is not a product path |
 
@@ -101,8 +103,8 @@ Rules:
 
 | ID | Criterion |
 |----|-----------|
-| AC-1 | Ship unit lives at `src/cli-template` |
-| AC-2 | Default user install path is `~/.local/bin/cli-template` |
+| AC-1 | Ship unit lives at `src/nginx-cli`; origin A remains at `src/cli-template` |
+| AC-2 | Default user install path is `~/.local/bin/nginx-cli` |
 | AC-3 | No product law requires `/var/backup` |
 
 ---
@@ -124,9 +126,10 @@ Rules:
 |------|--------|------|
 | 2026-08-03 | Active 1.0.0 | folder-backup layout + `/var/backup` deposit |
 | 2026-08-13 | Active 2.0.0 | cli-template: retarget; remove deposit |
+| 2026-08-15 | Active 2.1.0 | Notes/ACs name this product nginx-cli; A stays frozen origin |
 
 ---
 
-**Last Updated**: 2026-08-13  
+**Last Updated**: 2026-08-15  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

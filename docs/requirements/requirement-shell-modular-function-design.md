@@ -1,16 +1,16 @@
 **file**: docs/requirements/requirement-shell-modular-function-design.md  
-**Status**: Active (Version 2.0.0)  
+**Status**: Active (Version 2.1.0)  
 **Area**: shell  
 **Key**: `requirement-shell-modular-function-design`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for **modular function organization** of the cli-template POSIX shell CLI.
+This requirement is the **project Single Source of Truth** for **modular function organization** of the nginx-cli POSIX shell CLI.
 
 **Core idea:** Modularity is achieved through **clear function boundaries, consistent prefixes, and full CIAO documentation** — **not** by splitting the installable CLI into multiple shipped files.
 
-Ship unit remains a **single executable** at `src/cli-template`.
+Ship unit remains a **single executable** at `src/nginx-cli`. Origin reference remains `src/cli-template`.
 
 ---
 
@@ -36,11 +36,12 @@ Ship unit remains a **single executable** at `src/cli-template`.
 | `util_` | General utilities | Path resolve, storage, CIAO pre-change `.bak` helper | `util_resolve_storage`, `util_get_install_bin_path`, `util_backup` |
 | `app_` | Cross-cutting CLI surface | Entry, dispatch, about/help/version/where-is-me | `app_main`, `app_about`, `app_help`, `app_version`, `app_where_is_me` |
 | `path_` | Shell PATH & environment | Optional PATH ensure after user install | `path_add_shell` |
-| `prompt_` | Interactive prompts | TTY-safe confirmations | `prompt_yes_no` |
+| `prompt_` | Interactive prompts | TTY-safe confirmations | `prompt_yes_no`, `prompt_approve_choice` |
+| `ngx_` | Domain business logic | nginx-adm setup + request workflow | `ngx_setup`, `ngx_request_submit`, `ngx_approve_one` |
 
 **Notes:**
 
-- **No domain prefix** until a real domain surface exists. Do not invent `hm_*` for unused ops.  
+- Domain prefix **`ngx_`** (path-safe form of `nginx-cli`).  
 - **Do not** put generic about/help/main under a domain prefix.  
 - Parent `fb_*` **MUST NOT** be reintroduced.  
 - Online-only prefixes from grandparent (`ver_check` remote network path, download install family) **MUST NOT** be reintroduced unless product mode changes.  
@@ -66,9 +67,9 @@ Critical sections (output SSOT, install place/remove, storage resolve) **MUST** 
 
 | Item | Value |
 |------|--------|
-| **Ship unit** | `src/cli-template` |
-| **Domain prefix** | **none** |
-| **Bootstrap role** | This product is hop 0; Type 0 prefixes; no domain prefix |
+| **Ship unit** | `src/nginx-cli` |
+| **Domain prefix** | **`ngx_`** |
+| **Bootstrap role** | Specialized from cli-template; Type 0 prefixes retained |
 | **Multi-file authoring** | Optional later only if pack still yields one installable artifact and this requirement is updated |
 
 ### 2.6 Why This Requirement Exists (CIAO)
@@ -83,7 +84,7 @@ Critical sections (output SSOT, install place/remove, storage resolve) **MUST** 
 ## 3. Design Principles (CIAO / CIAO-Lite)
 
 - Single file; logical modules via prefixes.  
-- Do not invent a domain prefix for an empty domain.  
+- Domain prefix is `ngx_` on this product; do not invent a second prefix.  
 - Keep `out_*` intact.
 
 ---
@@ -105,7 +106,7 @@ Critical sections (output SSOT, install place/remove, storage resolve) **MUST** 
 
 | ID | Criterion |
 |----|-----------|
-| AC-1 | Ship unit is a single file at `src/cli-template` |
+| AC-1 | Ship unit is a single file at `src/nginx-cli` |
 | AC-2 | No `fb_` functions exist |
 | AC-3 | Dispatcher is `app_main` |
 
@@ -128,9 +129,10 @@ Critical sections (output SSOT, install place/remove, storage resolve) **MUST** 
 |------|--------|------|
 | 2026-08-03 | Active 1.0.0 | folder-backup prefixes including `fb_*` |
 | 2026-08-13 | Active 2.0.0 | cli-template: no domain prefix |
+| 2026-08-15 | Active 2.1.0 | AC-1 names this ship unit `src/nginx-cli`; `ngx_` remains domain prefix |
 
 ---
 
-**Last Updated**: 2026-08-13  
+**Last Updated**: 2026-08-15  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

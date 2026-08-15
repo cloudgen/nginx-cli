@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-shell-idempotency.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.2.0)  
 **Area**: shell  
 **Key**: `requirement-shell-idempotency`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for **idempotency (re-run safety)** of state-changing operations in the cli-template POSIX shell CLI.
+This requirement is the **project Single Source of Truth** for **idempotency (re-run safety)** of state-changing operations in the nginx-cli POSIX shell CLI.
 
 **Informal formula:** for ensure-style operation *f* and system state *x*, **f(f(x)) ≈ f(x)** for the **desired outcome** (logs and timestamps may differ).
 
@@ -107,9 +107,10 @@ Force policy (`--force` / `FORCE=1`) **MAY** re-apply ensure steps that would ot
 |------|--------|------|
 | 2026-08-03 | Active 1.0.0 | folder-backup lifecycle + archive numbering |
 | 2026-08-13 | Active 1.1.0 | cli-template: lifecycle only |
+| 2026-08-15 | Active 1.2.0 | Purpose names this product nginx-cli; Type 0 matrix unchanged |
 
 ---
 
-**Last Updated**: 2026-08-13  
+**Last Updated**: 2026-08-15  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

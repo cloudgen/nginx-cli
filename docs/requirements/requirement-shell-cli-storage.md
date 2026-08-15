@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-shell-cli-storage.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.2.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-storage`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for **shell CLI storage resolution** of cli-template: volatile scratch and app-scoped cache path selection, per-user isolation, central resolver ownership, `app_main` wire, and about diagnostics.
+This requirement is the **project Single Source of Truth** for **shell CLI storage resolution** of nginx-cli: volatile scratch and app-scoped cache path selection, per-user isolation, central resolver ownership, `app_main` wire, and about diagnostics.
 
 Used for **install staging** (`mktemp` under the isolated root). Not a durable backup deposit.
 
@@ -51,8 +51,8 @@ First match that is available and writable:
 
 | Item | Live value |
 |------|------------|
-| **Product / binary** | `cli-template` |
-| **Resolver** | `util_resolve_storage` in `src/cli-template` |
+| **Product / binary** | `nginx-cli` |
+| **Resolver** | `util_resolve_storage` in `src/nginx-cli` |
 | **Call sites** | `app_main`, `app_about`, install staging |
 | **Not used for** | Durable `/var/backup` (not a product path) |
 
@@ -79,7 +79,7 @@ First match that is available and writable:
 
 1. Remove `${APP_NAME}` / `${USERNAME}` isolation.  
 2. Replace the fallback chain with a shared world-writable dump.  
-3. Scatter hard-coded `/tmp/cli-template` roots outside the resolver.  
+3. Scatter hard-coded `/tmp/nginx-cli` roots outside the resolver.  
 4. Leave the resolver dead with no call sites while claiming storage is product law.  
 5. Echo a tier path without creating it.  
 6. Treat `/var/backup` as a product storage path.
@@ -116,9 +116,10 @@ First match that is available and writable:
 |------|--------|------|
 | 2026-08-03 | Active 1.0.0 | folder-backup staging |
 | 2026-08-13 | Active 1.1.0 | cli-template: scratch only |
+| 2026-08-15 | Active 1.2.0 | Notes name this product nginx-cli; resolver lives in `src/nginx-cli` |
 
 ---
 
-**Last Updated**: 2026-08-13  
+**Last Updated**: 2026-08-15  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

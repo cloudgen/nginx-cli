@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.0.0 (current) | Yes |
+| 1.1.0 (current) | Yes |
+| 1.0.0 | Best effort |
 
 ## Reporting a Vulnerability
 
@@ -22,10 +23,10 @@ This project follows **[CIAO](https://github.com/cloudgen/ciao)** / **[CIAO-Lite
 
 | Letter | Principle | Security application |
 |--------|-----------|----------------------|
-| **C** | **Caution** | Unknown commands fail closed; install fails loud if the target is not writable. |
-| **I** | **Intentional** | Type 0 lifecycle only; no host-mutating domain; no sudoers-file emit. |
-| **A** | **Anti-fragile** | Isolated scratch (`APP_NAME` + `USERNAME`); atomic install place with mode **0755**. |
-| **O** | **Over-protect** | Protection Zones on `out_*` and install; no online channel UX. |
+| **C** | **Caution** | Unknown commands fail closed; submit and non-TTY approve fail closed. |
+| **I** | **Intentional** | Type 0 lifecycle plus dest nginx-adm request/approve; F6 two families. |
+| **A** | **Anti-fragile** | Isolated scratch; inbound `2770` not world-wx; snapshot + unlink approve. |
+| **O** | **Over-protect** | No `nginx-ctl`; no NOPASSWD on `nginx-cli`; no Type 0 mkdir inbound. |
 
 Full principles: [CIAO](https://github.com/cloudgen/ciao) · [CIAO-Lite](https://github.com/cloudgen/ciao-lite).
 
@@ -33,8 +34,8 @@ This section is **design posture**, not a third-party certification claim.
 
 ## Scope notes
 
-- This product does **not** emit or install `/etc/sudoers.d` fragments.  
-- This product does **not** write under `/var/backup` or restore archives.  
-- Uninstall removes only the managed binary.  
-- Local `~/.local/bin` install is user-rewritable; prefer global install on multi-user hosts when a shared CLI is desired.  
+- Type 1 `setup` **does** write product-owned `/etc/sudoers.d/nginx-adm` (password `nginx-cli` + NOPASSWD unit `nginx` tools) and create-if-absent `/etc/sudoers.d/nginx-cli-submit`. It does **not** write `/etc/sudoers` (main) or emit a `print-sudoers` verb.  
+- Public queues live under `/var/nginx-cli` (inbound `2770`, group `nginx-cli-submit`). `user-domain-map` stays under LPU home.  
+- Type 0 `uninstall` removes only the managed binary — not the LPU or queues.  
+- Local `~/.local/bin` install is user-rewritable; prefer global `/usr/local/bin/nginx-cli` on multi-user hosts (production F6 Cmnd).  
 - Related docs: [`README.md`](./README.md), [`LICENSE.md`](./LICENSE.md).

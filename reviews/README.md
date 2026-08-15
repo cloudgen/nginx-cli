@@ -1,4 +1,4 @@
-# Reviews — cli-template
+# Reviews — nginx-cli
 
 Public product review surface (peer of `tests/`).
 
@@ -11,8 +11,9 @@ Public product review surface (peer of `tests/`).
 | `index.md` | Report index |
 | `reports/` | Dated review run reports |
 
-**Ship unit:** `src/cli-template` (**VERSION 1.0.0**)  
+**Ship unit:** `src/nginx-cli` (**VERSION 1.1.0**)  
+**Origin A (frozen):** `src/cli-template` — do not reverse-copy  
 **Suite:** `./tests/run.sh`  
 **Last suite baseline:** see `test-plan.md`
 
-**Review focus:** Type 0 local lifecycle; no backup/restore/sudoers-file surface.
+**Review focus:** Type 0 local lifecycle plus nginx-adm request/approve domain. No backup/restore/print-sudoers surface.

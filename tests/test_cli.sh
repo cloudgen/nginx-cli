@@ -41,6 +41,9 @@ run_test_cli() {
     assert_contains "TP-CLI-04 help install" "$_out" "install"
     assert_contains "TP-CLI-04 help uninstall" "$_out" "uninstall"
     assert_contains "TP-CLI-04 help where-is-me" "$_out" "where-is-me"
+    assert_contains "TP-CLI-04 help setup" "$_out" "setup"
+    assert_contains "TP-CLI-04 help request" "$_out" "request"
+    assert_contains "TP-CLI-04 help approve" "$_out" "approve"
     assert_contains "TP-CLI-04 help --json" "$_out" "--json"
     assert_not_contains "TP-CLI-04 no backup verb" "$_out" "backup <"
     assert_not_contains "TP-CLI-04 no restore verb" "$_out" "restore <"
@@ -50,18 +53,21 @@ run_test_cli() {
     assert_not_contains "TP-CLI-04 no version-check" "$_out" "version-check"
     assert_not_contains "TP-CLI-04 no SCRIPT_URL channel" "$_out" "SCRIPT_URL"
     assert_not_contains "TP-CLI-04 no CHECKSUM" "$_out" "CHECKSUM"
+    assert_not_contains "TP-CLI-14 help has no nginx-ctl" "$_out" "nginx-ctl"
 
     # TP-CLI-05 help json
     _out=$(sh "${SCRIPT}" --json help 2>/dev/null)
     assert_eq "TP-CLI-05 help --json exit 0" 0 "$?"
     assert_contains "TP-CLI-05 help json success" "$_out" '"type":"success"'
 
-    # TP-CLI-06 about json storage, no channel, no domain backup fields
+    # TP-CLI-06 about json storage + nginx-adm domain fields; no backup fields
     _out=$(sh "${SCRIPT}" --json about 2>/dev/null)
     _ec=$?
     assert_eq "TP-CLI-06 about --json exit 0" 0 "$_ec"
     assert_contains "TP-CLI-06 type about" "$_out" '"type":"about"'
     assert_contains "TP-CLI-06 effective_storage" "$_out" '"effective_storage"'
+    assert_contains "TP-CLI-06 nginx_adm_user" "$_out" '"nginx_adm_user"'
+    assert_contains "TP-CLI-06 pending_count" "$_out" '"pending_count"'
     assert_not_contains "TP-CLI-06 no backup_notation" "$_out" '"backup_notation"'
     assert_not_contains "TP-CLI-06 no deposit_dir" "$_out" '"deposit_dir"'
     assert_not_contains "TP-CLI-06 no restore_host_default" "$_out" '"restore_host_default"'
@@ -124,10 +130,16 @@ run_test_cli() {
     ci_cleanup_env
 
     # TP-CLI-13 trimmed parent domain / sudoers verbs fail closed
-    for _verb in backup restore print-sudoers print-sudoers-install-script remove-project-sudoers setup; do
+    for _verb in backup restore print-sudoers print-sudoers-install-script remove-project-sudoers self-uninstall; do
         _err=$(sh "${SCRIPT}" "${_verb}" 2>&1 >/dev/null)
         _ec=$?
         assert_eq "TP-CLI-13 ${_verb} exit 1" 1 "$_ec"
         assert_contains "TP-CLI-13 ${_verb} unknown" "$_err" "Unknown command"
     done
+
+    # TP-CLI-14 invented peer command does not exist
+    _err=$(sh "${SCRIPT}" nginx-ctl 2>&1 >/dev/null)
+    _ec=$?
+    assert_eq "TP-CLI-14 nginx-ctl exit 1" 1 "$_ec"
+    assert_contains "TP-CLI-14 nginx-ctl unknown" "$_err" "Unknown command"
 }
