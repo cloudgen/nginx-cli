@@ -55,6 +55,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | Local lifecycle | **Present** — `install` / `uninstall` / `where-is-me` |
 | Empty argv | **Type N** help (not Type O install-ensure) |
 | Backup / restore / sudoers emit | **Absent** — never this product’s domain |
+| Type 0 `submit-sudoer-request` | **Present** on B — sibling compose; not print-sudoers |
 
 ### 2.4 Surface matrix (normative for this product)
 
@@ -69,6 +70,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | Type O empty argv | **Absent** | Empty argv = Type N help |
 | Domain backup + restore | **Absent** | Not this product’s domain |
 | Sudoers print / install-script / remove-draft | **Absent** | Not this product’s domain |
+| `submit-sudoer-request` | **Present** | Type 0 compose to sibling sudoer-cli |
 | Local `install` / `uninstall` / `where-is-me` | **Keep** | Local self-managed package |
 | Domain / out Protection Zones | **Keep spirit** | Do not simplify `out_*` |
 
@@ -77,7 +79,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | Concern | Value |
 |---------|---------|
 | `APP_NAME` | `nginx-cli` |
-| `VERSION` | `1.1.0` (product version SSOT in ship unit) |
+| `VERSION` | `1.4.0` (product version SSOT in ship unit) |
 | Primary install story | Local copy from running ship unit → `${USER_BIN}` (default `~/.local/bin`) |
 | README one-liner | **No** `curl \| sh` channel claim |
 

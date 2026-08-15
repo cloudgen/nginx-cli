@@ -43,6 +43,8 @@ Rules:
 | `approve` (no basename) | One-by-one via `prompt_*` | **Fail closed** — pass a basename |
 | `install` | May inform; no required confirm for first install | Proceed without hang |
 | Missing required operand | Clear error | Clear error; non-zero exit |
+| `submit-sudoer-request` | May show detect/submit via `out_*` | No prompts; fail closed if sudoer-cli / inbound missing; no hang |
+| `conf-to-json` / `json-to-conf` | May emit dual via `out_*` / stdout | No prompts; TTY without `--file` fails closed (`xor_input`); no hang |
 
 ### 2.4 Implementation Notes (this project)
 

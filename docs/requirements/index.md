@@ -1,15 +1,15 @@
 # Requirements index
 
 **Product:** nginx-cli (POSIX `/bin/sh` CLI — Type 0 lifecycle + nginx-adm request/approve domain)  
-**Workspace state:** Specialized product law (left genesis); **software-development** class; **this product is B = nginx-cli**; **bootstrap origin A = cli-template** (frozen at `src/cli-template`). Online / Type O, backup / restore / print-sudoers **intentionally absent**.  
+**Workspace state:** Specialized product law (left genesis); **software-development** class; **this product is B = nginx-cli**; **bootstrap origin A = cli-template** (frozen at `src/cli-template`). Online / Type O, backup / restore / print-sudoers **intentionally absent**. Type 0 **`submit-sudoer-request`** is **present**.  
 **Updated:** 2026-08-15
 
 | ID / key | Title | Area | Status | Path | Updated |
 |----------|-------|------|--------|------|---------|
-| requirement-class-software-dev | Software-development class law + residual stack (posix-sh, local-only); multi-vault forge push identity §2.0.5a | class | Active (1.5.0) | `requirement-class-software-dev.md` | 2026-08-15 |
+| requirement-class-software-dev | Software-development class law + residual stack (posix-sh, local-only); multi-vault forge push identity §2.0.5a | class | Active (1.7.0) | `requirement-class-software-dev.md` | 2026-08-15 |
 | requirement-bootstrap-chain | Bootstrap A = cli-template (frozen); this product is B = nginx-cli | architecture | Active (4.1.0) | `requirement-bootstrap-chain.md` | 2026-08-15 |
 | requirement-project-folder | Project layout (`src/nginx-cli` + frozen `src/cli-template`); install bins; no durable backup deposit | architecture | Active (2.1.0) | `requirement-project-folder.md` | 2026-08-15 |
-| requirement-shell-cli-interface | Shell CLI interface (Type 0 commands, flags, dispatch; domain pointer) | shell | Active (2.1.0) | `requirement-shell-cli-interface.md` | 2026-08-15 |
+| requirement-shell-cli-interface | Shell CLI interface (Type 0 commands, flags, dispatch; domain pointer; `submit-sudoer-request`; convert) | shell | Active (2.4.0) | `requirement-shell-cli-interface.md` | 2026-08-15 |
 | requirement-shell-cli-zero-arguments | Empty argv Type N help (local-only) | shell | Active (1.1.0) | `requirement-shell-cli-zero-arguments.md` | 2026-08-15 |
 | requirement-shell-local-self-management | Local install / uninstall / where-is-me; **mode 0755** multi-user | shell | Active (1.4.0) | `requirement-shell-local-self-management.md` | 2026-08-15 |
 | requirement-shell-output-requirements | Central `out_*` output SSOT | shell | Active (1.1.0) | `requirement-shell-output-requirements.md` | 2026-08-15 |
@@ -17,10 +17,11 @@
 | requirement-shell-idempotency | Re-run safety for install / uninstall | shell | Active (1.2.0) | `requirement-shell-idempotency.md` | 2026-08-15 |
 | requirement-shell-interactive-vs-noninteractive | Interactive vs non-interactive / confirm policy | shell | Active (1.1.0) | `requirement-shell-interactive-vs-noninteractive.md` | 2026-08-15 |
 | requirement-shell-cli-storage | Scratch/cache resolve (no backup staging) | shell | Active (1.2.0) | `requirement-shell-cli-storage.md` | 2026-08-15 |
-| requirement-three-layer-privilege-model | Type 0/1 map; F6 two families (password nginx-cli + NOPASSWD unit tools); no print-sudoers | architecture | Active (1.0.0) | `requirement-three-layer-privilege-model.md` | 2026-08-15 |
+| requirement-three-layer-privilege-model | Type 0/1 map; F6 two families; **submit-sudoer-request** workflow; no print-sudoers | architecture | Active (1.1.0) | `requirement-three-layer-privilege-model.md` | 2026-08-15 |
+| requirement-sudoer-json-file | JSON sudoer file: grant is **`nginx-cli request`** as `nginx-adm` only; no OS tools / F6 verbs | architecture | Active (1.0.0) | `requirement-sudoer-json-file.md` | 2026-08-15 |
 | requirement-least-privilege-user | nginx-adm F1–F7; home `/etc/nginx-adm`; F5 `/var/nginx-cli/` inbound 2770 + F4 views | architecture | Active (1.0.0) | `requirement-least-privilege-user.md` | 2026-08-15 |
-| requirement-privilege-prevention-set | Closed catalog; OPEN-UNIT-TOOLS / OPEN-PASSWD-CLI; no nginx-ctl; inbound not 3773 | architecture | Active (1.0.0) | `requirement-privilege-prevention-set.md` | 2026-08-15 |
-| requirement-domain-nginx-cli | nginx-conf request/approve machine; points at LPU / three-layer / prevention | domain | Active (1.6.0) | `requirement-domain-nginx-cli.md` | 2026-08-15 |
+| requirement-privilege-prevention-set | Closed catalog; dest inbound is JSON; convert never dest/queue | architecture | Active (1.3.0) | `requirement-privilege-prevention-set.md` | 2026-08-15 |
+| requirement-domain-nginx-cli | File-based JSON dest for nginx-conf **and** same-product submitter; convert dual; compose to sudoer-cli | domain | Active (1.10.0) | `requirement-domain-nginx-cli.md` | 2026-08-15 |
 
 ## Surfaces by design (this product)
 
@@ -32,6 +33,8 @@
 | Folder archive backup / restore / retention | **Absent** |
 | Domain SSOT (`requirement-domain-*`) | **Active** — `requirement-domain-nginx-cli.md` (one current Domain SSOT) |
 | print-sudoers / sudoers-install-script / remove-draft | **Absent** (setup writes host fragments; no print verbs) |
+| `submit-sudoer-request` | **Present** (Type 0 compose to sibling sudoer-cli; no `/etc` write) |
+| `conf-to-json` / `json-to-conf` | **Present** (Type 0 convert dual; dest inbound is dest request JSON) |
 | Type 1 `setup` / `remove-lpu` | **Present** (domain + LPU + three-layer) |
 | `requirement-shell-prompt` / `requirement-shell-temp-file-system` | **Absent** — prompt bodies on interactive REQ; temp roots on storage REQ |
 

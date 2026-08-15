@@ -20,6 +20,8 @@
 # - requirement-shell-output-requirements.md
 # - requirement-shell-interactive-vs-noninteractive.md
 # - requirement-domain-nginx-cli.md
+# - requirement-three-layer-privilege-model.md
+# - requirement-sudoer-json-file.md
 # Plus CIAO Protection Zones and "DO NOT MODIFY" rules.
 #
 # Domain: setup/remove-lpu, request/approve/reject, login hook (requirement-domain-nginx-cli.md).
@@ -28,7 +30,7 @@
 # Single-file ship unit under src/; install to ~/.local/bin (user) or /usr/local/bin (root/--global).
 #
 # APP NAME: hard-assign APP_NAME="nginx-cli"
-# VERSION: hard-assign VERSION="1.1.0"
+# VERSION: hard-assign VERSION="1.4.0"
 #
 # =============================================================================
 
@@ -43,9 +45,9 @@ APP_NAME="nginx-cli"
 : "${APP_NAME:=nginx-cli}"
 : "${APP_DESC:=Nginx least-privilege admin CLI (setup nginx-adm, request/approve site conf)}"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
-: "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, and interactive approval.}"
+: "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, interactive approval, and submit-sudoer-request.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.1.0"
+VERSION="1.4.0"
 : "${VERSION:=1.0.0}"
 # Repository identity SSOT (git host owner/repo for project-repository alignment).
 # Install remains local-only: SCRIPT_URL stays empty (no online curl|sh channel).
@@ -60,6 +62,11 @@ VERSION="1.1.0"
 : "${FORCE_REINSTALL:=0}"
 : "${DEBUG:=0}"
 : "${TTY:=0}"
+: "${SUBMIT_PURPOSE:=}"
+: "${SUBMIT_ACTION:=add}"
+: "${ALLOW_TEST_LOCAL_SUDOERS:=0}"
+: "${CONVERT_FILE:=}"
+: "${CONVERT_OUT:=}"
 
 # ----------------------------- Safe Variable Defaults ------------------------
 : "${GLOBAL_BIN:=/usr/local/bin}"
@@ -1538,8 +1545,17 @@ ngx_is_listed_submitter() {
     _u=$(id -un 2>/dev/null || echo "")
     [ -n "${_u}" ] || return 1
     _f="${NGINX_CLI_SUBMIT_SUDOERS}"
-    [ -r "${_f}" ] || return 1
-    grep -v '^[[:space:]]*#' "${_f}" 2>/dev/null | grep -qw "${_u}"
+    if [ -r "${_f}" ]; then
+        if grep -v '^[[:space:]]*#' "${_f}" 2>/dev/null | grep -qw "${_u}"; then
+            return 0
+        fi
+    fi
+    # Sibling dest after sudoer-adm approve: /etc/sudoers.d/nginx-cli-<login>
+    _per="/etc/sudoers.d/${APP_NAME}-${_u}"
+    if [ -f "${_per}" ] && [ ! -L "${_per}" ]; then
+        return 0
+    fi
+    return 1
 }
 
 ngx_can_submit() {
@@ -1787,6 +1803,7 @@ ngx_next_request_num() {
         for _f in "${_dir}/${_date}-${_user}-${_dom}-"*; do
             [ -e "${_f}" ] || continue
             _base=$(basename -- "${_f}")
+            _base=${_base%.json}
             _n=${_base##*-}
             case "${_n}" in
                 ''|*[!0-9]*)
@@ -1813,6 +1830,7 @@ ngx_parse_basename() {
             _name=$(basename -- "${_name}")
             ;;
     esac
+    _name=${_name%.json}
     NGX_PARSE_DATE=${_name%%-*}
     case "${NGX_PARSE_DATE}" in
         [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
@@ -2047,24 +2065,47 @@ ngx_request_submit() {
         fi
         cp "${_src}" "${_tmp}"
     fi
-    if ! ngx_validate_request_header "${_tmp}"; then
-        rm -f "${_tmp}"
-        out_die "Request must start with # comments (intention/objectives/update) followed by nginx conf."
+    _jsfile=$(mktemp "${EFFECTIVE_STORAGE_DIR:-/tmp}/ngx-req-json.XXXXXX")
+    if ngx_looks_like_json "${_tmp}"; then
+        cp "${_tmp}" "${_jsfile}" || { rm -f "${_tmp}" "${_jsfile}"; out_die "Cannot stage request JSON"; }
+    else
+        _saved_out="${CONVERT_OUT-}"
+        _saved_quiet="${QUIET:-0}"
+        _saved_json="${JSON:-0}"
+        CONVERT_OUT="${_jsfile}"
+        export CONVERT_OUT
+        QUIET=1
+        JSON=0
+        if ! ngx_conf_to_json "${_tmp}"; then
+            CONVERT_OUT="${_saved_out}"
+            QUIET="${_saved_quiet}"
+            JSON="${_saved_json}"
+            rm -f "${_tmp}" "${_jsfile}"
+            out_die "Request text dual failed convert (need # Purpose/# Intention and a server block)."
+        fi
+        CONVERT_OUT="${_saved_out}"
+        QUIET="${_saved_quiet}"
+        JSON="${_saved_json}"
+    fi
+    rm -f "${_tmp}"
+    if ! ngx_validate_request_json "${_jsfile}" "${_safed}" "${_safeu}"; then
+        rm -f "${_jsfile}"
+        out_die "Request JSON invalid (schema, domain, or username). Dest inbound is JSON."
     fi
     _date=$(date +%Y%m%d)
     _n=$(ngx_next_request_num "${_date}" "${_safeu}" "${_safed}")
-    _base="${_date}-${_safeu}-${_safed}-${_n}"
+    _base="${_date}-${_safeu}-${_safed}-${_n}.json"
     _dest="${_inbox}/${_base}"
     if [ -e "${_dest}" ]; then
-        rm -f "${_tmp}"
+        rm -f "${_jsfile}"
         out_die "Request name already exists: ${_base}"
     fi
     # Exclusive create (noclobber): do not replace a raced inbound name.
-    if ! ( umask 027 && set -C && cat "${_tmp}" > "${_dest}" ); then
-        rm -f "${_tmp}"
+    if ! ( umask 027 && set -C && cat "${_jsfile}" > "${_dest}" ); then
+        rm -f "${_jsfile}"
         out_die "Failed exclusive-create request ${_base}"
     fi
-    rm -f "${_tmp}"
+    rm -f "${_jsfile}"
     chmod 0640 "${_dest}" 2>/dev/null || true
     out_success "Submitted request ${_base}"
     if [ "${JSON}" -eq 1 ]; then
@@ -2138,6 +2179,13 @@ ngx_list_queue() {
 ngx_show_request_header() {
     _file="${1:-}"
     [ -f "${_file}" ] || return 1
+    if ngx_looks_like_json "${_file}"; then
+        _raw=$(cat "${_file}")
+        out_plain "purpose: $(ngx_json_get_str "${_raw}" "purpose")"
+        out_plain "action: $(ngx_json_get_str "${_raw}" "action")"
+        out_plain "domain: $(ngx_json_get_str "${_raw}" "domain")"
+        return 0
+    fi
     while IFS= read -r _line || [ -n "${_line}" ]; do
         case "${_line}" in
             "")
@@ -2194,11 +2242,87 @@ ngx_publish_conf() {
 ngx_find_pending() {
     _base="${1:-}"
     _inbox=$(ngx_queue_dir pending)
-    if [ -f "${_inbox}/${_base}" ] && [ ! -L "${_inbox}/${_base}" ]; then
-        printf '%s' "${_inbox}/${_base}"
+    for _try in "${_base}" "${_base}.json" "${_base%.json}"; do
+        [ -n "${_try}" ] || continue
+        if [ -f "${_inbox}/${_try}" ] && [ ! -L "${_inbox}/${_try}" ]; then
+            printf '%s' "${_inbox}/${_try}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+ngx_looks_like_json() {
+    _f="${1:-}"
+    [ -f "${_f}" ] || return 1
+    _trim=$(sed 's/^[[:space:]]*//' "${_f}" | head -n1)
+    case "${_trim}" in
+        "{"*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+ngx_validate_request_json() {
+    _file="${1:-}"
+    _exp_dom="${2:-}"
+    _exp_user="${3:-}"
+    [ -f "${_file}" ] || return 1
+    ngx_looks_like_json "${_file}" || return 1
+    _raw=$(cat "${_file}")
+    _purpose=$(ngx_json_get_str "${_raw}" "purpose")
+    [ -n "${_purpose}" ] || return 1
+    _act=$(ngx_json_get_str "${_raw}" "action")
+    _has_site=0
+    case "${_raw}" in
+        *"\"site\""*) _has_site=1 ;;
+    esac
+    if [ "${_act}" = "remove" ] || { [ -z "${_act}" ] && [ "${_has_site}" -eq 0 ]; }; then
+        [ "${_has_site}" -eq 0 ] || return 1
         return 0
     fi
-    return 1
+    _ver=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"schema_version"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n1)
+    [ "${_ver}" = "1" ] || return 1
+    _svc=$(ngx_json_get_str "${_raw}" "service")
+    [ "${_svc}" = "nginx-cli" ] || [ -z "${_svc}" ] || return 1
+    _kind=$(ngx_json_get_str "${_raw}" "kind")
+    case "${_kind}" in
+        per-domain-https|redirect|shared-cloudflare) ;;
+        *) return 1 ;;
+    esac
+    _dom=$(ngx_json_get_str "${_raw}" "domain")
+    [ -n "${_dom}" ] || return 1
+    if [ -n "${_exp_dom}" ] && [ "${_dom}" != "${_exp_dom}" ]; then
+        return 1
+    fi
+    _user=$(ngx_json_get_str "${_raw}" "username")
+    [ -n "${_user}" ] || return 1
+    if [ -n "${_exp_user}" ] && [ "${_user}" != "${_exp_user}" ]; then
+        return 1
+    fi
+    [ "${_has_site}" -eq 1 ] || return 1
+    _listen=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"listen"[[:space:]]*:[[:space:]]*\[[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+    _sname=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"server_name"[[:space:]]*:[[:space:]]*\[[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+    ngx_nginx_field_ok "listen" "${_listen}" || return 1
+    ngx_nginx_field_ok "server_name" "${_sname}" || return 1
+    ngx_nginx_field_ok "ssl_certificate" "$(ngx_json_get_str "${_raw}" "ssl_certificate")" || return 1
+    ngx_nginx_field_ok "ssl_certificate_key" "$(ngx_json_get_str "${_raw}" "ssl_certificate_key")" || return 1
+    ngx_nginx_field_ok "root" "$(ngx_json_get_str "${_raw}" "root")" || return 1
+    ngx_nginx_field_ok "url" "$(ngx_json_get_str "${_raw}" "url")" || return 1
+    ngx_nginx_field_ok "match" "$(ngx_json_get_str "${_raw}" "match")" || return 1
+    ngx_nginx_field_ok "proxy_pass" "$(ngx_json_get_str "${_raw}" "proxy_pass")" || return 1
+    return 0
+}
+
+ngx_unpublish_conf() {
+    ngx_defaults
+    _domain="${1:-}"
+    _avail="${NGINX_CONF_ROOT}/sites-available/${_domain}.conf"
+    _enab="${NGINX_CONF_ROOT}/sites-enabled/${_domain}.conf"
+    rm -f "${_enab}"
+    if [ -f "${_avail}" ]; then
+        util_backup "${_avail}" "pre-approve-remove"
+        rm -f "${_avail}"
+    fi
 }
 
 ngx_snapshot_inbound() {
@@ -2247,6 +2371,7 @@ ngx_approve_one() {
     if [ -z "${_inbound}" ]; then
         out_die "Pending request not found: ${_base}"
     fi
+    _base=$(basename -- "${_inbound}")
     if ! ngx_parse_basename "${_base}"; then
         out_die "Invalid request basename: ${_base}"
     fi
@@ -2255,16 +2380,44 @@ ngx_approve_one() {
         rm -f "${_snap}"
         out_die "Cannot snapshot inbound ${_base} (need regular file, not a symlink)"
     fi
-    if ! ngx_validate_request_header "${_snap}"; then
+    if ! ngx_validate_request_json "${_snap}" "${NGX_PARSE_DOMAIN}" "${NGX_PARSE_USER}"; then
         rm -f "${_snap}"
-        out_die "Snapshot failed header re-validate: ${_base}"
+        out_die "Snapshot failed JSON re-validate: ${_base}"
     fi
     _arch=$(ngx_queue_dir approved)
     if [ ! -d "${_arch}" ]; then
         rm -f "${_snap}"
         out_die "Archive missing (${_arch}). Run: sudo ${APP_NAME} setup"
     fi
-    ngx_publish_conf "${_snap}" "${NGX_PARSE_DOMAIN}"
+    _act=$(ngx_json_get_str "$(cat "${_snap}")" "action")
+    if [ "${_act}" = "remove" ]; then
+        ngx_unpublish_conf "${NGX_PARSE_DOMAIN}"
+    else
+        _rend=$(mktemp "${EFFECTIVE_STORAGE_DIR:-/tmp}/ngx-rend.XXXXXX")
+        _saved_out="${CONVERT_OUT-}"
+        _saved_file="${CONVERT_FILE-}"
+        _saved_quiet="${QUIET:-0}"
+        _saved_json="${JSON:-0}"
+        CONVERT_FILE="${_snap}"
+        CONVERT_OUT="${_rend}"
+        export CONVERT_FILE CONVERT_OUT
+        QUIET=1
+        JSON=0
+        if ! ngx_json_to_conf; then
+            CONVERT_OUT="${_saved_out}"
+            CONVERT_FILE="${_saved_file}"
+            QUIET="${_saved_quiet}"
+            JSON="${_saved_json}"
+            rm -f "${_snap}" "${_rend}"
+            out_die "Cannot render text dual for ${_base}"
+        fi
+        CONVERT_OUT="${_saved_out}"
+        CONVERT_FILE="${_saved_file}"
+        QUIET="${_saved_quiet}"
+        JSON="${_saved_json}"
+        ngx_publish_conf "${_rend}" "${NGX_PARSE_DOMAIN}"
+        rm -f "${_rend}"
+    fi
     ngx_archive_snapshot_unlink "${_snap}" "${_inbound}" "${_arch}" "${_base}"
     rm -f "${_snap}"
     out_success "Approved ${_base} → sites-available/${NGX_PARSE_DOMAIN}.conf"
@@ -2285,6 +2438,7 @@ ngx_reject_one() {
     if [ -z "${_inbound}" ]; then
         out_die "Pending request not found: ${_base}"
     fi
+    _base=$(basename -- "${_inbound}")
     _snap=$(mktemp "${EFFECTIVE_STORAGE_DIR:-/tmp}/ngx-snap.XXXXXX")
     if ! ngx_snapshot_inbound "${_inbound}" "${_snap}"; then
         rm -f "${_snap}"
@@ -2642,6 +2796,752 @@ ngx_remove_lpu() {
     fi
 }
 
+# =============================================================================
+# ngx_sudoers_trust_tier() - Classify managed-install trust for compose emit
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Prints one of: production | test_local | unmanaged
+# production = readable+executable global managed binary
+# test_local = only local user-bin managed binary
+# unmanaged  = neither path usable
+#
+# ALIGNMENT: requirement-three-layer-privilege-model.md §2.5.3
+# =============================================================================
+ngx_sudoers_trust_tier() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${HOME:=/tmp}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    : "${USER_BIN:=${HOME}/.local/bin}"
+
+    if [ -r "${GLOBAL_BIN}/${APP_NAME}" ] && [ -x "${GLOBAL_BIN}/${APP_NAME}" ]; then
+        printf '%s' "production"
+        return 0
+    fi
+    if [ -r "${USER_BIN}/${APP_NAME}" ] && [ -x "${USER_BIN}/${APP_NAME}" ]; then
+        printf '%s' "test_local"
+        return 0
+    fi
+    printf '%s' "unmanaged"
+    return 0
+}
+
+# =============================================================================
+# ngx_detect_sudoer_cli() - Path of sibling sudoer-cli, or fail
+# =============================================================================
+#
+# ALIGNMENT:
+# - requirement-three-layer-privilege-model.md
+# - requirement-domain-nginx-cli.md
+# =============================================================================
+ngx_detect_sudoer_cli() {
+    : "${HOME:=/tmp}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    : "${USER_BIN:=${HOME}/.local/bin}"
+    : "${SUDOER_CLI:=}"
+
+    if [ -n "${SUDOER_CLI}" ]; then
+        if [ -x "${SUDOER_CLI}" ]; then
+            printf '%s' "${SUDOER_CLI}"
+            return 0
+        fi
+        return 1
+    fi
+    if [ -x "${GLOBAL_BIN}/sudoer-cli" ]; then
+        printf '%s' "${GLOBAL_BIN}/sudoer-cli"
+        return 0
+    fi
+    if [ -x "${USER_BIN}/sudoer-cli" ]; then
+        printf '%s' "${USER_BIN}/sudoer-cli"
+        return 0
+    fi
+    _found=$(command -v sudoer-cli 2>/dev/null || true)
+    if [ -n "${_found}" ] && [ -x "${_found}" ]; then
+        printf '%s' "${_found}"
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
+# ngx_detect_sudoer_adm() - sudoer-adm login if present
+# =============================================================================
+ngx_detect_sudoer_adm() {
+    : "${SUDOER_ADM_USER:=sudoer-adm}"
+    if id "${SUDOER_ADM_USER}" >/dev/null 2>&1; then
+        printf '%s' "${SUDOER_ADM_USER}"
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
+# ngx_detect_sudoer_inbound() - sibling public inbound if present
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Find the sibling public inbound (preferred /var/sudoer-cli/sudoer-request).
+# Type 0 MUST NOT mkdir. Order: env override → public → F4 view → legacy.
+#
+# ALIGNMENT: requirement-three-layer-privilege-model.md §2.5.3
+# =============================================================================
+ngx_detect_sudoer_inbound() {
+    : "${SUDOER_ADM_USER:=sudoer-adm}"
+    : "${SUDOER_QUEUE_INBOUND:=}"
+    : "${SUDOER_APPROVAL_APP:=sudoer-cli}"
+    : "${SUDOER_INBOUND_BASENAME:=sudoer-request}"
+    : "${SUDOER_PUBLIC_ROOT:=/var/${SUDOER_APPROVAL_APP}}"
+
+    if [ -n "${SUDOER_QUEUE_INBOUND}" ] && [ -d "${SUDOER_QUEUE_INBOUND}" ]; then
+        printf '%s' "${SUDOER_QUEUE_INBOUND}"
+        return 0
+    fi
+
+    _home=""
+    if command -v getent >/dev/null 2>&1; then
+        _home=$(getent passwd "${SUDOER_ADM_USER}" 2>/dev/null | cut -d: -f6)
+    fi
+    if [ -z "${_home}" ] && [ -r /etc/passwd ]; then
+        _home=$(awk -F: -v u="${SUDOER_ADM_USER}" '$1==u {print $6; exit}' /etc/passwd 2>/dev/null)
+    fi
+
+    for _cand in \
+        "${SUDOER_PUBLIC_ROOT}/${SUDOER_INBOUND_BASENAME}" \
+        ${_home:+"${_home}/${SUDOER_INBOUND_BASENAME}"} \
+        ${_home:+"${_home}/sudoer-approving"} \
+        "/etc/${SUDOER_ADM_USER}/sudoer-approving" \
+        "/home/${SUDOER_ADM_USER}/sudoer-approving"
+    do
+        if [ -n "${_cand}" ] && [ -d "${_cand}" ]; then
+            printf '%s' "${_cand}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# =============================================================================
+# ngx_sudoer_queue_root_from_inbound() - parent of real public inbound
+# =============================================================================
+# MUST NOT treat a legacy …/sudoer-approving parent as the public queue root.
+# =============================================================================
+ngx_sudoer_queue_root_from_inbound() {
+    _in="${1:-}"
+    [ -n "${_in}" ] || return 1
+    _base=$(basename -- "${_in}")
+    if [ -n "${SUDOER_QUEUE_INBOUND-}" ] && [ "${_in}" = "${SUDOER_QUEUE_INBOUND}" ]; then
+        dirname -- "${_in}"
+        return 0
+    fi
+    if [ "${_base}" = "${SUDOER_INBOUND_BASENAME:-sudoer-request}" ]; then
+        _real="${_in}"
+        if command -v readlink >/dev/null 2>&1; then
+            _resolved=$(readlink -f "${_in}" 2>/dev/null || true)
+            [ -n "${_resolved}" ] && _real="${_resolved}"
+        fi
+        dirname -- "${_real}"
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
+# ngx_sudoers_json_text() - dest-honest JSON sudoer file to stdout
+# =============================================================================
+#
+# ALIGNMENT: requirement-sudoer-json-file.md
+# =============================================================================
+ngx_sudoers_json_text() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    : "${SUBMIT_ACTION:=add}"
+    : "${NGINX_ADM_USER:=nginx-adm}"
+    : "${SUBMIT_PURPOSE:=}"
+
+    _user=$(id -un 2>/dev/null || echo "unknown")
+    case "${_user}" in
+        *\"*|*'\\'*) out_die "refusing username with JSON-unsafe characters" ;;
+    esac
+    _global_path="${GLOBAL_BIN}/${APP_NAME}"
+    _action="${SUBMIT_ACTION}"
+    case "${_action}" in
+        add|update) ;;
+        *) _action="add" ;;
+    esac
+    _purpose="${SUBMIT_PURPOSE}"
+    if [ -z "${_purpose}" ]; then
+        _purpose="Allow ${_user} to submit ${APP_NAME} config requests as ${NGINX_ADM_USER}."
+    fi
+    case "${_purpose}" in
+        *\"*|*'\\'*) out_die "refusing purpose with JSON-unsafe characters" ;;
+    esac
+
+    cat <<EOF
+{
+  "schema_version": 1,
+  "purpose": "${_purpose}",
+  "username": "${_user}",
+  "service": "${APP_NAME}",
+  "action": "${_action}",
+  "commands": [
+    {
+      "runas": "${NGINX_ADM_USER}",
+      "tags": ["NOPASSWD"],
+      "path": "${_global_path}",
+      "args": ["request"]
+    }
+  ]
+}
+EOF
+}
+
+# =============================================================================
+# ngx_sudoers_refuse_forbidden_grant() - Fail closed on OS-tool / F6 grants
+# =============================================================================
+#
+# ALIGNMENT: requirement-sudoer-json-file.md §2.7
+# =============================================================================
+ngx_sudoers_refuse_forbidden_grant() {
+    _gf="${1:-}"
+    : "${APP_NAME:=nginx-cli}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    if [ -z "${_gf}" ] || [ ! -f "${_gf}" ]; then
+        out_die "sudoer grant file missing"
+    fi
+    _gb=$(cat "${_gf}" 2>/dev/null || true)
+    _need="${GLOBAL_BIN}/${APP_NAME}"
+    _path=$(printf '%s' "${_gb}" | tr '\n' ' ' | sed -n 's/.*"path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+    if [ "${_path}" != "${_need}" ]; then
+        out_die "refusing sudoer grant: path must be ${_need} request only"
+    fi
+    _npath=$(printf '%s\n' "${_gb}" | tr '"' '\n' | grep -c '^path$' || true)
+    if [ "${_npath}" -ne 1 ]; then
+        out_die "refusing sudoer grant: exactly one path (${_need}) allowed"
+    fi
+    _flat=$(printf '%s' "${_gb}" | tr '\n' ' ')
+    case "${_flat}" in
+        *"\"args\""*\"request\"*)
+            ;;
+        *)
+            out_die "refusing sudoer grant: args must be [\"request\"]"
+            ;;
+    esac
+    case "${_flat}" in
+        *"\"args\""*\"request\""*\",\"*|*"\"args\""*\"request\""*,*)
+            out_die "refusing sudoer grant: args must be [\"request\"] only"
+            ;;
+    esac
+    case "${_gb}" in
+        *"/usr/bin/mkdir"*|*"/bin/mkdir"*|*"/usr/bin/cp"*|*"/bin/cp"*|*"/usr/bin/tar"*|*"/bin/tar"*|*"/bin/rm "*|*"/usr/bin/rm "*|*"/usr/bin/install"*|*"/usr/bin/chmod"*|*"/bin/chmod"*|*"/usr/sbin/nginx"*|*"/bin/systemctl"*|*"/usr/bin/systemctl"*|*"/bin/journalctl"*|*"/usr/bin/journalctl"*|*"/bin/sh"*|*"/bin/bash"*)
+            out_die "refusing sudoer grant with OS-tool commands (need ${GLOBAL_BIN}/${APP_NAME} request only)"
+            ;;
+    esac
+    case "${_gb}" in
+        *'"approve"'*|*'"reject"'*|*'"setup"'*|*'"remove-lpu"'*|*'"install"'*|*'"uninstall"'*|*'"map-set"'*|*'"map-unset"'*|*'"enable-login-approval"'*)
+            out_die "refusing sudoer grant with dest-forbidden verbs (need ${GLOBAL_BIN}/${APP_NAME} request only)"
+            ;;
+    esac
+    return 0
+}
+
+# =============================================================================
+# ngx_sudoers_require_emit_trust() - Fail-closed unless production or test-allow
+# =============================================================================
+ngx_sudoers_require_emit_trust() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    : "${ALLOW_TEST_LOCAL_SUDOERS:=0}"
+    _tier=$(ngx_sudoers_trust_tier)
+    if [ "${_tier}" != "production" ]; then
+        if [ "${ALLOW_TEST_LOCAL_SUDOERS}" -ne 1 ]; then
+            out_die "submit-sudoer-request trust tier is ${_tier} (not production). Prefer: sudo ${APP_NAME} install  (global ${GLOBAL_BIN}/${APP_NAME}). To submit a test fragment: ${APP_NAME} submit-sudoer-request --allow-test-local  or ALLOW_TEST_LOCAL_SUDOERS=1"
+        fi
+    fi
+}
+
+# =============================================================================
+# ngx_submit_sudoer_request() - Type 0: queue this product's sudoers for approval
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Detect sudoer-cli and sudoer-adm, emit (or accept) a self-scoped JSON
+# sudoer grant, and submit it via sudoer-cli so a JSON request lands in
+# the public inbound (/var/sudoer-cli/sudoer-request). Does not write /etc
+# and does not mkdir inbound. Approver (sudoer-adm) still must approve.
+#
+# ALIGNMENT:
+# - requirement-domain-nginx-cli.md
+# - requirement-three-layer-privilege-model.md
+# - requirement-sudoer-json-file.md
+# - requirement-shell-cli-interface.md
+#
+# Last reviewed: 2026-08-15
+# =============================================================================
+ngx_submit_sudoer_request() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${JSON:=0}"
+    : "${QUIET:=0}"
+    : "${HOME:=/tmp}"
+    : "${SUDOER_ADM_USER:=sudoer-adm}"
+    : "${SUBMIT_PURPOSE:=}"
+    : "${SUBMIT_ACTION:=add}"
+    : "${EFFECTIVE_STORAGE_DIR:=}"
+    : "${NGINX_ADM_USER:=nginx-adm}"
+
+    _src_file="${1:-}"
+    _user=$(id -un 2>/dev/null || echo "unknown")
+    _purpose="${SUBMIT_PURPOSE}"
+    if [ -z "${_purpose}" ]; then
+        _purpose="Allow ${_user} to submit ${APP_NAME} config requests as ${NGINX_ADM_USER}."
+    fi
+    case "${SUBMIT_ACTION}" in
+        add|update) ;;
+        *) out_die "submit-sudoer-request action must be add or update (got ${SUBMIT_ACTION})" ;;
+    esac
+
+    if [ -n "${_src_file}" ]; then
+        if [ ! -f "${_src_file}" ]; then
+            out_die "sudoers file not found: ${_src_file}"
+        fi
+        if [ -L "${_src_file}" ]; then
+            out_die "refusing symlink sudoers input: ${_src_file}"
+        fi
+        ngx_sudoers_refuse_forbidden_grant "${_src_file}"
+    fi
+
+    _cli=""
+    if _cli=$(ngx_detect_sudoer_cli); then
+        :
+    else
+        out_die "sudoer-cli not found (set SUDOER_CLI or install sudoer-cli to ${GLOBAL_BIN:-/usr/local/bin}/sudoer-cli). Submit is Type 0 compose — this CLI does not write /etc."
+    fi
+
+    _adm=""
+    if _adm=$(ngx_detect_sudoer_adm); then
+        :
+    else
+        out_die "sudoer-adm not found (id ${SUDOER_ADM_USER} failed). Ask an admin to run: sudo sudoer-cli setup"
+    fi
+
+    : "${SUDOER_PUBLIC_ROOT:=/var/${SUDOER_APPROVAL_APP:-sudoer-cli}}"
+    _inbound=""
+    if _inbound=$(ngx_detect_sudoer_inbound); then
+        :
+    else
+        out_die "sudoer inbound queue not found (preferred ${SUDOER_PUBLIC_ROOT}/sudoer-request). Ask an admin to run: sudo sudoer-cli setup"
+    fi
+    if [ ! -w "${_inbound}" ]; then
+        out_die "sudoer inbound not writable: ${_inbound}. Sibling inbound must be writable (owner ${_adm})."
+    fi
+
+    _tmp=""
+    if [ -n "${_src_file}" ]; then
+        _tmp="${_src_file}"
+        _cleanup_tmp=0
+    else
+        ngx_sudoers_require_emit_trust
+        if [ -z "${EFFECTIVE_STORAGE_DIR}" ]; then
+            EFFECTIVE_STORAGE_DIR=$(util_resolve_storage)
+        fi
+        _tmp=$(mktemp "${EFFECTIVE_STORAGE_DIR}/ngx-sudoer.XXXXXX" 2>/dev/null || mktemp)
+        ngx_sudoers_json_text >"${_tmp}" || out_die "cannot write temp sudoer JSON ${_tmp}"
+        _cleanup_tmp=1
+    fi
+    ngx_sudoers_refuse_forbidden_grant "${_tmp}"
+
+    if _qr=$(ngx_sudoer_queue_root_from_inbound "${_inbound}"); then
+        SUDOER_CLI_QUEUE_ROOT="${_qr}"
+        export SUDOER_CLI_QUEUE_ROOT
+        if [ -n "${SUDOER_QUEUE_INBOUND-}" ] && [ "${_inbound}" = "${SUDOER_QUEUE_INBOUND}" ]; then
+            LPU_HOME="${_qr}"
+            export LPU_HOME
+        fi
+    fi
+
+    _verb="add-sudoer-request"
+    if [ "${SUBMIT_ACTION}" = "update" ]; then
+        _verb="update-sudoer-request"
+    fi
+
+    _errf=$(mktemp "${EFFECTIVE_STORAGE_DIR:-/tmp}/ngx-sudoer-err.XXXXXX" 2>/dev/null || mktemp)
+    _out=""
+    _rc=0
+    if [ "${JSON}" -eq 1 ]; then
+        _out=$("${_cli}" --json "${_verb}" --file "${_tmp}" --purpose "${_purpose}" --service "${APP_NAME}" 2>"${_errf}")
+        _rc=$?
+    else
+        _out=$("${_cli}" "${_verb}" --file "${_tmp}" --purpose "${_purpose}" --service "${APP_NAME}" 2>"${_errf}")
+        _rc=$?
+    fi
+    _err=$(cat "${_errf}" 2>/dev/null || true)
+    rm -f "${_errf}"
+    if [ "${_cleanup_tmp}" -eq 1 ]; then
+        rm -f "${_tmp}"
+    fi
+
+    if [ "${_rc}" -ne 0 ]; then
+        if [ -n "${_err}" ]; then
+            out_die "sudoer-cli ${_verb} failed: ${_err}"
+        fi
+        out_die "sudoer-cli ${_verb} failed (exit ${_rc})"
+    fi
+
+    _rid=$(printf '%s\n' "${_out}" | sed -n 's/.*"request_id":"\([^"]*\)".*/\1/p')
+    if [ -z "${_rid}" ]; then
+        _rid=$(printf '%s\n' "${_out}" | sed -n 's/.*request_id=\([^[:space:]]*\).*/\1/p')
+    fi
+
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "submit-sudoer-request" "submitted" \
+            "request_id" "${_rid}" \
+            "action" "${SUBMIT_ACTION}" \
+            "service" "${APP_NAME}" \
+            "user" "${_user}" \
+            "sudoer_cli" "${_cli}" \
+            "sudoer_adm" "${_adm}" \
+            "inbound" "${_inbound}"
+        return 0
+    fi
+
+    out_success "Submitted ${SUBMIT_ACTION} request via ${_cli}"
+    if [ -n "${_rid}" ]; then
+        out_info "request_id=${_rid}"
+    fi
+    out_info "inbound=${_inbound}  (approver: ${_adm})"
+    out_info "This CLI did not write /etc. Approver must approve the request."
+    return 0
+}
+
+# =============================================================================
+# ngx_convert_read_input() - stdin xor --file / operand (Type 0 convert)
+# =============================================================================
+#
+# ALIGNMENT: requirement-domain-nginx-cli.md §2.2.9
+# =============================================================================
+ngx_convert_read_input() {
+    : "${CONVERT_FILE:=}"
+    _cf="${CONVERT_FILE}"
+    if [ -z "${_cf}" ] && [ -n "${1:-}" ]; then
+        _cf="$1"
+    fi
+    if [ -n "${_cf}" ]; then
+        if [ ! -f "${_cf}" ] || [ -L "${_cf}" ]; then
+            out_die "convert input must be a regular file (not a symlink): ${_cf}"
+        fi
+        cat "${_cf}"
+        return 0
+    fi
+    if [ -t 0 ]; then
+        out_die "provide --file PATH or stdin (xor). See '${APP_NAME} help'."
+    fi
+    cat
+}
+
+# =============================================================================
+# ngx_convert_refuse_dest_path() - Convert must not write /etc or sites trees
+# =============================================================================
+ngx_convert_refuse_dest_path() {
+    _p="${1:-}"
+    [ -n "${_p}" ] || return 0
+    ngx_defaults
+    case "${_p}" in
+        /etc|/etc/*|/var/nginx-cli|/var/nginx-cli/*|/var/sudoer-cli|/var/sudoer-cli/*)
+            out_die "convert --out refuses dest/host path: ${_p}"
+            ;;
+    esac
+    case "${_p}" in
+        "${NGINX_CONF_ROOT}"|"${NGINX_CONF_ROOT}"/*)
+            out_die "convert --out refuses ${NGINX_CONF_ROOT}: ${_p}"
+            ;;
+    esac
+    _q=$(ngx_resolve_queue_root)
+    if [ -n "${_q}" ]; then
+        case "${_p}" in
+            "${_q}"|"${_q}"/*)
+                out_die "convert --out refuses queue path: ${_p}"
+                ;;
+        esac
+    fi
+}
+
+ngx_nginx_field_ok() {
+    _label="${1:-}"
+    _val="${2:-}"
+    [ -n "${_val}" ] || return 0
+    _flat=$(printf '%s' "${_val}" | tr '\n\r' '  ')
+    if [ "${_flat}" != "${_val}" ]; then
+        return 1
+    fi
+    case "${_val}" in
+        *';'*|*'{'*|*"\`"*|*'$('*)
+            return 1
+            ;;
+    esac
+    case "${_val}" in
+        *include*|*lua_*|*load_module*)
+            return 1
+            ;;
+    esac
+    if [ "${_label}" = "proxy_pass" ]; then
+        case "${_val}" in
+            http://*|https://*|unix:*)
+                ;;
+            *)
+                return 1
+                ;;
+        esac
+    fi
+    return 0
+}
+
+# =============================================================================
+# ngx_convert_write() - stdout or --out (never queue)
+# =============================================================================
+ngx_convert_write() {
+    _payload="$1"
+    : "${CONVERT_OUT:=}"
+    : "${JSON:=0}"
+    : "${COMMAND:=}"
+    if [ -n "${CONVERT_OUT}" ]; then
+        ngx_convert_refuse_dest_path "${CONVERT_OUT}"
+        case "${CONVERT_OUT}" in
+            /*) ;;
+            *) out_die "convert --out path must be absolute: ${CONVERT_OUT}" ;;
+        esac
+        if [ -L "${CONVERT_OUT}" ]; then
+            out_die "refusing symlink --out: ${CONVERT_OUT}"
+        fi
+        printf '%s\n' "${_payload}" >"${CONVERT_OUT}" || out_die "cannot write ${CONVERT_OUT}"
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "${COMMAND}" "wrote" "out" "${CONVERT_OUT}"
+        else
+            out_success "Wrote ${CONVERT_OUT}"
+        fi
+        return 0
+    fi
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "${COMMAND}" "converted" "@body" "${_payload}"
+        return 0
+    fi
+    out_plain "${_payload}"
+}
+
+ngx_json_get_str() {
+    _jg_json=$(printf '%s' "$1" | tr '\n' ' ')
+    _jg_key="$2"
+    printf '%s' "${_jg_json}" | sed -n "s/.*\"${_jg_key}\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" | head -n1
+}
+
+# =============================================================================
+# ngx_conf_to_json() - Type 0: nginx-conf text → dest request JSON
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Convert a dest nginx-conf text dual (# header + server block) into the
+# closed dest request JSON. Never queues. Never writes /etc or sites trees.
+#
+# ALIGNMENT: requirement-domain-nginx-cli.md §2.2.9
+# =============================================================================
+ngx_conf_to_json() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${SUBMIT_ACTION:=add}"
+    : "${SUBMIT_PURPOSE:=}"
+    ngx_defaults
+
+    _raw=$(ngx_convert_read_input "${1:-}")
+    case "${_raw}" in
+        *"include "*|*"lua_"*|*"load_module"*)
+            out_die "refusing nginx-conf with include/lua/load_module (closed dual only)"
+            ;;
+    esac
+
+    _act="${SUBMIT_ACTION}"
+    case "${_act}" in
+        add|update) ;;
+        *) out_die "conf-to-json --action must be add or update" ;;
+    esac
+
+    _purpose="${SUBMIT_PURPOSE}"
+    if [ -z "${_purpose}" ]; then
+        _purpose=$(printf '%s\n' "${_raw}" | sed -n 's/^# Purpose:[[:space:]]*//p; s/^# Intention:[[:space:]]*//p' | head -n1)
+    fi
+    [ -n "${_purpose}" ] || out_die "purpose required (--purpose or # Intention: / # Purpose:)"
+    case "${_purpose}" in
+        *\"*|*'\\'*) out_die "refusing purpose with JSON-unsafe characters" ;;
+    esac
+
+    _user=$(id -un 2>/dev/null || echo "unknown")
+    case "${_user}" in
+        *\"*|*'\\'*) out_die "refusing username with JSON-unsafe characters" ;;
+    esac
+
+    _flat=$(printf '%s\n' "${_raw}" | tr '{};' '\n')
+    _sname=$(printf '%s\n' "${_flat}" | sed -n 's/^[[:space:]]*server_name[[:space:]]*//p' | head -n1 | awk '{print $1}')
+    [ -n "${_sname}" ] || out_die "server_name required"
+    _listen=$(printf '%s\n' "${_flat}" | sed -n 's/^[[:space:]]*listen[[:space:]]*//p' | head -n1 | sed 's/[[:space:]]*$//')
+    [ -n "${_listen}" ] || out_die "listen required"
+
+    _kind=""
+    case "${_listen}" in
+        *443*) _kind="per-domain-https" ;;
+        *) _kind="redirect" ;;
+    esac
+    if printf '%s\n' "${_raw}" | grep -q 'ssl_certificate'; then
+        _kind="per-domain-https"
+    fi
+
+    _ssl_cert=$(printf '%s\n' "${_flat}" | sed -n 's/^[[:space:]]*ssl_certificate[[:space:]]*//p' | head -n1)
+    _ssl_key=$(printf '%s\n' "${_flat}" | sed -n 's/^[[:space:]]*ssl_certificate_key[[:space:]]*//p' | head -n1)
+    _ret=$(printf '%s\n' "${_flat}" | sed -n 's/^[[:space:]]*return[[:space:]]*//p' | head -n1)
+    _ret_code=$(printf '%s\n' "${_ret}" | awk '{print $1}')
+    _ret_url=$(printf '%s\n' "${_ret}" | awk '{ $1=""; sub(/^ /,""); print }')
+    _loc_match=$(printf '%s\n' "${_flat}" | sed -n 's/^[[:space:]]*location[[:space:]]*//p' | head -n1 | awk '{print $1}' | tr -d '{')
+    _proxy=$(printf '%s\n' "${_flat}" | sed -n 's/^[[:space:]]*proxy_pass[[:space:]]*//p' | head -n1)
+    _root=$(printf '%s\n' "${_flat}" | sed -n 's/^[[:space:]]*root[[:space:]]*//p' | head -n1)
+
+    _listen_esc=$(util_json_escape "${_listen}")
+    _sname_esc=$(util_json_escape "${_sname}")
+    _purpose_esc=$(util_json_escape "${_purpose}")
+    _user_esc=$(util_json_escape "${_user}")
+    _kind_esc=$(util_json_escape "${_kind}")
+
+    _site="\"listen\": [\"${_listen_esc}\"], \"server_name\": [\"${_sname_esc}\"]"
+    if [ -n "${_ssl_cert}" ]; then
+        _site="${_site}, \"ssl_certificate\": \"$(util_json_escape "${_ssl_cert}")\""
+    fi
+    if [ -n "${_ssl_key}" ]; then
+        _site="${_site}, \"ssl_certificate_key\": \"$(util_json_escape "${_ssl_key}")\""
+    fi
+    if [ -n "${_root}" ]; then
+        _site="${_site}, \"root\": \"$(util_json_escape "${_root}")\""
+    fi
+    if [ -n "${_ret_code}" ]; then
+        _site="${_site}, \"return\": { \"code\": ${_ret_code}, \"url\": \"$(util_json_escape "${_ret_url}")\" }"
+    fi
+    if [ -n "${_proxy}" ]; then
+        _mm="${_loc_match:-/}"
+        _site="${_site}, \"locations\": [ { \"role\": \"proxy\", \"match\": \"$(util_json_escape "${_mm}")\", \"proxy_pass\": \"$(util_json_escape "${_proxy}")\" } ]"
+    fi
+
+    _payload=$(printf '%s\n' "{
+  \"schema_version\": 1,
+  \"purpose\": \"${_purpose_esc}\",
+  \"username\": \"${_user_esc}\",
+  \"service\": \"${APP_NAME}\",
+  \"action\": \"${_act}\",
+  \"kind\": \"${_kind_esc}\",
+  \"domain\": \"${_sname_esc}\",
+  \"site\": { ${_site} }
+}")
+    ngx_convert_write "${_payload}"
+}
+
+# =============================================================================
+# ngx_json_to_conf() - Type 0: dest request JSON → nginx-conf text
+# =============================================================================
+#
+# ALIGNMENT: requirement-domain-nginx-cli.md §2.2.9
+# =============================================================================
+ngx_json_to_conf() {
+    : "${APP_NAME:=nginx-cli}"
+    ngx_defaults
+
+    _raw=$(ngx_convert_read_input "${1:-}")
+    _trim=$(printf '%s' "${_raw}" | sed 's/^[[:space:]]*//')
+    case "${_trim}" in
+        "{"*) ;;
+        *) out_die "expected JSON object" ;;
+    esac
+
+    _purpose=$(ngx_json_get_str "${_raw}" "purpose")
+    [ -n "${_purpose}" ] || out_die "purpose required"
+    _act=$(ngx_json_get_str "${_raw}" "action")
+    _has_site=0
+    case "${_raw}" in
+        *"\"site\""*) _has_site=1 ;;
+    esac
+    if [ "${_act}" = "remove" ] || { [ -z "${_act}" ] && [ "${_has_site}" -eq 0 ]; }; then
+        if [ "${_has_site}" -eq 1 ]; then
+            out_die "remove JSON must not include site"
+        fi
+        ngx_convert_write "$(printf '# Purpose: %s\n' "${_purpose}")"
+        return 0
+    fi
+
+    _ver=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"schema_version"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n1)
+    [ "${_ver}" = "1" ] || out_die "schema_version must be 1"
+    _kind=$(ngx_json_get_str "${_raw}" "kind")
+    _domain=$(ngx_json_get_str "${_raw}" "domain")
+    [ -n "${_kind}" ] || out_die "kind required"
+    [ -n "${_domain}" ] || out_die "domain required"
+    case "${_kind}" in
+        per-domain-https|redirect|shared-cloudflare) ;;
+        *) out_die "unknown kind: ${_kind}" ;;
+    esac
+
+    _listen=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"listen"[[:space:]]*:[[:space:]]*\[[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+    if [ -z "${_listen}" ]; then
+        if [ "${_kind}" = "per-domain-https" ]; then
+            _listen="443 ssl"
+        else
+            _listen="80"
+        fi
+    fi
+    _sname=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"server_name"[[:space:]]*:[[:space:]]*\[[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+    [ -n "${_sname}" ] || _sname="${_domain}"
+    _ssl_cert=$(ngx_json_get_str "${_raw}" "ssl_certificate")
+    _ssl_key=$(ngx_json_get_str "${_raw}" "ssl_certificate_key")
+    _root=$(ngx_json_get_str "${_raw}" "root")
+    _ret_url=$(ngx_json_get_str "${_raw}" "url")
+    _ret_code=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"code"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n1)
+    _proxy=$(ngx_json_get_str "${_raw}" "proxy_pass")
+    _match=$(ngx_json_get_str "${_raw}" "match")
+    ngx_nginx_field_ok "listen" "${_listen}" || out_die "refusing unsafe listen"
+    ngx_nginx_field_ok "server_name" "${_sname}" || out_die "refusing unsafe server_name"
+    ngx_nginx_field_ok "ssl_certificate" "${_ssl_cert}" || out_die "refusing unsafe ssl_certificate"
+    ngx_nginx_field_ok "ssl_certificate_key" "${_ssl_key}" || out_die "refusing unsafe ssl_certificate_key"
+    ngx_nginx_field_ok "root" "${_root}" || out_die "refusing unsafe root"
+    ngx_nginx_field_ok "url" "${_ret_url}" || out_die "refusing unsafe return url"
+    ngx_nginx_field_ok "match" "${_match}" || out_die "refusing unsafe location match"
+    ngx_nginx_field_ok "proxy_pass" "${_proxy}" || out_die "refusing unsafe proxy_pass"
+
+    _txt=$(printf '%s\n' "# Purpose: ${_purpose}" "" "server {")
+    _txt=$(printf '%s\n    listen %s;' "${_txt}" "${_listen}")
+    _txt=$(printf '%s\n    server_name %s;' "${_txt}" "${_sname}")
+    if [ -n "${_ssl_cert}" ]; then
+        _txt=$(printf '%s\n    ssl_certificate     %s;' "${_txt}" "${_ssl_cert}")
+    fi
+    if [ -n "${_ssl_key}" ]; then
+        _txt=$(printf '%s\n    ssl_certificate_key %s;' "${_txt}" "${_ssl_key}")
+    fi
+    if [ -n "${_root}" ]; then
+        _txt=$(printf '%s\n    root %s;' "${_txt}" "${_root}")
+    fi
+    if [ -n "${_ret_code}" ]; then
+        if [ -n "${_ret_url}" ]; then
+            _txt=$(printf '%s\n    return %s %s;' "${_txt}" "${_ret_code}" "${_ret_url}")
+        else
+            _txt=$(printf '%s\n    return %s;' "${_txt}" "${_ret_code}")
+        fi
+    fi
+    if [ -n "${_proxy}" ]; then
+        _txt=$(printf '%s\n    location %s {' "${_txt}" "${_match:-/}")
+        _txt=$(printf '%s\n        proxy_pass %s;' "${_txt}" "${_proxy}")
+        _txt=$(printf '%s\n    }' "${_txt}")
+    fi
+    _txt=$(printf '%s\n}' "${_txt}")
+
+    if command -v nginx >/dev/null 2>&1; then
+        _tf=$(mktemp "${EFFECTIVE_STORAGE_DIR:-/tmp}/ngx-dual.XXXXXX")
+        printf '%s\n' "${_txt}" >"${_tf}"
+        if ! nginx -t -c "${_tf}" >/dev/null 2>&1; then
+            out_debug "nginx -t on isolated dual skipped/failed (not a full nginx.conf)"
+        fi
+        rm -f "${_tf}"
+    fi
+    ngx_convert_write "${_txt}"
+}
+
 
 # =============================================================================
 # app_version() - Local VERSION only (no network)
@@ -2723,6 +3623,24 @@ app_about() {
         done
     fi
 
+    _sudoer_cli="not_found"
+    if _scli_path=$(ngx_detect_sudoer_cli); then
+        _sudoer_cli="${_scli_path}"
+    fi
+    _sudoer_adm="absent"
+    if _sadm_name=$(ngx_detect_sudoer_adm); then
+        _sudoer_adm="${_sadm_name}"
+    fi
+    _sudoer_inbound="not_found"
+    _sudoer_inbound_writable="false"
+    if _sin_path=$(ngx_detect_sudoer_inbound); then
+        _sudoer_inbound="${_sin_path}"
+        if [ -w "${_sin_path}" ]; then
+            _sudoer_inbound_writable="true"
+        fi
+    fi
+    _trust_tier=$(ngx_sudoers_trust_tier)
+
     if [ "${JSON}" -eq 1 ]; then
         out_json "about" "" \
             "app" "${APP_NAME}" \
@@ -2745,7 +3663,12 @@ app_about() {
             "nginx_conf_root" "${_conf_root}" \
             "nginx_queue_root" "${_qroot}" \
             "nginx_submit_group" "${_sgroup}" \
-            "pending_count" "${_pending}"
+            "pending_count" "${_pending}" \
+            "sudoer_cli" "${_sudoer_cli}" \
+            "sudoer_adm" "${_sudoer_adm}" \
+            "sudoer_inbound" "${_sudoer_inbound}" \
+            "sudoer_inbound_writable" "${_sudoer_inbound_writable}" \
+            "sudoers_trust_tier" "${_trust_tier}"
         return 0
     fi
 
@@ -2783,6 +3706,14 @@ app_about() {
     out_info "Queue root:        ${_qroot}"
     out_info "Submit group:      ${_sgroup}"
     out_info "Pending requests:  ${_pending}"
+    out_info "Sudoers trust tier: ${_trust_tier}  (production requires global; local-only = test mode)"
+    out_info "sudoer-cli:        ${_sudoer_cli}"
+    out_info "sudoer-adm:        ${_sudoer_adm}"
+    if [ "${_sudoer_inbound}" = "not_found" ]; then
+        out_info "sudoer inbound:    not_found (preferred /var/sudoer-cli/sudoer-request)"
+    else
+        out_info "sudoer inbound:    ${_sudoer_inbound} (writable=${_sudoer_inbound_writable})"
+    fi
     out_empty_line
     out_info "Current shell:     ${_shell}"
     if [ -t 1 ]; then
@@ -2797,6 +3728,7 @@ app_about() {
     out_info "Useful commands:"
     out_info "   ${APP_NAME} help            → Full usage"
     out_info "   ${APP_NAME} setup           → Create nginx-adm (root)"
+    out_info "   ${APP_NAME} submit-sudoer-request → JSON request into /var/sudoer-cli/sudoer-request"
     out_info "   ${APP_NAME} --json          → Machine-readable output"
 }
 
@@ -2811,7 +3743,7 @@ app_help() {
     if [ "${JSON}" -eq 1 ]; then
         out_json "success" "Help text available in human-readable mode. Run without --json." \
             "command" "help" \
-            "note" "Use --json with version, about, install, uninstall, where-is-me, list-*, request."
+            "note" "Use --json with version, about, install, uninstall, where-is-me, list-*, request, submit-sudoer-request."
         return 0
     fi
     if [ "${QUIET}" -eq 1 ]; then
@@ -2838,7 +3770,7 @@ app_help() {
     out_plain "  remove-lpu           Remove nginx-adm (confirm or --force); alias: remove-nginx-adm"
     out_empty_line
     out_info "Config request workflow:"
-    out_plain "  request <domain> [file]  Submit nginx conf (header comments required)"
+    out_plain "  request <domain> [file]  Submit dest JSON (or nginx-conf text dual)"
     out_plain "  list-requests            Approving / pending list"
     out_plain "  list-approved            Approved archive"
     out_plain "  list-rejected            Rejected archive"
@@ -2849,9 +3781,16 @@ app_help() {
     out_plain "  map-unset <user> <domain>  Remove map entry"
     out_plain "  map-list [user]          Show user-domain-map"
     out_empty_line
-    out_info "Inbound: /var/nginx-cli/config-request (mode 2770, group nginx-cli-submit)."
+    out_info "Sibling sudoers compose (Type 0 — does not write /etc):"
+    out_plain "  submit-sudoer-request [file]  Queue JSON grant via sudoer-cli (needs --allow-test-local unless global install)"
+    out_empty_line
+    out_info "Conf dual (Type 0 — never queues; never writes sites-available):"
+    out_plain "  conf-to-json [file]      nginx-conf text → dest request JSON"
+    out_plain "  json-to-conf [file]      dest request JSON → nginx-conf text"
+    out_empty_line
+    out_info "Inbound: /var/nginx-cli/config-request (mode 2770, group nginx-cli-submit, JSON request files)."
     out_info "Submit privilege: root, nginx-adm, or a login listed in /etc/sudoers.d/nginx-cli-submit"
-    out_info "and in group nginx-cli-submit. Other users cannot submit."
+    out_info "(or /etc/sudoers.d/nginx-cli-<login>) and in group nginx-cli-submit. Other users cannot request."
     out_info "Approvers: root, or nginx-adm via password sudo /usr/local/bin/nginx-cli."
     out_info "nginx-adm may also NOPASSWD sudo /usr/sbin/nginx and systemctl/journalctl -u nginx."
     out_empty_line
@@ -2861,6 +3800,12 @@ app_help() {
     out_plain "  --force              Force reinstall / skip uninstall or remove-lpu confirm"
     out_plain "  --global             Install to GLOBAL_BIN"
     out_plain "  --debug              Debug diagnostics on stderr"
+    out_plain "  --purpose TEXT       Purpose string for submit-sudoer-request / conf-to-json"
+    out_plain "  --update             submit-sudoer-request as update (not add)"
+    out_plain "  --action add|update  conf-to-json action (default add)"
+    out_plain "  --file PATH          convert input (xor stdin)"
+    out_plain "  --out PATH           convert output file (absolute; not /etc)"
+    out_plain "  --allow-test-local   Allow submit-sudoer-request emit when not production"
     out_empty_line
     out_info "Environment:"
     out_plain "  USER_BIN / GLOBAL_BIN     install destinations"
@@ -2868,10 +3813,15 @@ app_help() {
     out_plain "  NGINX_QUEUE_ROOT          public queue root (default /var/nginx-cli)"
     out_plain "  NGINX_CONF_ROOT           default /etc/nginx"
     out_plain "  NGINX_CLI_FIXTURE=1       test fixture (home + queue root must be under /tmp)"
+    out_plain "  SUDOER_CLI / SUDOER_ADM_USER / SUDOER_QUEUE_INBOUND / SUDOER_PUBLIC_ROOT"
     out_empty_line
     out_info "Examples:"
     out_plain "  sudo ${APP_NAME} setup"
+    out_plain "  ${APP_NAME} request example.com ./site.json"
     out_plain "  ${APP_NAME} request example.com ./site.conf"
+    out_plain "  ${APP_NAME} submit-sudoer-request"
+    out_plain "  ${APP_NAME} conf-to-json --file ./site.conf"
+    out_plain "  ${APP_NAME} json-to-conf --file ./site.json"
     out_plain "  ${APP_NAME} list-requests"
     out_plain "  ${APP_NAME} approve"
     out_plain "  sudo ${APP_NAME} remove-lpu --force"
@@ -2905,6 +3855,11 @@ app_main() {
     : "${FORCE:=0}"
     : "${FORCE_REINSTALL:=0}"
     : "${FORCE_GLOBAL:=0}"
+    : "${SUBMIT_PURPOSE:=}"
+    : "${SUBMIT_ACTION:=add}"
+    : "${ALLOW_TEST_LOCAL_SUDOERS:=0}"
+    : "${CONVERT_FILE:=}"
+    : "${CONVERT_OUT:=}"
     : "${USERNAME:=unknown}"
     : "${HOME:=/tmp}"
     : "${XDG_CACHE_HOME:=${HOME}/.cache}"
@@ -2932,7 +3887,47 @@ app_main() {
             --debug)    DEBUG=1 ;;
             --force)    FORCE=1; FORCE_REINSTALL=1 ;;
             --global)   FORCE_GLOBAL=1; export FORCE_GLOBAL ;;
-            version|about|help|install|uninstall|where-is-me|setup|remove-lpu|remove-nginx-adm|request|list-requests|list-approved|list-rejected|approve|reject|enable-login-approval|map-set|map-unset|map-list)
+            --allow-test-local)
+                ALLOW_TEST_LOCAL_SUDOERS=1
+                export ALLOW_TEST_LOCAL_SUDOERS
+                ;;
+            --purpose)
+                if [ $# -lt 2 ]; then
+                    out_die "--purpose requires TEXT"
+                fi
+                SUBMIT_PURPOSE="$2"
+                export SUBMIT_PURPOSE
+                shift
+                ;;
+            --update)
+                SUBMIT_ACTION="update"
+                export SUBMIT_ACTION
+                ;;
+            --file)
+                if [ $# -lt 2 ]; then
+                    out_die "--file requires PATH"
+                fi
+                CONVERT_FILE="$2"
+                export CONVERT_FILE
+                shift
+                ;;
+            --out)
+                if [ $# -lt 2 ]; then
+                    out_die "--out requires PATH"
+                fi
+                CONVERT_OUT="$2"
+                export CONVERT_OUT
+                shift
+                ;;
+            --action)
+                if [ $# -lt 2 ]; then
+                    out_die "--action requires add|update"
+                fi
+                SUBMIT_ACTION="$2"
+                export SUBMIT_ACTION
+                shift
+                ;;
+            version|about|help|install|uninstall|where-is-me|setup|remove-lpu|remove-nginx-adm|request|list-requests|list-approved|list-rejected|approve|reject|enable-login-approval|map-set|map-unset|map-list|submit-sudoer-request|conf-to-json|json-to-conf)
                 COMMAND="$1"
                 shift
                 break
@@ -2951,6 +3946,46 @@ app_main() {
             --debug)    DEBUG=1 ;;
             --force)    FORCE=1; FORCE_REINSTALL=1 ;;
             --global)   FORCE_GLOBAL=1; export FORCE_GLOBAL ;;
+            --allow-test-local)
+                ALLOW_TEST_LOCAL_SUDOERS=1
+                export ALLOW_TEST_LOCAL_SUDOERS
+                ;;
+            --purpose)
+                if [ $# -lt 2 ]; then
+                    out_die "--purpose requires TEXT"
+                fi
+                SUBMIT_PURPOSE="$2"
+                export SUBMIT_PURPOSE
+                shift
+                ;;
+            --update)
+                SUBMIT_ACTION="update"
+                export SUBMIT_ACTION
+                ;;
+            --file)
+                if [ $# -lt 2 ]; then
+                    out_die "--file requires PATH"
+                fi
+                CONVERT_FILE="$2"
+                export CONVERT_FILE
+                shift
+                ;;
+            --out)
+                if [ $# -lt 2 ]; then
+                    out_die "--out requires PATH"
+                fi
+                CONVERT_OUT="$2"
+                export CONVERT_OUT
+                shift
+                ;;
+            --action)
+                if [ $# -lt 2 ]; then
+                    out_die "--action requires add|update"
+                fi
+                SUBMIT_ACTION="$2"
+                export SUBMIT_ACTION
+                shift
+                ;;
             *)
                 if [ -z "${_op1}" ]; then
                     _op1="$1"
@@ -2986,6 +4021,9 @@ app_main() {
         map-set)                 ngx_map_set "${_op1}" "${_op2}" ;;
         map-unset)               ngx_map_unset "${_op1}" "${_op2}" ;;
         map-list)                ngx_map_list "${_op1}" ;;
+        submit-sudoer-request)   ngx_submit_sudoer_request "${_op1}" ;;
+        conf-to-json)            ngx_conf_to_json "${_op1}" ;;
+        json-to-conf)            ngx_json_to_conf "${_op1}" ;;
         help|*)                  app_help ;;
     esac
 }

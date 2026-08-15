@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-class-software-dev.md  
-**Status**: Active (Version 1.5.0 – nginx-cli class law + residual stack)  
+**Status**: Active (Version 1.7.0 – nginx-cli class law + residual stack)  
 **Area**: class  
 **Key**: `requirement-class-software-dev`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -85,7 +85,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | **Architectures supported** | any arch with POSIX sh and the external tools the script invokes |
 | **Git surface** | used when product is published |
 | **Ship unit / install** | yes — `src/nginx-cli` → `${USER_BIN}/nginx-cli` (default `~/.local/bin/nginx-cli`); **local-only** install (no online channel) |
-| **Product version SSOT** | `VERSION="1.1.0"` hard-assign in `src/nginx-cli` |
+| **Product version SSOT** | `VERSION="1.4.0"` hard-assign in `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) — this product is B. No live parent hop. |
 
 **Residual ownership table:**
@@ -105,11 +105,12 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Idempotency / re-run safety | `requirement-shell-idempotency` | Do not duplicate |
 | Interactive vs non-interactive | `requirement-shell-interactive-vs-noninteractive` | Do not duplicate |
 | Modular prefixes / single-file layout | `requirement-shell-modular-function-design` | Do not duplicate |
-| Privilege / Type map / F6 Cmnds | `requirement-three-layer-privilege-model` | two families; no print-sudoers verb |
+| Privilege / Type map / F6 Cmnds / submit-sudoer-request workflow | `requirement-three-layer-privilege-model` | two families; no print-sudoers verb; Type 0 compose |
+| JSON sudoer file (grant body) | `requirement-sudoer-json-file` | `nginx-cli request` as `nginx-adm` only |
 | LPU identity F1–F7 | `requirement-least-privilege-user` | nginx-adm 1999; inbound 2770 |
 | Prevention catalog | `requirement-privilege-prevention-set` | closed block / must-remain-open |
 | Folder archive backup / restore / retention | **intentionally absent** | Not this product’s domain (sibling folder-backup) |
-| Domain surface (`requirement-domain-*`) | `requirement-domain-nginx-cli` | nginx-conf request/approve machine |
+| Domain surface (`requirement-domain-*`) | `requirement-domain-nginx-cli` | file-based JSON dest **and** same-product submitter (`request`); compose to sudoer-cli |
 | Prompt helper bodies / temp leaves | **intentionally absent as extra REQs** | interactive + storage |
 | Online install / remote self-management / companion checksum | **intentionally absent** | Not this product’s channel |
 
@@ -172,7 +173,8 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | `requirement-bootstrap-chain` | Origin A = cli-template; this product is B |
 | `requirement-domain-nginx-cli` | Domain SSOT (nginx-conf request/approve) |
 | `requirement-least-privilege-user` | nginx-adm F1–F7 |
-| `requirement-three-layer-privilege-model` | Type map + Tables A/B/C |
+| `requirement-three-layer-privilege-model` | Type map + Tables A/B/C + submit workflow |
+| `requirement-sudoer-json-file` | JSON sudoer file body |
 | `requirement-privilege-prevention-set` | Closed prevention catalog |
 | `requirement-project-folder` | Layout and install locations |
 | `requirement-shell-cli-interface` | Command surface, flags, dispatch |
@@ -197,6 +199,8 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | 2026-08-13 | Active 1.3.0 | This product is hop 0; selfmanaged is not origin |
 | 2026-08-15 | Active 1.4.0 | Notes retarget to nginx-cli 1.1.0; domain residual owner; drop skill-name catalog from §2.0.5a |
 | 2026-08-15 | Active 1.5.0 | Residual owners: LPU / three-layer / prevention; no prompt/temp REQs |
+| 2026-08-15 | Active 1.6.0 | Residual owner: JSON sudoer file; VERSION 1.2.0 |
+| 2026-08-15 | Active 1.7.0 | Domain residual: JSON dest + same-product submitter |
 
 ---
 

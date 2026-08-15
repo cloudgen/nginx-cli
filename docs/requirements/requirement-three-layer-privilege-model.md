@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-three-layer-privilege-model.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Area**: architecture  
 **Key**: `requirement-three-layer-privilege-model`  
 **id**: RQ-THREE-LAYER-PRIVILEGE-MODEL  
@@ -7,13 +7,15 @@
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for the **Type 0 / Type 1 / Type 2 privilege map**, the **elev Tables A/B/C**, and the **sudoers-fragment write contract** of nginx-cli.
+This requirement is the **project Single Source of Truth** for the **Type 0 / Type 1 / Type 2 privilege map**, the **elev Tables A/B/C**, the **sudoers-fragment write contract**, and the **`submit-sudoer-request` compose workflow** of nginx-cli.
 
-Domain verbs that *use* elevation are catalogued in `requirement-domain-nginx-cli.md`. Type 0 submit vs Type 1 approve is the privilege split of that nginx-conf machine. They **MUST NOT** invent a second elev table. This file owns the Type map and the Cmnd set that `setup` writes.
+Domain verbs that *use* elevation are catalogued in `requirement-domain-nginx-cli.md`. Type 0 nginx-conf `request` vs Type 1 approve is the privilege split of that machine. They **MUST NOT** invent a second elev table. This file owns the Type map, the Cmnd set that `setup` writes, and how Type 0 hands a grant to sibling **sudoer-cli**.
+
+The **JSON sudoer file body** (command identity, samples) is **not** owned here — it is `requirement-sudoer-json-file.md`.
 
 The **closed catalog** of what the product blocks — and what it **must not** block after elev — is owned by `requirement-privilege-prevention-set.md`. This file **MUST NOT** grow a parallel unpublished wall.
 
-**print-sudoers / print-sudoers-install-script / remove-project-sudoers are intentionally absent.** Type 1 `setup` writes the host fragments.
+**print-sudoers / print-sudoers-install-script / remove-project-sudoers are intentionally absent.** Type 1 `setup` writes the host F6 / shared-allowlist fragments. Type 0 `submit-sudoer-request` queues a **per-user** grant via the sibling; it does **not** write `/etc`.
 
 ---
 
@@ -23,7 +25,7 @@ The **closed catalog** of what the product blocks — and what it **must not** b
 
 | Layer | Privilege | Typical actor | This product |
 |-------|-----------|---------------|--------------|
-| **Type 0** | Invoking user | Any login | Lifecycle, diagnostics, self-scoped `request` / list / `map-list` |
+| **Type 0** | Invoking user | Any login | Lifecycle, diagnostics, self-scoped `request` / list / `map-list`, **`submit-sudoer-request`** (sibling compose; no `/etc` write) |
 | **Type 1 bootstrap** | Elevated host mutation | **Any** host admin already euid 0 (`sudo nginx-cli setup` — **password sudo OK**) | `setup` / `remove-lpu`. F6 / `nginx-adm` **must not** be required (chicken-egg). |
 | **Type 1 approve** | Elevated host mutation | root login, or `nginx-adm` via F6 (**password** `sudo nginx-cli …`) or as that login | `approve` / `reject` / `map-set` / `map-unset` / `enable-login-approval` |
 | **Gated submit** | Invoking user + dest allowlist | listed login in `/etc/sudoers.d/nginx-cli-submit` **and** group `nginx-cli-submit` | Type 0 `request` as the invoker — **not** Type 1 |
@@ -167,6 +169,55 @@ NGINX_CLI_SUBMITTERS ALL=(nginx-adm) NOPASSWD: /usr/local/bin/nginx-cli request
 
 ```
 
+#### 2.5.3 `submit-sudoer-request` (Type 0) product rules
+
+**Purpose:** This product is a **Type 0 sudoers-grant submitter** for its **listed-submitter** grant. When the sibling approval CLI and approver account are present, it hands a self-scoped JSON sudoer file to that CLI so the CLI **allocates a JSON request** in the sibling’s **public inbound**. This product remains Type 0 on this verb: it **MUST NOT** write `/etc`, **MUST NOT** `mkdir` the production inbound, **MUST NOT** approve or reject, and **MUST NOT** choose the queued dest basename.
+
+JSON **body** is owned by `requirement-sudoer-json-file.md` (grant = `nginx-cli request` as `nginx-adm` only).
+
+**Roles (this verb):**
+
+| Role | Who | May | Must not |
+|------|-----|-----|----------|
+| **Submitter** | Invoking login via this CLI | Detect approval CLI + inbound; emit or pass a self-scoped grant; invoke sibling submit | `mkdir` inbound; write `/etc`; pick dest basename; approve |
+| **Allocator** | Sibling approval CLI (`sudoer-cli`) | Allocate `request_id`; exclusive-create JSON in inbound; `chmod 0640` | Trust a caller-supplied dest basename |
+| **Approver** | Sibling LPU (`sudoer-adm`) | Move inbound → accepted/declined; install dest | This product’s Type 0 path |
+
+**Inbound detect (mandatory order — first existing directory wins):**
+
+| Priority | Candidate | When |
+|----------|-----------|------|
+| 1 | `SUDOER_QUEUE_INBOUND` | Set **and** is an existing directory (tests / explicit override) |
+| 2 | `/var/sudoer-cli/sudoer-request` | **Preferred production public inbound** (must already exist) |
+| 3 | `{{sudoer-adm-home}}/sudoer-request` | F4 **view** (symlink to the public real dir) |
+| 4 | Legacy only: `{{sudoer-adm-home}}/sudoer-approving`, `/etc/sudoer-adm/sudoer-approving`, `/home/sudoer-adm/sudoer-approving` | Transitional hosts; **not** the preferred real dir |
+
+Core rules **MUST NOT** treat a home-only `sudoer-approving` directory as the preferred real inbound.
+
+**Normative rules:**
+
+1. **MUST** detect the approval CLI (`sudoer-cli`): env `SUDOER_CLI` if executable, else global bin, else user bin, else `PATH`. Missing → fail closed with install hint.  
+2. **MUST** detect the approver login (`sudoer-adm`, override `SUDOER_ADM_USER`) via `id`. Missing → fail closed with setup hint (`sudo sudoer-cli setup`).  
+3. **MUST** detect inbound using the table above. Missing → fail closed with setup hint. Not writable for exclusive create → fail closed.  
+4. **MUST NOT** `mkdir` (or `mkdir -p`) the production inbound, its public parent, or any F4 view.  
+5. **MUST NOT** treat this product’s nginx-conf inbound (`/var/nginx-cli/config-request`) as the sudoer inbound.  
+6. **MUST** report detections on `about` (human + JSON): approval CLI path or `not_found`; approver or `absent`; inbound path or `not_found`; writable flag. About inbound **SHOULD** name the preferred public path when reporting `not_found`.  
+7. Default input is the JSON grant from `requirement-sudoer-json-file.md` (same trust-tier gate as below). Optional file operand submits that file instead (refuse symlink / missing / forbidden grant).  
+8. **MUST** invoke the detected approval CLI `add-sudoer-request` (or `update-sudoer-request` with `--update`) with `--service` equal to this product’s `APP_NAME` and a purpose string (`--purpose` or product default). That sibling call **is** what creates the queued **JSON** file.  
+9. **MUST NOT** invent or pass a dest basename for the queued file. `request_id` is whatever the sibling allocator returns.  
+10. When pointing the sibling at a queue root, **MUST** use the **parent of the real public inbound** (or leave the sibling on its public default). **MUST NOT** export a home directory that still uses the legacy `sudoer-approving` child as if it were the public queue root.  
+11. **MUST NOT** write `/etc/sudoers.d` or `/etc/passwd` from this verb.  
+12. Product `--json` status **SHOULD** include `request_id`, `action`, `service`, `sudoer_cli`, `sudoer_adm`, `inbound`. That status object is **not** the queued request file.
+
+**Trust tier (emit of the default grant):**
+
+| Tier | Meaning | Default emit |
+|------|---------|--------------|
+| `production` | Readable+executable `${GLOBAL_BIN}/nginx-cli` | Allowed |
+| `test_local` / `unmanaged` | Only user-bin or neither | Fail closed unless `--allow-test-local` or `ALLOW_TEST_LOCAL_SUDOERS=1` |
+
+After sibling approve, dest install is **`/etc/sudoers.d/nginx-cli-<user>`** (per-user). Dest **listed submitter** for nginx-conf `request` is then: uncommented login in `/etc/sudoers.d/nginx-cli-submit` **or** that per-user fragment present (regular file, not symlink). Group `nginx-cli-submit` is still required to write inbound.
+
 ### 2.6 Implementation Notes (this project)
 
 | Item | Value |
@@ -177,8 +228,13 @@ NGINX_CLI_SUBMITTERS ALL=(nginx-adm) NOPASSWD: /usr/local/bin/nginx-cli request
 | **Submit fragment** | `/etc/sudoers.d/nginx-cli-submit` |
 | **Table A** | password `nginx-cli` day-to-day verbs **plus** `NOPASSWD` `nginx` / unit `systemctl` / `journalctl` |
 | **Type 2** | Not used |
-| **print-sudoers** | **Absent** — `setup` writes fragments |
-| **Elev model** | **EM-HYB** dest-honest — password `sudo` for bootstrap and for `nginx-cli`; `NOPASSWD` only on unit tools; **no** `sudo -n` for `nginx-cli` |
+| **print-sudoers** | **Absent** — `setup` writes F6 / shared allowlist; compose uses `submit-sudoer-request` |
+| **Submit verb** | `submit-sudoer-request` → `ngx_submit_sudoer_request` |
+| **Sibling approval CLI** | `sudoer-cli` (`SUDOER_CLI` override) |
+| **Sibling approver** | `sudoer-adm` (`SUDOER_ADM_USER` override) |
+| **Preferred public inbound** | `/var/sudoer-cli/sudoer-request` |
+| **JSON body SSOT** | `requirement-sudoer-json-file` |
+| **Elev model** | **EM-HYB** dest-honest — password `sudo` for bootstrap and for F6 `nginx-cli`; `NOPASSWD` only on unit tools; **no** `sudo -n` for `nginx-cli` |
 | **Approve dest** | `${NGINX_CONF_ROOT}/sites-available/<domain>.conf` (domain SSOT) |
 
 ### 2.7 Why This Requirement Exists (Direct CIAO Alignment)
@@ -194,8 +250,8 @@ NGINX_CLI_SUBMITTERS ALL=(nginx-adm) NOPASSWD: /usr/local/bin/nginx-cli request
 
 - **Caution**: fail closed without global binary for production F6.  
 - **Intentional**: approver authorizes with a password; unit tools stay NOPASSWD.  
-- **Anti-fragile**: setup writes F6; no print-sudoers dual path.  
-- **Over-protect**: never emit `useradd` or `nginx-ctl` into sudoers.
+- **Anti-fragile**: setup writes F6; compose submit fails closed when sibling missing; no print-sudoers dual path.  
+- **Over-protect**: never emit `useradd` or `nginx-ctl` into sudoers; Type 0 compose never writes `/etc`.
 
 ---
 
@@ -209,7 +265,7 @@ NGINX_CLI_SUBMITTERS ALL=(nginx-adm) NOPASSWD: /usr/local/bin/nginx-cli request
 4. Collapse Type 2 into “run as root” or invent a Type 2 euid for dest writes.  
 5. Elevate the user-local binary for production Pass.  
 6. Write `/etc/passwd` or `/etc/sudoers` (main), or ban this product’s Type 1 copy/overwrite/remove of product-owned `/etc/sudoers.d` names.  
-7. Reintroduce `print-sudoers` without explicit user order and a registry change.  
+7. Reintroduce `print-sudoers` without explicit user order and a registry change (compose submit is **not** print-sudoers).  
 8. Require `SUDO_USER==nginx-adm` for `setup` / `remove-lpu`.  
 9. Write bootstrap or the login hook as `sudo -n` of `nginx-cli`.  
 10. Copy sudoer-cli Table A (one NOPASSWD whole-binary line, inbound 3773) onto this dest.  
@@ -225,6 +281,7 @@ NGINX_CLI_SUBMITTERS ALL=(nginx-adm) NOPASSWD: /usr/local/bin/nginx-cli request
 |----------------|-------|--------|------|
 | **TP-CLI-13,14** | `tests/test_cli.sh` | have | print-sudoers / nginx-ctl unknown |
 | **TP-NGX-01,14,15** | `tests/test_domain.sh` | have | setup euid; hook password sudo; F6 two families static |
+| **TP-NGX-16,17,19** | `tests/test_domain.sh` | have | submit-sudoer-request detect / stub / no Type 0 mkdir |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
@@ -236,6 +293,7 @@ NGINX_CLI_SUBMITTERS ALL=(nginx-adm) NOPASSWD: /usr/local/bin/nginx-cli request
 | `docs/requirements/index.md` | Registry SSOT |
 | `docs/requirements/requirement-least-privilege-user.md` | LPU identity F1–F7 |
 | `docs/requirements/requirement-privilege-prevention-set.md` | Closed catalog of what is blocked vs must stay open |
+| `docs/requirements/requirement-sudoer-json-file.md` | JSON grant body (`nginx-cli request` as `nginx-adm`) |
 | `docs/requirements/requirement-domain-nginx-cli.md` | nginx-conf request/approve + verb catalog |
 | `docs/requirements/requirement-shell-cli-interface.md` | Dispatcher / Type 0 catalog |
 | `./src/nginx-cli` | Ship unit under test |

@@ -5,6 +5,59 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-08-15
+
+### Changed
+
+- Dest inbound **is** dest request **JSON** (`yyyyMMdd-user-domain-n.json`). `request` accepts JSON or nginx-conf text (converts first). `approve` re-validates JSON and renders the text dual before `nginx -t` / publish.
+- This ship unit is the file-based JSON dest **and** the Type 0 submitter (`request`). Compose `submit-sudoer-request` remains a sibling-dest submitter (sudoer JSON, not dest inbound).
+- Convert stays Type 0: never queues, never writes `/etc` or sites trees.
+
+### Law / molds
+
+- Domain **1.10.0** dual-role table · interface **2.4.0** · class **1.7.0** · prevention **1.3.0** (PREV-JSON-BODY inverted). Dest-honest dual-role law lives in the domain REQ (portable molds are local harness, not the published git surface).
+
+### Tests
+
+- TP-NGX request/approve globs `*.json`; convert TP-NGX-21..24; dest JSON inbound TP-NGX-25..29; convert `--out` inbound / `/etc/sudoers.d`; grant allowlist TP-NGX-32; JSON inject TP-NGX-33.
+
+### Fixed (review)
+
+- Convert `--out` refuses `/etc/*` and dest queue dirs (not only sites-available).
+- Nested convert no longer emits a second `--json` object on `request` / `approve`.
+- Dest JSON site fields refuse `;` / `include` / `lua_` / `load_module` before queue or render.
+- Sudoer file-operand grant is an allowlist (`${GLOBAL_BIN}/nginx-cli` + `request` only).
+- Approve/reject archive the inbound inode basename (`.json`), not a suffix-less alias.
+
+## [1.3.0] - 2026-08-15
+
+### Added
+
+- Type 0 **`conf-to-json`** / **`json-to-conf`**: convert dest nginx-conf text ↔ closed request JSON. stdin xor `--file`; stdout or `--out`. Never queues; never writes `/etc` or `sites-available`.
+- Domain **1.8.0** JSON dual samples (redirect add, HTTPS+proxy update, remove).
+- Molds: **LM-FILE-BASED-JSON-APPROVAL** 1.3.0 convert pair; **LM-NGINX-CONF-STRUCTURE** 1.2.0 JSON dual.
+- Suite **TP-NGX-21..24**.
+
+### Unchanged
+
+- Dest inbound remains nginx text. Convert is a dual, not dest inbound JSON.
+
+## [1.2.0] - 2026-08-15
+
+### Added
+
+- Type 0 **`submit-sudoer-request`** (folder-backup compose shape, dest-honest grant): detect sibling **sudoer-cli** + **sudoer-adm** + public inbound `/var/sudoer-cli/sudoer-request`; sibling allocates a JSON request. Does **not** write `/etc` and does **not** `mkdir` inbound.
+- JSON grant SSOT `requirement-sudoer-json-file` **1.0.0**: grant is **`/usr/local/bin/nginx-cli request`** as **`nginx-adm`** only (no OS tools, no `approve`/`setup`).
+- `about` reports `sudoer_cli` / `sudoer_adm` / `sudoer_inbound` / `sudoers_trust_tier`.
+- Flags `--purpose`, `--update`, `--allow-test-local` (submit emit only; **no** `print-sudoers`).
+- Listed submitter also accepts sibling dest `/etc/sudoers.d/nginx-cli-<login>`.
+- Suite **TP-NGX-16..20**.
+
+### Law
+
+- Domain **1.7.0** · three-layer **1.1.0** · interface **2.2.0** · prevention **1.1.0** · class **1.6.0**.
+- `print-sudoers` remains **absent**.
+
 ## [1.1.0] - 2026-08-15
 
 ### Changed

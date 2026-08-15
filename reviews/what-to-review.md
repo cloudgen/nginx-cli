@@ -6,7 +6,7 @@
 **Always load first:** `reviews/lessons.md`
 
 **Last plan update:** 2026-08-15  
-**Ship unit VERSION:** 1.1.0  
+**Ship unit VERSION:** 1.4.0  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -16,12 +16,16 @@
 | # | Check | Notes |
 |---|--------|--------|
 | P1 | Read `docs/requirements/index.md` | Class + architecture + shell + one domain SSOT |
-| P2 | Confirm ship unit `src/nginx-cli` | `APP_NAME` / `VERSION` hard-assign (**1.1.0**) |
+| P2 | Confirm ship unit `src/nginx-cli` | `APP_NAME` / `VERSION` hard-assign (**1.4.0**) |
 | P3 | Confirm origin A remains `src/cli-template` | Frozen; no reverse-copy from B |
 | P4 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P5 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
 | P6 | Confirm install **channel** still local-only | No SCRIPT_URL product UX |
 | P7 | Confirm trimmed verbs stay unknown | backup / restore / print-sudoers |
+| P13 | Confirm `submit-sudoer-request` is present | Type 0 compose; no `/etc` write; no inbound mkdir |
+| P14 | Dest inbound is dest request **JSON** | `request` is dest submitter; text dual converted first; approve renders before `nginx -t` |
+| P15 | Convert never queues / never dest-writes | `--out` refuses `/etc`, sites trees, and queue dirs |
+| P16 | Sudoer JSON grant is allowlisted | path = `/usr/local/bin/nginx-cli`, args = `request` only |
 | P8 | Confirm dest notes name this product nginx-cli | cli-template only as origin A |
 | P9 | F6 two families still dest-honest | password `nginx-cli`; NOPASSWD unit tools only; no `nginx-ctl` |
 | P10 | Inbound still `2770` not `3773` | group `nginx-cli-submit`; dest allowlist |
@@ -44,9 +48,10 @@
 | Modular design | `requirement-shell-modular-function-design.md` | Type 0 prefixes + `ngx_` |
 | Idempotency | `requirement-shell-idempotency.md` | Re-install |
 | Storage | `requirement-shell-cli-storage.md` | Isolation |
-| Domain | `requirement-domain-nginx-cli.md` | nginx-conf machine; pointers to LPU / three-layer / prevention |
+| Domain | `requirement-domain-nginx-cli.md` | JSON dest **and** same-product submitter; convert dual; no second nginx submitter |
+| Sudoer JSON file | `requirement-sudoer-json-file.md` | grant is `nginx-cli request` as nginx-adm only |
 | LPU | `requirement-least-privilege-user.md` | F1–F7; 1999; inbound 2770; not 1776/3773 |
 | Three-layer | `requirement-three-layer-privilege-model.md` | Table A two families; no nginx-ctl; no print-sudoers |
-| Prevention | `requirement-privilege-prevention-set.md` | OPEN-UNIT-TOOLS + OPEN-PASSWD-CLI; no invented walls |
+| Prevention | `requirement-privilege-prevention-set.md` | OPEN-UNIT-TOOLS + OPEN-PASSWD-CLI; PREV-JSON-* / PREV-CONVERT-*; no invented walls |
 
 **Do not review as this product’s law:** folder-archive backup, restore dest whitelist, print-sudoers emit (those remain on sibling **folder-backup**).

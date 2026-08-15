@@ -9,13 +9,13 @@ Authoritative specialized product law for **nginx-cli** lives here.
 | Field | Value |
 |-------|--------|
 | Product / `APP_NAME` | `nginx-cli` |
-| Version SSOT | `1.1.0` (ship unit hard-assign) |
+| Version SSOT | `1.4.0` (ship unit hard-assign) |
 | Ship unit | `src/nginx-cli` |
 | Origin A (frozen) | `src/cli-template` |
 | Default install | `~/.local/bin/nginx-cli` |
 | Install mode | **Local-only** |
-| Domain surface | **Active** — `requirement-domain-nginx-cli.md` (nginx-conf request/approve) |
-| Privilege peers | `requirement-least-privilege-user` · `requirement-three-layer-privilege-model` · `requirement-privilege-prevention-set` |
+| Domain surface | **Active** — `requirement-domain-nginx-cli.md` (file-based JSON dest **and** same-product submitter) |
+| Privilege peers | `requirement-least-privilege-user` · `requirement-three-layer-privilege-model` · `requirement-privilege-prevention-set` · `requirement-sudoer-json-file` |
 | Prompt / temp REQs | **Not added** — interactive + storage already own those surfaces |
 
 ## Class requirement gate

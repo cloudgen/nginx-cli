@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-privilege-prevention-set.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.3.0)  
 **Area**: architecture  
 **Key**: `requirement-privilege-prevention-set`  
 **id**: RQ-PRIVILEGE-PREVENTION-SET  
@@ -36,6 +36,9 @@ A wall that is not a §2.2 row is **not** product law.
 | **PREV-SUDOERS-MAIN** | Write `/etc/sudoers` (the main file); Type 0 write `/etc/sudoers.d`; Type 1 write a **foreign** name under `/etc/sudoers.d` | Type 0 / foreign | Fail closed. This product **does** write product-owned names (`nginx-adm`, `nginx-cli-submit`) | three-layer · domain |
 | **PREV-T0-USER** | Create or delete the LPU (`useradd` / `userdel`) | Type 0 | Fail closed; no account mutate | LPU · domain |
 | **PREV-T0-QUEUE** | `mkdir` the production inbound / approved / rejected trio | Type 0 | Fail closed if the dir is missing | domain · LPU |
+| **PREV-T0-SUDOER-MKDIR** | `mkdir` sibling `/var/sudoer-cli/sudoer-request` (or its parent / F4 view) | Type 0 `submit-sudoer-request` | Fail closed if inbound missing | three-layer |
+| **PREV-CONVERT-QUEUE** | `conf-to-json` / `json-to-conf` write dest inbound / approved / rejected | Type 0 convert | Fail closed. Convert never queues | domain |
+| **PREV-CONVERT-DEST** | Convert write `${NGINX_CONF_ROOT}` or `/etc` | Type 0 convert | Fail closed | domain |
 | **PREV-T1-EUID** | `setup` / `remove-lpu` without euid 0 | any login | Fail closed; tell the operator to run `sudo nginx-cli setup` (password `sudo`; **not** `sudo -n`) | three-layer · domain |
 | **PREV-APPR-ACTOR** | `approve` / `reject` / `map-set` / `map-unset` / `enable-login-approval` when the actor is a listed submitter or anyone else | non-root, non-nginx-adm | Fail closed `authz` | domain |
 | **PREV-SUBMIT-UNLISTED** | `request` when the actor is not root, not nginx-adm, and not (listed **and** grouped) | anyone else | Fail closed | domain |
@@ -77,16 +80,18 @@ A wall that is not a §2.2 row is **not** product law.
 
 | ID | What is stopped | Who / when | How it stops | Owner |
 |----|-----------------|------------|--------------|-------|
-| **PREV-JSON-BODY** | Treat the request artifact as JSON | submit / approve | Body is `#` comments then nginx conf | domain |
+| **PREV-JSON-BODY** | Treat dest inbound as nginx-text-only (no JSON envelope) | submit / approve | Queued body is dest request **JSON**; text is a dual | domain |
+| **PREV-JSON-GATE** | Feed raw dest JSON to `nginx -t` | approve | Render text dual first | domain |
 | **PREV-SYMLINK-IN** | Inbound last component is a symlink; request dest is a symlink | submit / approve | Fail closed | domain |
-| **PREV-NAME** | Caller-supplied dest basename | submit | Allocator owns `yyyyMMdd-user-domain-n` | domain |
+| **PREV-NAME** | Caller-supplied dest basename | submit | Allocator owns `yyyyMMdd-user-domain-n.json` | domain |
 
 #### 2.2.5 UX, hang, and test gates
 
 | ID | What is stopped | Who / when | How it stops | Owner |
 |----|-----------------|------------|--------------|-------|
 | **PREV-EMPTY-INT** | Empty argv becoming `approve` | any uid | Empty argv is Type N help | CLI · zero-arguments · domain |
-| **PREV-HELP** | Listing a verb in `help` that has no dispatcher arm; listing `print-sudoers` / `backup` / `nginx-ctl` | help | Must not list | CLI · domain |
+| **PREV-HELP** | Listing a verb in `help` that has no dispatcher arm; listing `print-sudoers` / `backup` / `nginx-ctl` | help | Must not list. **Must** list `submit-sudoer-request`, `conf-to-json`, `json-to-conf` | CLI · domain |
+| **PREV-SUBMIT-OS-TOOL** | Submit a JSON/text grant that lists OS tools or dest-forbidden verbs (`approve`, `setup`, …) | Type 0 compose | Fail closed | sudoer-json-file |
 | **PREV-HANG** | Prompt or hang when `TTY` is not `1`; login hook hanging `scp` / CI | `approve` / hook | Fail closed; hook skips when `PS1` unset | interactive · domain |
 | **PREV-TEST-ROOTS** | Pointing production dest / queues at a fake root without fixture flags **and** `/tmp` paths | Type 0 / tests | Fail closed | domain |
 
@@ -104,7 +109,9 @@ A wall that is not a §2.2 row is **not** product law.
 | **OPEN-BOOT-ANY** | **Any** host admin already euid 0 **MAY** run `setup` / `remove-lpu` | Bootstrap | F6 / LPU do not exist yet |
 | **OPEN-ROOT-APPR** | A real root login **MAY** run `approve` / `reject` / map / hook | After euid 0 | Same Type 1 verbs as the F6 approver |
 | **OPEN-ADM-APPR** | Login `nginx-adm` **MAY** run approve-family verbs | After setup | Actor table |
-| **OPEN-LISTED-REQ** | A listed **and** grouped human **MAY** `request` mapped domains | After inbound exists | Actor table |
+| **OPEN-LISTED-REQ** | A listed **and** grouped human **MAY** `request` mapped domains | After inbound exists | Actor table. Listed = shared allowlist **or** per-user `/etc/sudoers.d/nginx-cli-<login>` |
+| **OPEN-SUBMIT-SUDOER** | Any login **MAY** run Type 0 `submit-sudoer-request` | Sibling present | Compose; not nginx-conf `request` |
+| **OPEN-CONVERT** | Any login **MAY** run Type 0 `conf-to-json` / `json-to-conf` | Always | Local dual only; not dest write |
 | **OPEN-CONFIRM** | The **only** extra gate after elev is TTY confirm or `--force` on **sensitive** undo-hard steps | After euid 0 | Confirm is not a new privilege class |
 | **OPEN-NO-FLAG** | No env flag, Gap stub, or “not enabled” die on live `useradd` / F6 / hook after euid 0 | Type 1 `setup` | Nobody published that gate |
 | **OPEN-NO-CI** | Continuous integration is **not** a product gate on `useradd` | Host vs suite | A suite that cannot enter a sudo password **MUST NOT** be rewritten as “create is forbidden” |
@@ -134,10 +141,11 @@ These steps are **hard to undo**. They stay **allowed** after elev. The extra ga
 | **Ship unit** | `src/nginx-cli` |
 | **LPU** | `nginx-adm` (UID/GID `1999`, create home `/etc/nginx-adm`; public queues `/var/nginx-cli/` inbound **2770**) |
 | **F6 file** | `/etc/sudoers.d/nginx-adm` = password `nginx-cli` day-to-day **plus** `NOPASSWD` unit tools |
-| **Submit file** | `/etc/sudoers.d/nginx-cli-submit` (allowlist; Type 0 `request` as invoker) |
+| **Submit file** | `/etc/sudoers.d/nginx-cli-submit` (shared allowlist) **or** `/etc/sudoers.d/nginx-cli-<login>` (sibling dest) |
 | **Usual bootstrap** | `sudo src/nginx-cli setup` or `sudo nginx-cli setup` (password `sudo` OK) |
 | **Fixture** | `NGINX_CLI_FIXTURE=1` + homes/queues under `/tmp` |
 | **Absent verbs** | `print-sudoers`, `nginx-ctl`, online self-update |
+| **Present compose** | `submit-sudoer-request` (Type 0; no `/etc` write) |
 | **Sensitive confirms** | `uninstall`; `remove-lpu` |
 
 ### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
@@ -180,8 +188,9 @@ These steps are **hard to undo**. They stay **allowed** after elev. The extra ga
 
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
-| **TP-CLI-04,10,13,14** | `tests/test_cli.sh` | have | no online / print-sudoers / backup / nginx-ctl |
+| **TP-CLI-04,10,13,14** | `tests/test_cli.sh` | have | no online / print-sudoers / backup / nginx-ctl; help lists submit-sudoer-request |
 | **TP-NGX-01,11,13,14,15** | `tests/test_domain.sh` | have | euid; no-TTY; no-mkdir; hook not `-n`; 2770 / F6 families |
+| **TP-NGX-16,18,19** | same | have | compose fail-closed / refuse OS-tool / no Type 0 sibling mkdir |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`

@@ -45,6 +45,7 @@ Force policy (`--force` / `FORCE=1`) **MAY** re-apply ensure steps that would ot
 | `install` | Managed binary present at privilege-correct path | Success no-op (mode heal still runs) | `--force` replaces from running ship unit |
 | `uninstall` | Managed binary absent | Success no-op | `--force` skips confirm |
 | `where-is-me` / `version` / `about` / `help` | Read-only | Always safe | N/A |
+| `submit-sudoer-request` | Queue a **new** JSON request (sibling allocates next `n`) | Each success is a new `request_id`; not a no-op | Does not write `/etc`; does not `mkdir` inbound; missing inbound fails closed |
 
 ### 2.5 Why This Requirement Exists (CIAO)
 

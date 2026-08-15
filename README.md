@@ -1,6 +1,6 @@
 # nginx-cli - Nginx least-privilege admin CLI
 
-![Version](https://img.shields.io/badge/Version-1.1.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.4.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/nginx-cli?style=flat-square)](https://github.com/cloudgen/nginx-cli)
@@ -16,8 +16,10 @@ Install **location** is still **both**:
 - **Self-management**: `install`, `uninstall`, `where-is-me`, `version`, `about`, `help`
 - **nginx-adm LPU**: `setup` creates UID/GID **1999**, home `/etc/nginx-adm`, sites ownership, restricted sudoers
 - **Request queues** under `/var/nginx-cli`: `config-request` (`2770`, group `nginx-cli-submit`), `config-approved`, `config-rejected`; **user-domain-map** stays under nginx-adm home
-- **Submit gate**: only root, nginx-adm, or logins listed in `/etc/sudoers.d/nginx-cli-submit` **and** in group `nginx-cli-submit`
-- **Request names**: `yyyyMMdd-user-domain-n` with `#` intention header + nginx conf body
+- **Submit gate**: only root, nginx-adm, or logins listed in `/etc/sudoers.d/nginx-cli-submit` **or** `/etc/sudoers.d/nginx-cli-<login>` **and** in group `nginx-cli-submit`
+- **`submit-sudoer-request`**: Type 0 compose to sibling **sudoer-cli** (JSON grant; no `/etc` write)
+- **`conf-to-json` / `json-to-conf`**: Type 0 convert dest nginx-conf text ↔ request JSON (does not queue; dest inbound is dest request JSON)
+- **Request names**: `yyyyMMdd-user-domain-n.json`; queued body is dest request JSON (`request` also accepts nginx-conf text and converts first)
 - **Approve**: snapshot inbound, publish to `sites-available` / enable-dir symlink, unlink inbound (do not `mv`)
 - **Reject**: snapshot inbound into rejected archive, unlink inbound (no publish)
 - **Interactive approval** and optional nginx-adm `.bashrc` login hook
@@ -61,13 +63,16 @@ nginx-cli --json about
 
 sudo nginx-cli setup
 nginx-cli request example.com ./site.conf
+nginx-cli submit-sudoer-request
 nginx-cli list-requests
 nginx-cli approve
 nginx-cli reject 20260813-alice-example.com-1
 sudo nginx-cli remove-lpu --force
 ```
 
-**Submit privilege:** root, `nginx-adm`, or a login listed in `/etc/sudoers.d/nginx-cli-submit` and in group `nginx-cli-submit`. Other users cannot submit. Type 0 writes the public inbound as the invoker (no `sudo -u nginx-adm` deposit).
+**Submit privilege:** root, `nginx-adm`, or a login listed in `/etc/sudoers.d/nginx-cli-submit` (or a sibling-approved `/etc/sudoers.d/nginx-cli-<login>`) and in group `nginx-cli-submit`. Other users cannot `request`. Type 0 writes the public inbound as the invoker (no `sudo -u nginx-adm` deposit).
+
+**Sudoers compose:** `nginx-cli submit-sudoer-request` queues a JSON grant via **sudoer-cli** into `/var/sudoer-cli/sudoer-request`. This CLI does not write `/etc`. Global install is the production trust tier; local-only emit needs `--allow-test-local`.
 
 **Environment (selected):**
 
@@ -124,4 +129,4 @@ MIT License — see [`LICENSE.md`](./LICENSE.md).
 
 ## Last Update
 
-2026-08-15 — version **1.1.0** (public `/var/nginx-cli` queues, group `2770`, snapshot approve).
+2026-08-15 — version **1.4.0** (dest inbound is dest request JSON; same ship unit is dest **and** submitter).

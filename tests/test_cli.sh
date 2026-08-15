@@ -44,6 +44,9 @@ run_test_cli() {
     assert_contains "TP-CLI-04 help setup" "$_out" "setup"
     assert_contains "TP-CLI-04 help request" "$_out" "request"
     assert_contains "TP-CLI-04 help approve" "$_out" "approve"
+    assert_contains "TP-CLI-04 help submit-sudoer-request" "$_out" "submit-sudoer-request"
+    assert_contains "TP-CLI-04 help conf-to-json" "$_out" "conf-to-json"
+    assert_contains "TP-CLI-04 help json-to-conf" "$_out" "json-to-conf"
     assert_contains "TP-CLI-04 help --json" "$_out" "--json"
     assert_not_contains "TP-CLI-04 no backup verb" "$_out" "backup <"
     assert_not_contains "TP-CLI-04 no restore verb" "$_out" "restore <"
@@ -68,6 +71,9 @@ run_test_cli() {
     assert_contains "TP-CLI-06 effective_storage" "$_out" '"effective_storage"'
     assert_contains "TP-CLI-06 nginx_adm_user" "$_out" '"nginx_adm_user"'
     assert_contains "TP-CLI-06 pending_count" "$_out" '"pending_count"'
+    assert_contains "TP-CLI-06 sudoer_cli" "$_out" '"sudoer_cli"'
+    assert_contains "TP-CLI-06 sudoer_adm" "$_out" '"sudoer_adm"'
+    assert_contains "TP-CLI-06 sudoer_inbound" "$_out" '"sudoer_inbound"'
     assert_not_contains "TP-CLI-06 no backup_notation" "$_out" '"backup_notation"'
     assert_not_contains "TP-CLI-06 no deposit_dir" "$_out" '"deposit_dir"'
     assert_not_contains "TP-CLI-06 no restore_host_default" "$_out" '"restore_host_default"'

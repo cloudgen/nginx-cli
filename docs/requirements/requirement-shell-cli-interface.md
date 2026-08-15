@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 2.1.0)  
+**Status**: Active (Version 2.4.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-interface`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -21,6 +21,8 @@ Every command **MUST** map to exactly one privilege type. Unclassified commands 
 | Category | Privilege | Meaning |
 |----------|-----------|---------|
 | **Type 0 – CLI lifecycle + diagnostics** | Invoking user | `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` |
+| **Type 0 – Sibling compose** | Invoking user | `submit-sudoer-request` (see domain + three-layer) |
+| **Type 0 – Convert dual** | Invoking user | `conf-to-json`, `json-to-conf` (see domain SSOT) |
 | **Type 1 – Narrow elevated host ops** | Controlled sudo / root | **Domain** — `setup`, `remove-lpu` (see domain SSOT) |
 | **Gated domain** | root / nginx-adm / submit sudoers | **Domain** — request, list, approve, reject, map-* (see domain SSOT) |
 
@@ -36,7 +38,11 @@ Every command **MUST** map to exactly one privilege type. Unclassified commands 
 
 Additional flags **MAY** be added only when documented here (or a superseding requirement) and wired in the dispatcher.
 
-**Forbidden flags (trimmed):** `--allow-test-local`, `--disk`, `--ram` (parent domain / sudoers).
+**Compose flags (submit-sudoer-request only):** `--purpose TEXT`, `--update`, `--allow-test-local` (test_local / unmanaged emit).
+
+**Convert flags:** `--file PATH`, `--out PATH`, `--action add|update`, `--purpose TEXT` (shared with compose).
+
+**Forbidden flags (trimmed):** `--disk`, `--ram` (parent archive). `--allow-test-local` is **not** a print-sudoers flag on this dest.
 
 ### 2.3 Dispatcher and entry rules
 
@@ -58,7 +64,8 @@ Additional flags **MAY** be added only when documented here (or a superseding re
 
 In JSON mode, help **MUST NOT** dump long human text; return a short structured success/note object.
 
-`help` **MUST NOT** list backup, restore, or sudoers-file verbs.
+`help` **MUST** list `submit-sudoer-request`.  
+`help` **MUST NOT** list backup, restore, or print-sudoers / install-script / remove-draft.
 
 ### 2.5 Implementation Notes (this project)
 
@@ -68,7 +75,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | **Primary executable** | `src/nginx-cli` (POSIX `/bin/sh`, single-file ship unit) |
 | **Dispatcher** | `app_main` |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION="1.1.0"` hard-assign in ship unit |
+| **Version SSOT** | `VERSION="1.4.0"` hard-assign in ship unit |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Primary install story** | User bin: `~/.local/bin/nginx-cli` |
 | **Online channel env** | **Not product UX** (trimmed) |
@@ -85,8 +92,11 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | `uninstall` | Type 0 | `inst_local_uninstall` | Remove managed binary; confirm unless `--force` |
 | `where-is-me` | Type 0 | `app_where_is_me` | Running + install paths + installed flag |
 | `version` | Type 0 | `app_version` | Local `VERSION` only; no network |
-| `about` | Type 0 | `app_about` | Diagnostics: install presence, paths, user, shell, TTY, storage; **no** channel one-liner; **no** backup/sudoers fields |
+| `about` | Type 0 | `app_about` | Diagnostics: install presence, paths, user, shell, TTY, storage, nginx-adm fields, **sudoer-cli / sudoer-adm / inbound**; **no** channel one-liner; **no** backup/print-sudoers fields |
 | `help` | Type 0 | `app_help` | Full usage in human mode; short JSON note in JSON mode |
+| `submit-sudoer-request` | Type 0 | `ngx_submit_sudoer_request` | Queue this product’s JSON sudoer grant via sudoer-cli; **does not** write `/etc` or `mkdir` inbound |
+| `conf-to-json` | Type 0 | `ngx_conf_to_json` | nginx-conf text → dest request JSON; never queue / never dest write |
+| `json-to-conf` | Type 0 | `ngx_json_to_conf` | dest request JSON → nginx-conf text; never queue / never dest write |
 
 #### Global flags (normative wiring)
 
@@ -97,6 +107,12 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | `--debug` | `DEBUG=1` in `app_main` |
 | `--force` | `FORCE=1` (and install reinstall policy when applicable) |
 | `--global` | `FORCE_GLOBAL=1` |
+| `--purpose TEXT` | `SUBMIT_PURPOSE` (`submit-sudoer-request`) |
+| `--update` | `SUBMIT_ACTION=update` |
+| `--allow-test-local` | `ALLOW_TEST_LOCAL_SUDOERS=1` (submit emit only) |
+| `--file PATH` | `CONVERT_FILE` (convert; xor stdin) |
+| `--out PATH` | `CONVERT_OUT` (convert write target) |
+| `--action add\|update` | `SUBMIT_ACTION` (convert + compose) |
 
 #### Dispatcher acceptance criteria
 
@@ -109,7 +125,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 
 - Online: `version-check`, `self-update`, `self-uninstall`, channel `install` via URL  
 - Archive-deposit: `backup`, `restore`  
-- print-sudoers / sudoers-install-script / remove-draft  
+- print-sudoers / sudoers-install-script / remove-draft (compose `submit-sudoer-request` is **in** scope)  
 
 ### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
 
@@ -153,6 +169,8 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 |----|-----------|
 | AC-1 | Help lists install / uninstall / where-is-me / version / about / help |
 | AC-2 | Help and about omit backup / restore / print-sudoers |
+| AC-5 | Help lists `submit-sudoer-request`; about reports sudoer-cli / sudoer-adm / inbound |
+| AC-6 | Help lists `conf-to-json` and `json-to-conf` |
 | AC-3 | Unknown and trimmed verbs exit non-zero |
 | AC-4 | Empty argv is help |
 
@@ -166,8 +184,9 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | `requirement-shell-local-self-management` | install / uninstall / where-is-me |
 | `requirement-shell-output-requirements` | `out_*` |
 | `requirement-bootstrap-chain` | Trimmed surfaces |
-| `requirement-domain-nginx-cli` | Domain verbs |
-| `requirement-three-layer-privilege-model` | Type map + F6 Table A |
+| `requirement-domain-nginx-cli` | Domain verbs including `submit-sudoer-request` surface |
+| `requirement-three-layer-privilege-model` | Type map + F6 Table A + submit workflow |
+| `requirement-sudoer-json-file` | JSON grant body |
 | `docs/requirements/index.md` | Registry |
 
 ---
@@ -176,7 +195,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
-| **TP-CLI-01..13** | `tests/test_cli.sh` | have | includes stripped-verb fail-closed |
+| **TP-CLI-01..14** | `tests/test_cli.sh` | have | includes stripped-verb fail-closed; help lists submit-sudoer-request |
 | **TP-LC-*** | `tests/test_local_lifecycle.sh` | have | lifecycle |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
@@ -189,6 +208,9 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | 2026-08-03 | Active 1.0.0 | folder-backup Type 0 + domain verbs |
 | 2026-08-13 | Active 2.0.0 | cli-template Type 0 only |
 | 2026-08-15 | Active 2.1.0 | Notes name this product nginx-cli 1.1.0; domain catalog pointer stays |
+| 2026-08-15 | Active 2.2.0 | Type 0 `submit-sudoer-request`; compose flags; print-sudoers still absent |
+| 2026-08-15 | Active 2.3.0 | Type 0 `conf-to-json` / `json-to-conf` |
+| 2026-08-15 | Active 2.4.0 | Dest inbound is dest request JSON; `request` is dest submitter; VERSION 1.4.0 |
 
 ---
 

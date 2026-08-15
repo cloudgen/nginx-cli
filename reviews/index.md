@@ -7,5 +7,6 @@
 | 2026-08-15 | RR-01..07 dest retarget | notes/ACs/README | Fixed — this product is B; A frozen | — |
 | 2026-08-15 | `reviews/reports/2026-08-15-privilege-split.md` | privilege split + plan | Pass — TP-CLI-14, TP-NGX-14..15 | PASS=127 |
 | 2026-08-15 | dest surface (SECURITY / README / remotes) | identity | Fixed — do not push dest onto cli-template | PASS=127 |
+| 2026-08-15 | `reviews/reports/2026-08-15-json-dest-submitter-revision.md` | JSON dest + submitter revision | Fixed NGX-SEC-01..03, NGX-DOC-01, NGX-TEST-01 | see `tests/run.sh` |
 
 Related products **selfmanaged** and **folder-backup** keep their own reviews. They are **not** this product’s law, origin, or evidence. Origin A **cli-template** is a frozen reference at `src/cli-template`.

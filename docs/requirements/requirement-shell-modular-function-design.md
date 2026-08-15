@@ -37,7 +37,7 @@ Ship unit remains a **single executable** at `src/nginx-cli`. Origin reference r
 | `app_` | Cross-cutting CLI surface | Entry, dispatch, about/help/version/where-is-me | `app_main`, `app_about`, `app_help`, `app_version`, `app_where_is_me` |
 | `path_` | Shell PATH & environment | Optional PATH ensure after user install | `path_add_shell` |
 | `prompt_` | Interactive prompts | TTY-safe confirmations | `prompt_yes_no`, `prompt_approve_choice` |
-| `ngx_` | Domain business logic | nginx-adm setup + request workflow | `ngx_setup`, `ngx_request_submit`, `ngx_approve_one` |
+| `ngx_` | Domain business logic | nginx-adm setup + request workflow + sudoer compose + conf JSON dual | `ngx_setup`, `ngx_request_submit`, `ngx_approve_one`, `ngx_submit_sudoer_request`, `ngx_conf_to_json`, `ngx_json_to_conf` |
 
 **Notes:**
 
