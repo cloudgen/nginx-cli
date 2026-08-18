@@ -17,11 +17,11 @@
 | requirement-shell-idempotency | Re-run safety for install / uninstall | shell | Active (1.2.0) | `requirement-shell-idempotency.md` | 2026-08-15 |
 | requirement-shell-interactive-vs-noninteractive | Interactive vs non-interactive / confirm policy | shell | Active (1.1.0) | `requirement-shell-interactive-vs-noninteractive.md` | 2026-08-15 |
 | requirement-shell-cli-storage | Scratch/cache resolve (no backup staging) | shell | Active (1.2.0) | `requirement-shell-cli-storage.md` | 2026-08-15 |
-| requirement-three-layer-privilege-model | Type 0/1 map; F6 two families; **submit-sudoer-request** workflow; no print-sudoers | architecture | Active (1.1.0) | `requirement-three-layer-privilege-model.md` | 2026-08-15 |
+| requirement-three-layer-privilege-model | Type 0/1 map; F6 two families; **submit-sudoer-request** workflow; no print-sudoers | architecture | Active (1.2.0) | `requirement-three-layer-privilege-model.md` | 2026-08-15 |
 | requirement-sudoer-json-file | JSON sudoer file: grant is **`nginx-cli request`** as `nginx-adm` only; no OS tools / F6 verbs | architecture | Active (1.0.0) | `requirement-sudoer-json-file.md` | 2026-08-15 |
-| requirement-least-privilege-user | nginx-adm F1–F7; home `/etc/nginx-adm`; F5 `/var/nginx-cli/` inbound 2770 + F4 views | architecture | Active (1.0.0) | `requirement-least-privilege-user.md` | 2026-08-15 |
-| requirement-privilege-prevention-set | Closed catalog; dest inbound is JSON; convert never dest/queue | architecture | Active (1.3.0) | `requirement-privilege-prevention-set.md` | 2026-08-15 |
-| requirement-domain-nginx-cli | File-based JSON dest for nginx-conf **and** same-product submitter; convert dual; compose to sudoer-cli | domain | Active (1.10.0) | `requirement-domain-nginx-cli.md` | 2026-08-15 |
+| requirement-least-privilege-user | nginx-adm F1–F7; home `/etc/nginx-adm`; F5 `/var/nginx-cli/` inbound 2770 + F4 views | architecture | Active (1.1.0) | `requirement-least-privilege-user.md` | 2026-08-15 |
+| requirement-privilege-prevention-set | Closed catalog; dest inbound is JSON; convert never dest/queue | architecture | Active (1.4.0) | `requirement-privilege-prevention-set.md` | 2026-08-15 |
+| requirement-domain-nginx-cli | File-based JSON dest for nginx-conf **and** same-product submitter; convert dual; compose to sudoer-cli | domain | Active (1.11.0) | `requirement-domain-nginx-cli.md` | 2026-08-15 |
 
 ## Surfaces by design (this product)
 

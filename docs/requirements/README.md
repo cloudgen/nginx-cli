@@ -9,7 +9,7 @@ Authoritative specialized product law for **nginx-cli** lives here.
 | Field | Value |
 |-------|--------|
 | Product / `APP_NAME` | `nginx-cli` |
-| Version SSOT | `1.4.0` (ship unit hard-assign) |
+| Version SSOT | `1.4.1` (ship unit hard-assign) |
 | Ship unit | `src/nginx-cli` |
 | Origin A (frozen) | `src/cli-template` |
 | Default install | `~/.local/bin/nginx-cli` |

@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-three-layer-privilege-model.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.2.0)  
 **Area**: architecture  
 **Key**: `requirement-three-layer-privilege-model`  
 **id**: RQ-THREE-LAYER-PRIVILEGE-MODEL  
@@ -36,7 +36,7 @@ The **closed catalog** of what the product blocks — and what it **must not** b
 1. Every exposed verb **MUST** have exactly one type.  
 2. Type 1 **MUST** run with euid 0 **or** (approve family only) as login `nginx-adm`. **Bootstrap** (`setup` / `remove-lpu`) **MUST** accept **any** euid-0 session. **Approve** **MUST** accept login `nginx-adm` **or** a real root session.  
 3. The product **MUST NOT** `su` / `runuser` to `nginx-adm` in order to write dest. **MUST NOT** write `/etc/passwd` or `/etc/sudoers` (main file). Type 1 **MAY** copy, overwrite, and remove **product-owned** files under `/etc/sudoers.d/` (F6 `nginx-adm`; create-if-absent `nginx-cli-submit`) and write `${NGINX_CONF_ROOT}/sites-available` on approve. Type 0 **MUST NOT** write `/etc/sudoers.d` or live sites.  
-4. **Mix model (EM-HYB, dest-honest).** Bootstrap = password `sudo` (outer **or** in-tool; any host admin). **Day-to-day F6 nginx-cli = password required** — **no** `NOPASSWD` on any `nginx-cli` line. **Unit tools = NOPASSWD** (`/usr/sbin/nginx`, unit `systemctl` / `journalctl`). **`sudo -n` is not** the path for `nginx-cli` (not bootstrap, not the login hook).  
+4. **Mix model (EM-HYB, dest-honest).** Bootstrap = password `sudo` (outer **or** in-tool; any host admin). **Day-to-day F6 nginx-cli = password required** — **no** `NOPASSWD` on any `nginx-cli` line. **Unit tools = NOPASSWD** (`/usr/sbin/nginx`, unit `systemctl` / `journalctl`). **`sudo -n` is not** the path for `nginx-cli` (not bootstrap, not the login hook). Type 1 `setup` **MUST** leave Family 1 authenticatable: TTY `passwd nginx-adm` (operator types; never recorded) or a non-TTY warn with that command. A locked/empty nginx-adm password makes `sudo nginx-cli` print `sudo: a password is required` — that is a setup gap, not a reason to NOPASSWD the CLI.  
 5. Type 2 execution context **MUST** remain **Not used** unless this requirement is revised.  
 6. There is **no** `nginx-ctl` command. Table A **MUST NOT** name it.  
 7. Production F6 **MUST** use the **global** managed binary `/usr/local/bin/nginx-cli` (mode 0755, not writable by the LPU). Local `${USER_BIN}/nginx-cli` **MUST NOT** appear as a production Cmnd.  
@@ -65,7 +65,8 @@ Rules:
 2. **MUST NOT** put `setup`, `remove-lpu`, `remove-nginx-adm`, `install`, or `uninstall` on F6.  
 3. **MUST NOT** put `NOPASSWD` on any `nginx-cli` line.  
 4. **MUST NOT** invent or allowlist `nginx-ctl`.  
-5. Residual: password F6 still lets nginx-adm run listed day-to-day verbs as root after typing a password. That residual **MUST** be stated; it is accepted.
+5. Residual: password F6 still lets nginx-adm run listed day-to-day verbs as root after typing a password. That residual **MUST** be stated; it is accepted.  
+6. Login `nginx-adm` **MAY** run the same day-to-day verbs **without** sudo (`ngx_can_approve`). F6 `sudo nginx-cli` is the root re-entry. Both paths are dest-honest. The hook uses the sudo path and therefore **needs** a usable nginx-adm password.
 
 ### 2.3 Table B — Forbidden **in the F6 fragment** (not a live-command denylist)
 
@@ -99,6 +100,7 @@ The CLI invokes these as **internal jobs** after euid 0. Account create/teardown
 | JOB-RM | Remove product fragment / queues | `rm` | those same product-owned names; F7 `/var/nginx-cli` after backup |
 | JOB-USERDEL | Teardown | `userdel -r` | this LPU only |
 | JOB-NGINX-T | Optional test on approve | `/usr/sbin/nginx -t` | warn + roll back dest if fail |
+| JOB-PASSWD | Set LPU password so Family 1 authenticates | `passwd nginx-adm` | TTY; operator types; product **MUST NOT** record or `chpasswd` |
 
 ### 2.5 Fragment write / install
 
@@ -141,7 +143,7 @@ nginx-adm ALL=(ALL) NOPASSWD: /usr/sbin/nginx
 
 ```
 
-Worked elev: `sudo /usr/local/bin/nginx-cli approve` (nginx-adm password). Worked unit: `sudo /usr/sbin/nginx -t` then `sudo /bin/systemctl reload nginx` (no password).
+Worked elev: `sudo /usr/local/bin/nginx-cli approve` (nginx-adm password — `setup` **MUST** have run `passwd nginx-adm` or warned). Worked as-login: `nginx-cli approve` while `id -un` is `nginx-adm` (no sudo). Worked unit: `sudo /usr/sbin/nginx -t` then `sudo /bin/systemctl reload nginx` (no password).
 
 #### 2.5.2 Submit allowlist fragment (not F6; create-if-absent)
 
@@ -269,7 +271,9 @@ After sibling approve, dest install is **`/etc/sudoers.d/nginx-cli-<user>`** (pe
 8. Require `SUDO_USER==nginx-adm` for `setup` / `remove-lpu`.  
 9. Write bootstrap or the login hook as `sudo -n` of `nginx-cli`.  
 10. Copy sudoer-cli Table A (one NOPASSWD whole-binary line, inbound 3773) onto this dest.  
-11. Add a product block that is not a row in `requirement-privilege-prevention-set.md`.
+11. Add a product block that is not a row in `requirement-privilege-prevention-set.md`.  
+12. Leave Family 1 / the login hook claiming to work when nginx-adm has no usable password.  
+13. Script a password (`chpasswd`, `passwd --stdin`, hardcoded secret).
 
 **Violating this rule is a critical privilege / LLM-escape regression.**
 
@@ -280,7 +284,7 @@ After sibling approve, dest install is **`/etc/sudoers.d/nginx-cli-<user>`** (pe
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
 | **TP-CLI-13,14** | `tests/test_cli.sh` | have | print-sudoers / nginx-ctl unknown |
-| **TP-NGX-01,14,15** | `tests/test_domain.sh` | have | setup euid; hook password sudo; F6 two families static |
+| **TP-NGX-01,14,15,34** | `tests/test_domain.sh` | have | setup euid; hook password sudo; F6 two families static; passwd-ensure |
 | **TP-NGX-16,17,19** | `tests/test_domain.sh` | have | submit-sudoer-request detect / stub / no Type 0 mkdir |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
@@ -298,6 +302,6 @@ After sibling approve, dest install is **`/etc/sudoers.d/nginx-cli-<user>`** (pe
 | `docs/requirements/requirement-shell-cli-interface.md` | Dispatcher / Type 0 catalog |
 | `./src/nginx-cli` | Ship unit under test |
 
-**Last Updated**: 2026-08-15  
+**Last Updated**: 2026-08-15 (1.2.0 — JOB-PASSWD; Family 1 needs a real nginx-adm password)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

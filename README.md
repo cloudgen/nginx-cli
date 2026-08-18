@@ -1,6 +1,6 @@
 # nginx-cli - Nginx least-privilege admin CLI
 
-![Version](https://img.shields.io/badge/Version-1.4.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.4.1-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/nginx-cli?style=flat-square)](https://github.com/cloudgen/nginx-cli)
@@ -93,14 +93,16 @@ sh src/nginx-cli install
 
 # Create nginx-adm and queues
 sudo nginx-cli setup
+# TTY setup runs passwd nginx-adm. If it did not: sudo passwd nginx-adm
 
 # Map a submitter's domain, then submit
 sudo nginx-cli map-set alice example.com
 # (alice listed in /etc/sudoers.d/nginx-cli-submit)
 nginx-cli request example.com ./example.com.conf
 
-# Approver login (or run explicitly)
+# Approver login (or run explicitly). As nginx-adm, no sudo is required:
 nginx-cli approve
+# sudo nginx-cli approve needs the nginx-adm account password (not NOPASSWD).
 ```
 
 Request files must start with `#` comments describing intention / objectives / update, then a normal nginx `server` block.
@@ -129,4 +131,4 @@ MIT License — see [`LICENSE.md`](./LICENSE.md).
 
 ## Last Update
 
-2026-08-15 — version **1.4.0** (dest inbound is dest request JSON; same ship unit is dest **and** submitter).
+2026-08-18 — version **1.4.1** (setup ensures nginx-adm password so `sudo nginx-cli` can authenticate; TP-NGX-02 isolates live host submit grants).

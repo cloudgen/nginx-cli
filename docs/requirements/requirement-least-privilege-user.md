@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-least-privilege-user.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Area**: architecture  
 **Key**: `requirement-least-privilege-user`  
 **id**: RQ-LEAST-PRIVILEGE-USER  
@@ -43,6 +43,7 @@ When creating a new LPU, resolve F3 as: override env (`NGINX_ADM_HOME`) if set �
 | Artifact | Create (Type 1 `setup`) | Remove (Type 1 `remove-lpu` / `remove-nginx-adm`) |
 |----------|-------------------------|---------------------------------------------------|
 | Account + home | `useradd` with F1–F3 (not a sudoers Cmnd) | After archive/reverse: `userdel -r` |
+| Account password | After useradd: TTY `passwd nginx-adm` (operator types; product **MUST NOT** record it) or non-TTY warn with that command | removed with `userdel` |
 | Submit group | `nginx-cli-submit` | `groupdel` if leftover after LPU groupdel |
 | Public queues | mkdir `/var/nginx-cli/` + three children; modes in F5 | **backup then remove** the public root (do **not** rely on `userdel -r`) |
 | Home queue / site views | F4 symlinks under live LPU home | removed with `userdel -r` |
@@ -74,7 +75,7 @@ F7 order **MUST** be: backup+remove both product sudoers fragments → backup+re
 | Login hook | `${F3}/.bashrc` only; marker managed by domain; command `sudo /usr/local/bin/nginx-cli approve` (**password**; **not** `sudo -n`) | F5 rc / domain SSOT |
 | Remove | `sudo nginx-cli remove-lpu` (or `remove-nginx-adm`) — any host admin already euid 0 | F7 |
 
-**Routing status:** `setup` / `remove-lpu` **are live** (useradd / F6 / submit fragment / hook / userdel) and **fail closed** without euid 0. Bootstrap is **any** host admin already root (`sudo nginx-cli setup`); **not** `sudo -n`; **not** limited to `nginx-adm` (that account is what setup creates). Probe with `id nginx-adm` before claiming the account exists. If the account already exists with the expected identity, setup **MUST** repair layout/ownership/sudoers only and **MUST NOT** destroy existing site conf.
+**Routing status:** `setup` / `remove-lpu` **are live** (useradd / F6 / submit fragment / hook / password-ensure / userdel) and **fail closed** without euid 0. Bootstrap is **any** host admin already root (`sudo nginx-cli setup`); **not** `sudo -n`; **not** limited to `nginx-adm` (that account is what setup creates). Probe with `id nginx-adm` before claiming the account exists. If the account already exists with the expected identity, setup **MUST** repair layout/ownership/sudoers only and **MUST NOT** destroy existing site conf. Re-run **MUST** still ensure a usable nginx-adm password (TTY `passwd` or warn) so `OPEN-PASSWD-CLI` is real.
 
 Snippet text, request/approve verbs, and the review walk are owned by `requirement-domain-nginx-cli.md`. This file owns **where** the hook is installed (this LPU’s `.bashrc` only) and **F1–F7**.
 
@@ -114,7 +115,9 @@ Snippet text, request/approve verbs, and the review walk are owned by `requireme
 11. Put `user-domain-map` on the public queue root.  
 12. Rely on `userdel -r` to remove `/var/nginx-cli`.  
 13. Mode inbound world-writable (`0777` or `3773` other `-wx`).  
-14. Copy sudoer-cli F1–F7 (UID 1776, inbound 3773, NOPASSWD whole CLI, `sudo -n` hook) onto this leaf.
+14. Copy sudoer-cli F1–F7 (UID 1776, inbound 3773, NOPASSWD whole CLI, `sudo -n` hook) onto this leaf.  
+15. Claim Family 1 / the login hook work after `setup` when nginx-adm has no usable password.  
+16. Feed a password to `chpasswd`, `passwd --stdin`, or any command line / file / log.
 
 **Violating this rule is a critical least-privilege documentation / identity regression.**
 
@@ -124,7 +127,7 @@ Snippet text, request/approve verbs, and the review walk are owned by `requireme
 
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
-| **TP-NGX-10,13,15** | `tests/test_domain.sh` | have | hook home; no Type 0 mkdir inbound; 2770 not 3773 |
+| **TP-NGX-10,13,15,34** | `tests/test_domain.sh` | have | hook home; no Type 0 mkdir inbound; 2770 not 3773; setup passwd-ensure (no chpasswd) |
 | **TP-CLI-13** | `tests/test_cli.sh` | have | print-sudoers / backup / restore unknown |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
@@ -141,6 +144,6 @@ Snippet text, request/approve verbs, and the review walk are owned by `requireme
 | `docs/requirements/requirement-shell-cli-interface.md` | Type map on the dispatcher |
 | `./src/nginx-cli` | Ship unit |
 
-**Last Updated**: 2026-08-15  
+**Last Updated**: 2026-08-15 (1.1.0 — setup must ensure nginx-adm password for Family 1)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-08-18
+
+### Fixed
+
+- `setup` now ensures Family 1 can authenticate: TTY `passwd nginx-adm` (operator types; never recorded) or a non-TTY warn. A locked `useradd` account made `sudo nginx-cli` print `sudo: a password is required` (INC-20260815-001).
+- Help / `about` say how to set the password and that a logged-in `nginx-adm` may run day-to-day verbs **without** sudo.
+- **MUST NOT** `chpasswd` or NOPASSWD the CLI.
+- TP-NGX-02 isolates live host submit grants (`NGINX_CLI_SUBMIT_SUDOERS` and `NGINX_CLI_SUBMIT_PER_USER_DIR`) so a listed operator still sees **Submit denied**.
+
+### Law
+
+- LPU **1.1.0** · three-layer **1.2.0** (JOB-PASSWD) · prevention **1.4.0** (PREV-PASSWD / OPEN-ADM-NOSUDO) · domain **1.11.0**.
+
+### Tests
+
+- TP-NGX-34: setup calls passwd-ensure; help names `passwd nginx-adm`; no `chpasswd`.
+
 ## [1.4.0] - 2026-08-15
 
 ### Changed

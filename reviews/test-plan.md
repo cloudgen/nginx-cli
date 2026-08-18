@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/nginx-cli`  
-**Product VERSION:** 1.4.0  
-**Last plan update:** 2026-08-15  
-**Last suite run:** PASS=189 FAIL=0 SKIP=0 (2026-08-15)
+**Product VERSION:** 1.4.1  
+**Last plan update:** 2026-08-18  
+**Last suite run:** PASS=194 FAIL=0 SKIP=0 (2026-08-18)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -94,6 +94,7 @@ Unchanged **have** TP-LC-01..10 against `src/nginx-cli`.
 | TP-NGX-29 | `--json request` emits one status object | test_domain | output + convert silence | **have** |
 | TP-NGX-32 | sudoer grant non-listed binary refuse | test_domain | sudoer-json-file allowlist | **have** |
 | TP-NGX-33 | JSON `include` inject fail-closed | test_domain | domain §2.2.9 refuse | **have** |
+| TP-NGX-34 | setup passwd-ensure; help names `passwd nginx-adm`; no `chpasswd` | test_domain | LPU · three-layer JOB-PASSWD · OPEN-PASSWD-CLI | **have** |
 
 ---
 

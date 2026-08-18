@@ -30,7 +30,7 @@
 # Single-file ship unit under src/; install to ~/.local/bin (user) or /usr/local/bin (root/--global).
 #
 # APP NAME: hard-assign APP_NAME="nginx-cli"
-# VERSION: hard-assign VERSION="1.4.0"
+# VERSION: hard-assign VERSION="1.4.1"
 #
 # =============================================================================
 
@@ -47,7 +47,7 @@ APP_NAME="nginx-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, interactive approval, and submit-sudoer-request.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.4.0"
+VERSION="1.4.1"
 : "${VERSION:=1.0.0}"
 # Repository identity SSOT (git host owner/repo for project-repository alignment).
 # Install remains local-only: SCRIPT_URL stays empty (no online curl|sh channel).
@@ -1439,6 +1439,7 @@ ngx_defaults() {
     : "${NGINX_CONF_ROOT:=/etc/nginx}"
     : "${NGINX_ADM_SUDOERS:=/etc/sudoers.d/nginx-adm}"
     : "${NGINX_CLI_SUBMIT_SUDOERS:=/etc/sudoers.d/nginx-cli-submit}"
+    : "${NGINX_CLI_SUBMIT_PER_USER_DIR:=/etc/sudoers.d}"
     : "${NGINX_CLI_SUBMIT_GROUP:=nginx-cli-submit}"
     : "${NGINX_CLI_FIXTURE:=0}"
     : "${NGINX_WEB_UNIT:=nginx}"
@@ -1550,8 +1551,8 @@ ngx_is_listed_submitter() {
             return 0
         fi
     fi
-    # Sibling dest after sudoer-adm approve: /etc/sudoers.d/nginx-cli-<login>
-    _per="/etc/sudoers.d/${APP_NAME}-${_u}"
+    # Sibling dest after sudoer-adm approve: ${NGINX_CLI_SUBMIT_PER_USER_DIR}/nginx-cli-<login>
+    _per="${NGINX_CLI_SUBMIT_PER_USER_DIR}/${APP_NAME}-${_u}"
     if [ -f "${_per}" ] && [ ! -L "${_per}" ]; then
         return 0
     fi
@@ -2688,6 +2689,80 @@ ngx_create_adm_user() {
     out_success "Created ${NGINX_ADM_USER} uid=${NGINX_ADM_UID} home=${_home} (${_home_sel})"
 }
 
+# ngx_adm_passwd_status() - usable | locked | none | fixture | unknown (never the hash)
+ngx_adm_passwd_status() {
+    ngx_defaults
+    if ngx_fixture_mode; then
+        printf '%s' "fixture"
+        return 0
+    fi
+    if ! command -v passwd >/dev/null 2>&1; then
+        printf '%s' "unknown"
+        return 0
+    fi
+    _st=$(passwd -S "${NGINX_ADM_USER}" 2>/dev/null) || {
+        printf '%s' "unknown"
+        return 0
+    }
+    _f2=$(printf '%s\n' "${_st}" | awk '{print $2}')
+    case "${_f2}" in
+        P|PS)
+            printf '%s' "usable"
+            ;;
+        L|LK)
+            printf '%s' "locked"
+            ;;
+        NP)
+            printf '%s' "none"
+            ;;
+        *)
+            printf '%s' "unknown"
+            ;;
+    esac
+}
+
+# ngx_print_adm_sudo_next_step() - Family 1 needs the LPU password; no sudo also works as that login
+ngx_print_adm_sudo_next_step() {
+    ngx_defaults
+    out_info "sudo ${APP_NAME} as ${NGINX_ADM_USER} uses that account's password (Family 1 is not NOPASSWD)."
+    out_info "Set or reset: passwd ${NGINX_ADM_USER}"
+    out_info "Already logged in as ${NGINX_ADM_USER}: day-to-day verbs also work without sudo (${APP_NAME} approve)."
+}
+
+# ngx_ensure_adm_password() - OPEN-PASSWD-CLI: TTY passwd(1) or warn; never record the secret
+ngx_ensure_adm_password() {
+    ngx_defaults
+    : "${TTY:=0}"
+    : "${JSON:=0}"
+    if ngx_fixture_mode; then
+        return 0
+    fi
+    if ! id "${NGINX_ADM_USER}" >/dev/null 2>&1; then
+        out_warn "Account ${NGINX_ADM_USER} missing; cannot set a password"
+        return 0
+    fi
+    _st=$(ngx_adm_passwd_status)
+    if [ "${_st}" = "usable" ]; then
+        out_info "${NGINX_ADM_USER} already has a password; sudo ${APP_NAME} can authenticate"
+        ngx_print_adm_sudo_next_step
+        return 0
+    fi
+    out_info "Family 1 sudo ${GLOBAL_BIN:-/usr/local/bin}/${APP_NAME} needs a ${NGINX_ADM_USER} password (not NOPASSWD)."
+    if [ "${JSON}" -eq 0 ] && [ "${TTY}" = "1" ] && [ -t 0 ] && [ -t 1 ] && command -v passwd >/dev/null 2>&1; then
+        out_info "Set a password for ${NGINX_ADM_USER} now (typed into passwd; this CLI does not record it)."
+        if passwd "${NGINX_ADM_USER}"; then
+            out_success "Password set for ${NGINX_ADM_USER}"
+            ngx_print_adm_sudo_next_step
+            return 0
+        fi
+        out_warn "passwd ${NGINX_ADM_USER} did not complete. sudo ${APP_NAME} will fail until: passwd ${NGINX_ADM_USER}"
+        ngx_print_adm_sudo_next_step
+        return 0
+    fi
+    out_warn "Set a password before sudo ${APP_NAME} as ${NGINX_ADM_USER}: passwd ${NGINX_ADM_USER}"
+    ngx_print_adm_sudo_next_step
+}
+
 ngx_setup_ownership() {
     ngx_defaults
     if [ ! -d "${NGINX_CONF_ROOT}" ]; then
@@ -2739,6 +2814,7 @@ ngx_setup() {
     ngx_write_adm_sudoers
     ngx_write_submit_sudoers_template
     ngx_enable_login_approval
+    ngx_ensure_adm_password
     out_success "nginx-adm least-privilege setup complete"
     if [ "${JSON}" -eq 1 ]; then
         out_json "setup" "complete" \
@@ -2747,7 +2823,8 @@ ngx_setup() {
             "home" "$(ngx_resolve_adm_home)" \
             "queue_root" "$(ngx_resolve_queue_root)" \
             "submit_group" "${NGINX_CLI_SUBMIT_GROUP}" \
-            "conf_root" "${NGINX_CONF_ROOT}"
+            "conf_root" "${NGINX_CONF_ROOT}" \
+            "passwd_status" "$(ngx_adm_passwd_status)"
     fi
 }
 
@@ -3640,6 +3717,7 @@ app_about() {
         fi
     fi
     _trust_tier=$(ngx_sudoers_trust_tier)
+    _adm_passwd=$(ngx_adm_passwd_status)
 
     if [ "${JSON}" -eq 1 ]; then
         out_json "about" "" \
@@ -3659,6 +3737,7 @@ app_about() {
             "storage_dir" "${STORAGE_DIR}" \
             "nginx_adm_user" "${_adm_user}" \
             "nginx_adm_exists" "${_adm_exists}" \
+            "nginx_adm_passwd" "${_adm_passwd}" \
             "nginx_adm_home" "${_adm_home}" \
             "nginx_conf_root" "${_conf_root}" \
             "nginx_queue_root" "${_qroot}" \
@@ -3701,6 +3780,7 @@ app_about() {
     fi
     out_empty_line
     out_info "nginx-adm user:    ${_adm_user} (exists=${_adm_exists})"
+    out_info "nginx-adm passwd:  ${_adm_passwd}  (usable needed for sudo ${APP_NAME}; never printed)"
     out_info "nginx-adm home:    ${_adm_home}"
     out_info "nginx conf root:   ${_conf_root}"
     out_info "Queue root:        ${_qroot}"
@@ -3791,8 +3871,10 @@ app_help() {
     out_info "Inbound: /var/nginx-cli/config-request (mode 2770, group nginx-cli-submit, JSON request files)."
     out_info "Submit privilege: root, nginx-adm, or a login listed in /etc/sudoers.d/nginx-cli-submit"
     out_info "(or /etc/sudoers.d/nginx-cli-<login>) and in group nginx-cli-submit. Other users cannot request."
-    out_info "Approvers: root, or nginx-adm via password sudo /usr/local/bin/nginx-cli."
-    out_info "nginx-adm may also NOPASSWD sudo /usr/sbin/nginx and systemctl/journalctl -u nginx."
+    out_info "Approvers: root, or nginx-adm as that login, or via password sudo /usr/local/bin/nginx-cli."
+    out_info "sudo nginx-cli as nginx-adm needs that account's password. Set: passwd nginx-adm"
+    out_info "Logged in as nginx-adm, day-to-day verbs also work without sudo (nginx-cli approve)."
+    out_info "nginx-adm may also NOPASSWD sudo /usr/sbin/nginx and systemctl start|stop|reload|restart nginx (not status) and journalctl -u nginx."
     out_empty_line
     out_info "Global Options:"
     out_plain "  --quiet, -q          Suppress info/success (errors still shown)"

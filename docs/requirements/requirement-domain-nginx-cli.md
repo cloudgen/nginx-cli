@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-nginx-cli.md  
-**Status**: Active (Version 1.10.0)  
+**Status**: Active (Version 1.11.0)  
 **Area**: domain  
 **Key**: `requirement-domain-nginx-cli`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -138,7 +138,8 @@ Every domain verb **MUST** map to exactly one privilege class. Domain functions 
 2. `user-domain-map` **MUST** stay under LPU home (never on the public queue root).  
 3. If setup finds a **real** (non-symlink) home queue dir from a prior revision, it **MUST** migrate files into the public trio, then replace the home dir with the F4 view.  
 4. Re-run **MUST NOT** destroy existing site conf. If the account already exists with the expected identity, repair layout/ownership/sudoers only.  
-5. Complete F6 and submit-fragment text **MUST** match three-layer §2.5 — do not keep a second copy here.
+5. Complete F6 and submit-fragment text **MUST** match three-layer §2.5 — do not keep a second copy here.  
+6. `setup` **MUST** leave Family 1 authenticatable: TTY `passwd nginx-adm` (operator types; never recorded) or a non-TTY warn with that command. **MUST NOT** `chpasswd` or script a secret. A locked nginx-adm password makes the login hook and `sudo nginx-cli` fail with `sudo: a password is required`.
 
 #### 2.2.2 remove-lpu
 
@@ -219,7 +220,7 @@ Paired **text duals** (what `json-to-conf` renders; also legal `request` input) 
 
 #### 2.2.6 Login hook
 
-Idempotent markers in `/etc/nginx-adm/.bashrc` only. The snippet **MUST** skip when `PS1` is unset (scp / non-interactive). Empty argv of this CLI **MUST** still be help (the hook calls `approve`, not bare `nginx-cli`). Interactive login **MUST** use **`sudo /usr/local/bin/nginx-cli approve`** (password prompt). **MUST NOT** use `sudo -n`.
+Idempotent markers in `/etc/nginx-adm/.bashrc` only. The snippet **MUST** skip when `PS1` is unset (scp / non-interactive). Empty argv of this CLI **MUST** still be help (the hook calls `approve`, not bare `nginx-cli`). Interactive login **MUST** use **`sudo /usr/local/bin/nginx-cli approve`** (password prompt). **MUST NOT** use `sudo -n`. That sudo authenticates as **nginx-adm** — the account **MUST** have a usable password (`setup` JOB-PASSWD). Login `nginx-adm` **MAY** also run `nginx-cli approve` **without** sudo (`OPEN-ADM-NOSUDO`).
 
 Complete snippet (setup **MUST** write this shape):
 
@@ -362,7 +363,7 @@ Type 0 diagnostics (install, storage, repo) **MUST** remain.
 | **Ship unit** | `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) |
 | **Domain prefix** | `ngx_` |
-| **VERSION** | `1.4.0` (domain law 1.10.0) |
+| **VERSION** | `1.4.1` (domain law 1.11.0) |
 | **Convert verbs** | `conf-to-json` → `ngx_conf_to_json`; `json-to-conf` → `ngx_json_to_conf` |
 | **Submit compose** | `submit-sudoer-request` → `ngx_submit_sudoer_request` |
 | **Sibling inbound** | `/var/sudoer-cli/sudoer-request` |
@@ -449,6 +450,6 @@ Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli
 | `docs/requirements/requirement-shell-modular-function-design.md` | `ngx_` prefix |
 | `./src/nginx-cli` | Implementation |
 
-**Last Updated**: 2026-08-15  
+**Last Updated**: 2026-08-15 (1.11.0 — setup must ensure nginx-adm password for hook / Family 1)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

@@ -21,7 +21,10 @@ run_test_domain() {
     assert_contains "TP-NGX-01 setup requires root" "$_err" "root"
 
     # TP-NGX-02 request without privilege / fixture denied
-    _err=$(sh "${SCRIPT}" request example.com 2>&1 >/dev/null)
+    # Isolate live host grants (/etc/sudoers.d/nginx-cli-submit and nginx-cli-<login>).
+    _err=$(NGINX_CLI_SUBMIT_SUDOERS="/tmp/nginx-cli-no-submit-sudoers" \
+        NGINX_CLI_SUBMIT_PER_USER_DIR="/tmp/nginx-cli-no-per-user" \
+        sh "${SCRIPT}" request example.com 2>&1 >/dev/null)
     _ec=$?
     assert_eq "TP-NGX-02 request denied exit 1" 1 "$_ec"
     assert_contains "TP-NGX-02 submit denied" "$_err" "Submit denied"
@@ -159,6 +162,13 @@ run_test_domain() {
     assert_not_contains "TP-NGX-15 no inbound 3773" "$(cat "${SCRIPT}")" "3773"
     assert_contains "TP-NGX-15 NOPASSWD unit nginx" "$(cat "${SCRIPT}")" "NOPASSWD: %s"
     assert_not_contains "TP-NGX-15 no NOPASSWD on nginx-cli path" "$(cat "${SCRIPT}")" "NOPASSWD: /usr/local/bin/nginx-cli"
+
+    # TP-NGX-34 Family 1 needs a real nginx-adm password (no chpasswd / no scripted secret)
+    assert_contains "TP-NGX-34 setup calls passwd-ensure" "$(cat "${SCRIPT}")" "ngx_ensure_adm_password"
+    assert_contains "TP-NGX-34 setup invokes passwd LPU" "$(cat "${SCRIPT}")" 'passwd "${NGINX_ADM_USER}"'
+    assert_contains "TP-NGX-34 help names passwd nginx-adm" "$(sh "${SCRIPT}" help 2>&1)" "passwd nginx-adm"
+    assert_not_contains "TP-NGX-34 no chpasswd" "$(cat "${SCRIPT}")" "chpasswd"
+    assert_not_contains "TP-NGX-34 no passwd --stdin" "$(cat "${SCRIPT}")" "passwd --stdin"
 
     # TP-NGX-16 submit fail-closed when sudoer-cli missing
     _err=$(HOME="${_fx}/home16" SUDOER_CLI="${_fx}/no-such-sudoer-cli" \
