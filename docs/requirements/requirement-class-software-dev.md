@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-class-software-dev.md  
-**Status**: Active (Version 1.7.0 – nginx-cli class law + residual stack)  
+**Status**: Active (Version 1.8.0 – dest Fence + fence-test + coding-style pointer)  
 **Area**: class  
 **Key**: `requirement-class-software-dev`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -9,6 +9,29 @@
 Declare this workspace as a **software-development** project class and hold the **residual collection** of software-engineering stack facts **not already owned** by more specific Active peer requirements: primary language, toolchain policy, package/test tooling, and runtime OS family.
 
 This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycle, output, or storage tables (those stay on peer requirements).
+
+### 1.1 Human-facing
+
+**In one sentence:** This workspace is a shippable POSIX CLI; class facts live here, dest JSON fences and writing style live on pointed peers.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You | Work in this product tree | `src/nginx-cli` |
+| Dest | nginx-adm reviews waiting JSON | `/var/nginx-cli/config-request` |
+| Not this file | Fence meaning, writing-style body | `requirement-incorrect-json-format` · `requirement-shell-script-coding` |
+
+| Includes | Excludes |
+|----------|----------|
+| Class membership; residual stack; pointers | Dest Fence match rules; POSIX writing body |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `docs/requirements/index.md` | registry | live law list |
+| `src/nginx-cli` | ship unit | product |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Ask what class this is | software-development | (read this file) |
 
 ---
 
@@ -111,6 +134,8 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Prevention catalog | `requirement-privilege-prevention-set` | closed block / must-remain-open |
 | Folder archive backup / restore / retention | **intentionally absent** | Not this product’s domain (sibling folder-backup) |
 | Domain surface (`requirement-domain-*`) | `requirement-domain-nginx-cli` | file-based JSON dest **and** same-product submitter (`request`); compose to sudoer-cli |
+| Dest Fence: incorrect JSON format | `requirement-incorrect-json-format` | Independent Fence REQ; dest table still prints; Type 0 `test-json-format`; list tester `fence-test` |
+| Coding-style related REQ | `requirement-shell-script-coding` | Specialize-in home; without it portable lessons arrive raw |
 | Prompt helper bodies / temp leaves | **intentionally absent as extra REQs** | interactive + storage |
 | Online install / remote self-management / companion checksum | **intentionally absent** | Not this product’s channel |
 
@@ -172,6 +197,8 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 |-----|--------------|
 | `requirement-bootstrap-chain` | Origin A = cli-template; this product is B |
 | `requirement-domain-nginx-cli` | Domain SSOT (nginx-conf request/approve) |
+| `requirement-incorrect-json-format` | Dest Fence |
+| `requirement-shell-script-coding` | Coding-style related REQ |
 | `requirement-least-privilege-user` | nginx-adm F1–F7 |
 | `requirement-three-layer-privilege-model` | Type map + Tables A/B/C + submit workflow |
 | `requirement-sudoer-json-file` | JSON sudoer file body |
@@ -201,9 +228,10 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | 2026-08-15 | Active 1.5.0 | Residual owners: LPU / three-layer / prevention; no prompt/temp REQs |
 | 2026-08-15 | Active 1.6.0 | Residual owner: JSON sudoer file; VERSION 1.2.0 |
 | 2026-08-15 | Active 1.7.0 | Domain residual: JSON dest + same-product submitter |
+| 2026-08-21 | Active 1.8.0 | Dest Fence pointer; Type 0 fence-test; coding-style pointer |
 
 ---
 
-**Last Updated**: 2026-08-15  
+**Last Updated**: 2026-08-21  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

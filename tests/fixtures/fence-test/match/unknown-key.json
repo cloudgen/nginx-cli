@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "purpose": "Add HTTPS vhost redirect for example.com",
+  "username": "alice",
+  "service": "nginx-cli",
+  "action": "add",
+  "kind": "redirect",
+  "domain": "example.com",
+  "submit_app": "nginx-cli",
+  "submit_version": "1.5.0",
+  "token": "nope",
+  "site": {
+    "listen": ["80"],
+    "server_name": ["example.com"]
+  }
+}

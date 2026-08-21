@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/nginx-cli`  
-**Product VERSION:** 1.4.1  
-**Last plan update:** 2026-08-18  
-**Last suite run:** PASS=194 FAIL=0 SKIP=0 (2026-08-18)
+**Product VERSION:** 1.5.0  
+**Last plan update:** 2026-08-21  
+**Last suite run:** PASS=214 FAIL=0 SKIP=0 (2026-08-21)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -54,6 +54,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-CLI-12 | storage isolation | test_cli | requirement-shell-cli-storage | **have** |
 | TP-CLI-13 | backup/restore/print-sudoers unknown | test_cli | requirement-bootstrap-chain · three-layer | **have** |
 | TP-CLI-14 | `nginx-ctl` unknown; help does not list it | test_cli | prevention · three-layer · interface | **have** |
+| TP-CLI-15 | Help lists `fence-test` / `test-json-format` under Unit test heading | test_cli | interface · dest Fence | **have** |
 
 ### TP-LC (local lifecycle)
 
@@ -95,6 +96,15 @@ Unchanged **have** TP-LC-01..10 against `src/nginx-cli`.
 | TP-NGX-32 | sudoer grant non-listed binary refuse | test_domain | sudoer-json-file allowlist | **have** |
 | TP-NGX-33 | JSON `include` inject fail-closed | test_domain | domain §2.2.9 refuse | **have** |
 | TP-NGX-34 | setup passwd-ensure; help names `passwd nginx-adm`; no `chpasswd` | test_domain | LPU · three-layer JOB-PASSWD · OPEN-PASSWD-CLI | **have** |
+| TP-NGX-35 | `fence-test --file` pass corpus (sibling `submit_app` dest-legal) | test_domain | dest Fence · domain | **have** |
+| TP-NGX-36 | `test-json-format` sibling stamp dest-legal | test_domain | dest Fence | **have** |
+| TP-NGX-37 | `fence-test` missing purpose is Fence | test_domain | dest Fence | **have** |
+| TP-NGX-38 | `fence-test` unknown key is Fence | test_domain | dest Fence | **have** |
+| TP-NGX-39 | `fence-test --dir` match corpus fail-closed | test_domain | dest Fence FC-M6 | **have** |
+| TP-NGX-40 | `fence-test --dir --expect-match` | test_domain | dest Fence | **have** |
+| TP-NGX-41 | `fence-test --dir` pass corpus | test_domain | dest Fence | **have** |
+| TP-NGX-42 | tester missing `submit_app` fail-closed | test_domain | dest-owned stamp | **have** |
+| TP-NGX-43 | `request` stamps live `submit_app` / `submit_version` | test_domain | domain §2.2.9 | **have** |
 
 ---
 

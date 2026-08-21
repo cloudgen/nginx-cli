@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-nginx-cli.md  
-**Status**: Active (Version 1.11.0)  
+**Status**: Active (Version 1.12.0)  
 **Area**: domain  
 **Key**: `requirement-domain-nginx-cli`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -82,6 +82,25 @@ OS identities (not machine roles). Every domain verb **MUST** match this table. 
 | Domain / map | JSON `domain` = operand; map gate for listed humans | domain from basename + JSON for publish dest |
 | Syntax gate | n/a (text dual at approve) | `json-to-conf` then `nginx -t` on **rendered text** (never raw JSON) |
 | Inbound last component not symlink | fail closed | fail closed |
+| Dest Fence (incorrect JSON format) | fail closed | interactive: display, **do not** ask, archive rejected; basename `approve`/`reject`: fail closed, file stays inbound |
+
+**Dest approval fencing conditions** (closed; dest table **MUST** print):
+
+| Row | Kind | Owner |
+|-----|------|--------|
+| **Incorrect JSON format** | dest **Fence** | `requirement-incorrect-json-format` |
+| Unix file-ownership of the waiting file | **MUST NOT** fence | this table only |
+| Who submitted | **MUST NOT** fence | this table only |
+| JSON `username` ≠ `nginx-adm` | **MUST NOT** fence | this table only |
+| `submit_app` ≠ dest `APP_NAME` | **MUST NOT** fence | this table only |
+| `submit_version` ≠ dest `VERSION` | **MUST NOT** fence | this table only |
+
+This dest has **one** dest **Fence**. Type 0 **test-purpose** `fence-test` runs that list against a JSON **file location** in a **local test folder**. `test-json-format` is the per-row tester. Dual mention: this file **and** `requirement-shell-cli-interface`. Invocation:
+
+```sh
+nginx-cli fence-test --file tests/fixtures/fence-test/pass/20260821-alice-example.com-1.json
+nginx-cli test-json-format --file ./20260821-alice-example.com-1.json
+```
 
 **Create the system on a host (Type 1 then day-to-day):**
 
@@ -125,8 +144,10 @@ Every domain verb **MUST** map to exactly one privilege class. Domain functions 
 | `submit-sudoer-request [file]` | Type 0 compose | any login | `ngx_submit_sudoer_request` | Detect sudoer-cli + sudoer-adm + public inbound; sibling allocates a JSON grant request. **Does not** write `/etc` or `mkdir` inbound. Flags: `--purpose`, `--update`, `--allow-test-local`. Workflow: `requirement-three-layer-privilege-model` §2.5.3 · body: `requirement-sudoer-json-file` |
 | `conf-to-json [file]` | Type 0 convert | any login | `ngx_conf_to_json` | Convert nginx-conf **text dual** to dest request JSON. stdin **xor** `--file`. stdout or `--out`. Never queue. Never write `${NGINX_CONF_ROOT}` / `/etc`. Flags: `--action add\|update`, `--purpose` |
 | `json-to-conf [file]` | Type 0 convert | any login | `ngx_json_to_conf` | Convert dest request JSON to nginx-conf text. `remove` → `# Purpose:` only. stdin **xor** `--file`. stdout or `--out`. Never queue. Never write `${NGINX_CONF_ROOT}` / `/etc`. Syntax gate (`nginx -t` when present) on **rendered text** only |
+| `test-json-format [file]` | Type 0 **test-purpose** | any login | `ngx_test_json_format` | Per-row dest JSON-format Fence. stdin **xor** `--file`. **MUST NOT** queue, dest-write, or require `sudo` / a sudoers fragment / the waiting folder |
+| `fence-test [file]` | Type 0 **test-purpose** | any login | `ngx_fence_test` | Closed dest Fence list. stdin **xor** `--file PATH` **xor** `--dir DIR`. `--expect-match` with `--dir` succeeds only when every file matches a dest Fence. Same no-sudo / no-queue rules |
 
-**MUST NOT** treat Type 0 `uninstall` as LPU remove.
+**MUST NOT** treat Type 0 `uninstall` as LPU remove. **MUST NOT** treat dest `approve` / `reject` as `fence-test`.
 
 ### 2.2 Specialized features
 
@@ -176,6 +197,8 @@ Complete **queued** sample (initial add) — same grant as the text dual below:
   "action": "add",
   "kind": "redirect",
   "domain": "example.com",
+  "submit_app": "nginx-cli",
+  "submit_version": "1.5.0",
   "site": {
     "listen": ["80"],
     "server_name": ["example.com"],
@@ -195,6 +218,8 @@ Complete **queued** sample (update):
   "action": "update",
   "kind": "per-domain-https",
   "domain": "example.com",
+  "submit_app": "nginx-cli",
+  "submit_version": "1.5.0",
   "site": {
     "listen": ["443 ssl"],
     "server_name": ["example.com"],
@@ -248,8 +273,9 @@ Dest inbound **is** dest request JSON. Convert is the Type 0 **dual** (text ↔ 
 **Output:** stdout, or `--out PATH`. `--out` **MUST NOT** be under `/etc` or `${NGINX_CONF_ROOT}`.  
 **MUST NOT** write inbound / approved / rejected. **MUST NOT** `mkdir` those dirs.
 
-**Closed schema (add/update):** `schema_version` `1`; `purpose`; `username` (invoker at convert); `service` `nginx-cli`; `action` `add`\|`update`; `kind` exactly one of `per-domain-https` · `redirect` · `shared-cloudflare`; `domain`; `site` object. Unknown keys fail closed.  
-**remove:** `purpose` required; `site` forbidden.
+**Closed schema (add/update):** `schema_version` `1`; `purpose`; `username` (invoker at convert); `service` `nginx-cli`; `action` `add`\|`update`; `kind` exactly one of `per-domain-https` · `redirect` · `shared-cloudflare`; `domain`; `site` object; `submit_app`; `submit_version`. Unknown keys fail closed.  
+**`submit_app` / `submit_version`:** Type 0 `request` / `conf-to-json` **MUST** overwrite them from live Config `APP_NAME` / `VERSION`. Dest **MUST NOT** dest-write them. Dest **MUST NOT** fence if values ≠ dest identity. Missing / non-string on add/update emit, testers, and convert **is** dest Fence `requirement-incorrect-json-format`. Dest review display **MUST** print `queued by {submit_app} {submit_version}` when those strings are present.  
+**remove:** `purpose` required; `site` forbidden; `submit_app` / `submit_version` optional (strings when present).
 
 **`site` (constrained — not a raw nginx string, not a full AST):**
 
@@ -275,6 +301,8 @@ Worked JSON **add** (same grant as §2.2.4 add sample):
   "action": "add",
   "kind": "redirect",
   "domain": "example.com",
+  "submit_app": "nginx-cli",
+  "submit_version": "1.5.0",
   "site": {
     "listen": ["80"],
     "server_name": ["example.com"],
@@ -294,6 +322,8 @@ Worked JSON **update** (same grant as §2.2.4 update sample):
   "action": "update",
   "kind": "per-domain-https",
   "domain": "example.com",
+  "submit_app": "nginx-cli",
+  "submit_version": "1.5.0",
   "site": {
     "listen": ["443 ssl"],
     "server_name": ["example.com"],
@@ -333,6 +363,8 @@ Worked JSON **remove**:
 
 `help` **MUST** list `conf-to-json` and `json-to-conf` as Type 0 convert (no queue; no dest write).
 
+`help` **MUST** list **test-purpose** verbs `test-json-format` and `fence-test` under a heading **apart** from operational inbound (`request` / `approve` / `reject` / `submit-sudoer-request` / convert). Testers **MUST NOT** be grouped as submit/review.
+
 `help` **MUST NOT** advertise `backup`, `restore`, `print-sudoers`, `self-update`, or `self-uninstall`.
 
 ### 2.4 Specialized project about items
@@ -363,7 +395,9 @@ Type 0 diagnostics (install, storage, repo) **MUST** remain.
 | **Ship unit** | `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) |
 | **Domain prefix** | `ngx_` |
-| **VERSION** | `1.4.1` (domain law 1.11.0) |
+| **VERSION** | `1.5.0` (domain law 1.12.0) |
+| **Dest Fence** | `requirement-incorrect-json-format` |
+| **Testers** | `fence-test` / `test-json-format` |
 | **Convert verbs** | `conf-to-json` → `ngx_conf_to_json`; `json-to-conf` → `ngx_json_to_conf` |
 | **Submit compose** | `submit-sudoer-request` → `ngx_submit_sudoer_request` |
 | **Sibling inbound** | `/var/sudoer-cli/sudoer-request` |
@@ -432,6 +466,7 @@ Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli
 | **TP-NGX-16..20** | same | have | submit-sudoer-request compose (peer: three-layer + sudoer-json-file) |
 | **TP-NGX-21..24** | same | have | conf-to-json / json-to-conf dual; xor; refuse dest write |
 | **TP-NGX-25..33** | same | have | dest JSON request; inbound body; mismatch; published text; convert --out inbound; grant allowlist |
+| **TP-NGX-35..43** | same | have | dest Fence testers; `submit_app` / `submit_version`; unknown keys; sibling stamp |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
@@ -445,11 +480,12 @@ Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli
 | `docs/requirements/requirement-three-layer-privilege-model.md` | Type map + Tables A/B/C + fragment samples + submit workflow |
 | `docs/requirements/requirement-sudoer-json-file.md` | JSON grant body for `submit-sudoer-request` |
 | `docs/requirements/requirement-privilege-prevention-set.md` | Closed block / must-remain-open catalog |
-| `docs/requirements/requirement-shell-cli-interface.md` | Type 0 catalog; points here for domain verbs |
+| `docs/requirements/requirement-shell-cli-interface.md` | Type 0 catalog; dual mention of testers |
+| `docs/requirements/requirement-incorrect-json-format.md` | Dest Fence meaning |
 | `docs/requirements/requirement-bootstrap-chain.md` | Origin = cli-template; this product is B |
 | `docs/requirements/requirement-shell-modular-function-design.md` | `ngx_` prefix |
 | `./src/nginx-cli` | Implementation |
 
-**Last Updated**: 2026-08-15 (1.11.0 — setup must ensure nginx-adm password for hook / Family 1)  
+**Last Updated**: 2026-08-21 (1.12.0 — dest Fence table; Type 0 fence-test; dest-owned submit_app / submit_version)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

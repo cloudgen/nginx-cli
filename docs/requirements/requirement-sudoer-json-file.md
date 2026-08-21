@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-sudoer-json-file.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Area**: architecture  
 **Key**: `requirement-sudoer-json-file`  
 **id**: RQ-SUDOER-JSON-FILE  
@@ -73,6 +73,10 @@ Queued **basename** allocation remains sibling-owned. This requirement owns **co
 | `commands[].tags` | array | yes | `NOPASSWD` **MAY** appear (submit-allowlist shape; **not** F6) |
 | `commands[].path` | string | yes | Absolute `{{GLOBAL_BIN}}/{{PRJ_NAME}}` only |
 | `commands[].args` | array of strings | yes | `["request"]` only |
+| `submit_app` | string | yes (add/update) | Live Config `APP_NAME` of **this** submitter. Sibling dest **MUST NOT** fence if ≠ `sudoer-cli` |
+| `submit_version` | string | yes (add/update) | Live Config `VERSION` of **this** submitter. Sibling dest **MUST NOT** fence if ≠ sibling dest version |
+
+Type 0 `submit-sudoer-request` **MUST** overwrite `submit_app` / `submit_version` from live Config. Dest **MUST NOT** dest-write those keys.
 
 **MUST NOT** add undeclared privilege fields (extra binaries, `env_keep` shells, `ALL`). Unknown sibling metadata **MUST NOT** widen `commands`.
 
@@ -106,7 +110,9 @@ Normative **add** JSON (this project’s filled values — see §2.8):
       "path": "/usr/local/bin/nginx-cli",
       "args": ["request"]
     }
-  ]
+  ],
+  "submit_app": "nginx-cli",
+  "submit_version": "1.5.0"
 }
 ```
 
@@ -126,7 +132,9 @@ Normative **update** JSON (same commands; `action` only changes):
       "path": "/usr/local/bin/nginx-cli",
       "args": ["request"]
     }
-  ]
+  ],
+  "submit_app": "nginx-cli",
+  "submit_version": "1.5.0"
 }
 ```
 

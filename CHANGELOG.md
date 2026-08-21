@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-08-21
+
+### Added
+
+- Type 0 **test-purpose** `fence-test` and `test-json-format` (local test folder; no sudo; does not queue). Help lists testers under **Unit test (local test folder)**.
+- Dest-owned `submit_app` / `submit_version` on dest request JSON and compose sudoer JSON. Type 0 `request` / `conf-to-json` stamp live Config. Dest does **not** fence sibling app or version.
+- Independent dest Fence law `requirement-incorrect-json-format`. Unknown dest JSON keys fail closed.
+- Coding-style related requirement `requirement-shell-script-coding`.
+
+### Tests
+
+- TP-CLI-15, TP-NGX-35..43. Suite PASS=214 FAIL=0 SKIP=0.
+
 ## [1.4.1] - 2026-08-18
 
 ### Fixed

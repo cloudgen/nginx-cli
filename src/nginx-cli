@@ -45,9 +45,9 @@ APP_NAME="nginx-cli"
 : "${APP_NAME:=nginx-cli}"
 : "${APP_DESC:=Nginx least-privilege admin CLI (setup nginx-adm, request/approve site conf)}"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
-: "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, interactive approval, and submit-sudoer-request.}"
+: "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, interactive approval, submit-sudoer-request, test-json-format, and fence-test.}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.4.1"
+VERSION="1.5.0"
 : "${VERSION:=1.0.0}"
 # Repository identity SSOT (git host owner/repo for project-repository alignment).
 # Install remains local-only: SCRIPT_URL stays empty (no online curl|sh channel).
@@ -2089,9 +2089,10 @@ ngx_request_submit() {
         JSON="${_saved_json}"
     fi
     rm -f "${_tmp}"
+    ngx_stamp_submit_identity "${_jsfile}"
     if ! ngx_validate_request_json "${_jsfile}" "${_safed}" "${_safeu}"; then
         rm -f "${_jsfile}"
-        out_die "Request JSON invalid (schema, domain, or username). Dest inbound is JSON."
+        out_die "${NGX_FENCE_MSG:-Request JSON invalid (schema, domain, or username). Dest inbound is JSON.}"
     fi
     _date=$(date +%Y%m%d)
     _n=$(ngx_next_request_num "${_date}" "${_safeu}" "${_safed}")
@@ -2185,6 +2186,11 @@ ngx_show_request_header() {
         out_plain "purpose: $(ngx_json_get_str "${_raw}" "purpose")"
         out_plain "action: $(ngx_json_get_str "${_raw}" "action")"
         out_plain "domain: $(ngx_json_get_str "${_raw}" "domain")"
+        _sapp=$(ngx_json_get_str "${_raw}" "submit_app")
+        _sver=$(ngx_json_get_str "${_raw}" "submit_version")
+        if [ -n "${_sapp}" ] && [ -n "${_sver}" ]; then
+            out_plain "queued by ${_sapp} ${_sver}"
+        fi
         return 0
     fi
     while IFS= read -r _line || [ -n "${_line}" ]; do
@@ -2263,55 +2269,322 @@ ngx_looks_like_json() {
     esac
 }
 
-ngx_validate_request_json() {
+# Dest JSON Fence (incorrect JSON format). ALIGNMENT: requirement-incorrect-json-format.md
+# Return 0 = dest-legal (no Fence). Return 1 = Fence matched (NGX_FENCE_MSG set).
+ngx_dest_json_unknown_keys() {
+    _dj="${1:-}"
+    _flat=$(printf '%s' "${_dj}" | tr '\n' ' ')
+    _keys=$(printf '%s' "${_flat}" | tr ',' '\n' | sed -n 's/.*"\([a-z_][a-z0-9_]*\)"[[:space:]]*:.*/\1/p')
+    _unk=""
+    for _k in ${_keys}; do
+        case "${_k}" in
+            schema_version|purpose|username|service|action|kind|domain|site|submit_app|submit_version) ;;
+            listen|server_name|ssl_certificate|ssl_certificate_key|root|return|code|url|locations|role|match|proxy_pass) ;;
+            *)
+                _unk="${_k}"
+                break
+                ;;
+        esac
+    done
+    printf '%s' "${_unk}"
+}
+
+ngx_dest_json_fence() {
     _file="${1:-}"
     _exp_dom="${2:-}"
     _exp_user="${3:-}"
-    [ -f "${_file}" ] || return 1
-    ngx_looks_like_json "${_file}" || return 1
+    _skip_bn="${4:-}"
+    NGX_FENCE_MSG=""
+    : "${APP_NAME:=nginx-cli}"
+    if [ -z "${_file}" ] || [ ! -f "${_file}" ] || [ -L "${_file}" ]; then
+        NGX_FENCE_MSG="Waiting file is not a regular JSON file. Dest did not ask yes or no. Next: fix the file and ${APP_NAME} request it again."
+        return 1
+    fi
+    if ! ngx_looks_like_json "${_file}"; then
+        NGX_FENCE_MSG="Waiting file is not dest-legal JSON. Dest did not ask yes or no. Next: fix the JSON and ${APP_NAME} request it again."
+        return 1
+    fi
     _raw=$(cat "${_file}")
+    _unk=$(ngx_dest_json_unknown_keys "${_raw}")
+    if [ -n "${_unk}" ]; then
+        NGX_FENCE_MSG="Dest JSON has a key dest does not list (${_unk}). Dest did not ask yes or no. Next: remove that key and ${APP_NAME} request it again."
+        return 1
+    fi
     _purpose=$(ngx_json_get_str "${_raw}" "purpose")
-    [ -n "${_purpose}" ] || return 1
+    if [ -z "${_purpose}" ]; then
+        NGX_FENCE_MSG="Dest JSON is missing purpose. Dest did not ask yes or no. Next: add purpose and ${APP_NAME} request it again."
+        return 1
+    fi
     _act=$(ngx_json_get_str "${_raw}" "action")
     _has_site=0
     case "${_raw}" in
         *"\"site\""*) _has_site=1 ;;
     esac
+    _sapp=$(ngx_json_get_str "${_raw}" "submit_app")
+    _sver=$(ngx_json_get_str "${_raw}" "submit_version")
     if [ "${_act}" = "remove" ] || { [ -z "${_act}" ] && [ "${_has_site}" -eq 0 ]; }; then
-        [ "${_has_site}" -eq 0 ] || return 1
+        if [ "${_has_site}" -eq 1 ]; then
+            NGX_FENCE_MSG="Remove JSON must not include site. Dest did not ask yes or no. Next: drop site and ${APP_NAME} request it again."
+            return 1
+        fi
         return 0
     fi
     _ver=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"schema_version"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n1)
-    [ "${_ver}" = "1" ] || return 1
+    if [ "${_ver}" != "1" ]; then
+        NGX_FENCE_MSG="schema_version must be 1. Dest did not ask yes or no. Next: set schema_version to 1 and ${APP_NAME} request it again."
+        return 1
+    fi
+    if [ -z "${_sapp}" ] || [ -z "${_sver}" ]; then
+        NGX_FENCE_MSG="Dest JSON is missing submit_app or submit_version. Dest did not ask yes or no. Next: stamp those strings and ${APP_NAME} request it again."
+        return 1
+    fi
     _svc=$(ngx_json_get_str "${_raw}" "service")
-    [ "${_svc}" = "nginx-cli" ] || [ -z "${_svc}" ] || return 1
+    if [ -n "${_svc}" ] && [ "${_svc}" != "nginx-cli" ]; then
+        NGX_FENCE_MSG="service must be nginx-cli. Dest did not ask yes or no. Next: fix service and ${APP_NAME} request it again."
+        return 1
+    fi
     _kind=$(ngx_json_get_str "${_raw}" "kind")
     case "${_kind}" in
         per-domain-https|redirect|shared-cloudflare) ;;
-        *) return 1 ;;
+        *)
+            NGX_FENCE_MSG="kind is not dest-legal. Dest did not ask yes or no. Next: use per-domain-https, redirect, or shared-cloudflare."
+            return 1
+            ;;
     esac
     _dom=$(ngx_json_get_str "${_raw}" "domain")
-    [ -n "${_dom}" ] || return 1
+    if [ -z "${_dom}" ]; then
+        NGX_FENCE_MSG="Dest JSON is missing domain. Dest did not ask yes or no. Next: add domain and ${APP_NAME} request it again."
+        return 1
+    fi
     if [ -n "${_exp_dom}" ] && [ "${_dom}" != "${_exp_dom}" ]; then
+        NGX_FENCE_MSG="JSON domain does not match the request domain. Dest did not ask yes or no. Next: fix domain and ${APP_NAME} request it again."
         return 1
     fi
     _user=$(ngx_json_get_str "${_raw}" "username")
-    [ -n "${_user}" ] || return 1
-    if [ -n "${_exp_user}" ] && [ "${_user}" != "${_exp_user}" ]; then
+    if [ -z "${_user}" ]; then
+        NGX_FENCE_MSG="Dest JSON is missing username. Dest did not ask yes or no. Next: add username and ${APP_NAME} request it again."
         return 1
     fi
-    [ "${_has_site}" -eq 1 ] || return 1
+    if [ -n "${_exp_user}" ] && [ "${_user}" != "${_exp_user}" ]; then
+        NGX_FENCE_MSG="JSON username does not match the submitter. Dest did not ask yes or no. Next: fix username and ${APP_NAME} request it again."
+        return 1
+    fi
+    if [ "${_has_site}" -ne 1 ]; then
+        NGX_FENCE_MSG="Add/update JSON must include site. Dest did not ask yes or no. Next: add site and ${APP_NAME} request it again."
+        return 1
+    fi
     _listen=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"listen"[[:space:]]*:[[:space:]]*\[[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
     _sname=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"server_name"[[:space:]]*:[[:space:]]*\[[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
-    ngx_nginx_field_ok "listen" "${_listen}" || return 1
-    ngx_nginx_field_ok "server_name" "${_sname}" || return 1
-    ngx_nginx_field_ok "ssl_certificate" "$(ngx_json_get_str "${_raw}" "ssl_certificate")" || return 1
+    if ! ngx_nginx_field_ok "listen" "${_listen}"; then
+        NGX_FENCE_MSG="site.listen is not dest-legal. Dest did not ask yes or no. Next: fix listen and ${APP_NAME} request it again."
+        return 1
+    fi
+    if ! ngx_nginx_field_ok "server_name" "${_sname}"; then
+        NGX_FENCE_MSG="site.server_name is not dest-legal. Dest did not ask yes or no. Next: fix server_name and ${APP_NAME} request it again."
+        return 1
+    fi
+    ngx_nginx_field_ok "ssl_certificate" "$(ngx_json_get_str "${_raw}" "ssl_certificate")" || {
+        NGX_FENCE_MSG="site field refused. Dest did not ask yes or no. Next: remove include/lua paths and ${APP_NAME} request it again."
+        return 1
+    }
     ngx_nginx_field_ok "ssl_certificate_key" "$(ngx_json_get_str "${_raw}" "ssl_certificate_key")" || return 1
     ngx_nginx_field_ok "root" "$(ngx_json_get_str "${_raw}" "root")" || return 1
     ngx_nginx_field_ok "url" "$(ngx_json_get_str "${_raw}" "url")" || return 1
     ngx_nginx_field_ok "match" "$(ngx_json_get_str "${_raw}" "match")" || return 1
     ngx_nginx_field_ok "proxy_pass" "$(ngx_json_get_str "${_raw}" "proxy_pass")" || return 1
+    if [ "${_skip_bn}" != "skip-basename" ]; then
+        _bn=$(basename -- "${_file}")
+        case "${_bn}" in
+            [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-*.json)
+                if ngx_parse_basename "${_bn}"; then
+                    if [ -n "${NGX_PARSE_DOMAIN}" ] && [ "${_dom}" != "${NGX_PARSE_DOMAIN}" ]; then
+                        NGX_FENCE_MSG="Basename domain does not match JSON domain. Dest did not ask yes or no. Next: rename or fix domain."
+                        return 1
+                    fi
+                    if [ -n "${NGX_PARSE_USER}" ] && [ "${_user}" != "${NGX_PARSE_USER}" ]; then
+                        NGX_FENCE_MSG="Basename user does not match JSON username. Dest did not ask yes or no. Next: rename or fix username."
+                        return 1
+                    fi
+                fi
+                ;;
+        esac
+    fi
     return 0
+}
+
+ngx_validate_request_json() {
+    ngx_dest_json_fence "$@"
+}
+
+ngx_stamp_submit_identity() {
+    _sf="${1:-}"
+    : "${APP_NAME:=nginx-cli}"
+    : "${VERSION:=1.0.0}"
+    [ -f "${_sf}" ] || return 1
+    _raw=$(cat "${_sf}")
+    _raw=$(printf '%s' "${_raw}" | tr '\n' '\n')
+    _raw=$(printf '%s' "${_raw}" | sed 's/"submit_app"[[:space:]]*:[[:space:]]*"[^"]*"[[:space:]]*,\{0,1\}//g')
+    _raw=$(printf '%s' "${_raw}" | sed 's/"submit_version"[[:space:]]*:[[:space:]]*"[^"]*"[[:space:]]*,\{0,1\}//g')
+    _raw=$(printf '%s' "${_raw}" | sed "s/{/{ \"submit_app\": \"${APP_NAME}\", \"submit_version\": \"${VERSION}\", /")
+    printf '%s\n' "${_raw}" > "${_sf}"
+}
+
+ngx_test_purpose_cmd() {
+    _run=$(util_resolve_running_path)
+    if [ -n "${_run}" ] && [ -f "${_run}" ]; then
+        printf '%s' "${_run}"
+        return 0
+    fi
+    printf '%s' "${APP_NAME}"
+}
+
+ngx_tester_read_path() {
+    _pos="${1:-}"
+    _path="${CONVERT_FILE:-${_pos}}"
+    _tmp=""
+    if [ -z "${_path}" ]; then
+        if [ -t 0 ]; then
+            return 2
+        fi
+        _tmp=$(mktemp "${EFFECTIVE_STORAGE_DIR:-/tmp}/${APP_NAME}.XXXXXX") || return 2
+        cat > "${_tmp}" || { rm -f "${_tmp}"; return 2; }
+        _path="${_tmp}"
+    fi
+    NGX_TESTER_PATH="${_path}"
+    NGX_TESTER_TMP="${_tmp}"
+    return 0
+}
+
+ngx_test_json_format() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${JSON:=0}"
+    _cmd=$(ngx_test_purpose_cmd)
+    if [ -n "${FENCE_TEST_DIR:-}" ]; then
+        out_die "test-json-format takes stdin xor --file PATH (not --dir). Next: ${_cmd} test-json-format --file PATH"
+    fi
+    if ! ngx_tester_read_path "${1:-}"; then
+        out_die "test-json-format needs --file PATH or stdin. Next: ${_cmd} test-json-format --file PATH"
+    fi
+    _path="${NGX_TESTER_PATH}"
+    _tmp="${NGX_TESTER_TMP}"
+    _skip=""
+    _bn=$(basename -- "${_path}")
+    case "${_bn}" in
+        [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-*.json) ;;
+        *) _skip="skip-basename" ;;
+    esac
+    if ngx_dest_json_fence "${_path}" "" "" "${_skip}"; then
+        [ -n "${_tmp}" ] && rm -f "${_tmp}"
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "test-json-format" "ok" "path" "${_path}"
+        else
+            out_success "JSON format is dest-legal."
+        fi
+        return 0
+    fi
+    [ -n "${_tmp}" ] && rm -f "${_tmp}"
+    out_die "${NGX_FENCE_MSG}"
+}
+
+ngx_fence_test() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${JSON:=0}"
+    : "${FENCE_EXPECT_MATCH:=0}"
+    _cmd=$(ngx_test_purpose_cmd)
+    _dir="${FENCE_TEST_DIR:-}"
+    _file="${CONVERT_FILE:-${1:-}}"
+    if [ -n "${_dir}" ] && [ -n "${_file}" ]; then
+        out_die "fence-test takes --file PATH or --dir DIR or stdin, not both --file and --dir. Next: ${_cmd} fence-test --file PATH"
+    fi
+    if [ -n "${_dir}" ]; then
+        ngx_fence_test_dir
+        return $?
+    fi
+    if [ "${FENCE_EXPECT_MATCH}" = "1" ]; then
+        out_die "--expect-match is only valid with --dir DIR. Next: ${_cmd} fence-test --dir tests/fixtures/fence-test/match --expect-match"
+    fi
+    if ! ngx_tester_read_path "${1:-}"; then
+        out_die "fence-test needs --file PATH, --dir DIR, or stdin. Next: ${_cmd} fence-test --file PATH"
+    fi
+    _path="${NGX_TESTER_PATH}"
+    _tmp="${NGX_TESTER_TMP}"
+    _skip=""
+    _bn=$(basename -- "${_path}")
+    case "${_bn}" in
+        [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-*.json) ;;
+        *) _skip="skip-basename" ;;
+    esac
+    if ngx_dest_json_fence "${_path}" "" "" "${_skip}"; then
+        [ -n "${_tmp}" ] && rm -f "${_tmp}"
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "success" "No dest fence matched." "command" "fence-test" "path" "${_path}"
+        else
+            out_success "No dest fence matched."
+        fi
+        return 0
+    fi
+    [ -n "${_tmp}" ] && rm -f "${_tmp}"
+    out_die "${NGX_FENCE_MSG}"
+}
+
+ngx_fence_test_dir() {
+    _dir="${FENCE_TEST_DIR}"
+    _cmd=$(ngx_test_purpose_cmd)
+    if [ -z "${_dir}" ]; then
+        out_die "fence-test --dir requires DIR. Next: ${_cmd} fence-test --dir tests/fixtures/fence-test/pass"
+    fi
+    if [ ! -d "${_dir}" ]; then
+        out_die "fence-test --dir is not a directory: ${_dir}. Next: ${_cmd} fence-test --dir tests/fixtures/fence-test/pass"
+    fi
+    if [ -L "${_dir}" ]; then
+        out_die "fence-test refuses a symlink --dir: ${_dir}. Next: ${_cmd} fence-test --dir tests/fixtures/fence-test/pass"
+    fi
+    _expect="${FENCE_EXPECT_MATCH:-0}"
+    _n=0
+    _matched=0
+    _passed=0
+    for _fp in "${_dir}"/*.json; do
+        [ -f "${_fp}" ] || continue
+        [ -L "${_fp}" ] && continue
+        _bn=$(basename -- "${_fp}")
+        _n=$((_n + 1))
+        _skip=""
+        case "${_bn}" in
+            [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-*.json) ;;
+            *) _skip="skip-basename" ;;
+        esac
+        if ngx_dest_json_fence "${_fp}" "" "" "${_skip}"; then
+            _passed=$((_passed + 1))
+            out_info "pass ${_bn}"
+        else
+            _matched=$((_matched + 1))
+            out_info "fence-matched ${_bn}"
+        fi
+    done
+    if [ "${_n}" -eq 0 ]; then
+        out_die "fence-test --dir has no regular .json files: ${_dir}. Next: ${_cmd} fence-test --file PATH"
+    fi
+    if [ "${_expect}" = "1" ]; then
+        if [ "${_passed}" -ne 0 ] || [ "${_matched}" -ne "${_n}" ]; then
+            out_die "fence-test --expect-match: ${_passed} of ${_n} files had no dest fence (want every file to match). Next: ${_cmd} fence-test --dir ${_dir} --expect-match"
+        fi
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "success" "fence-test: ${_n} files, all matched a dest fence." \
+                "command" "fence-test" "files" "${_n}" "matched" "${_matched}" "passed" "${_passed}" "expect_match" "1"
+        else
+            out_success "fence-test: ${_n} files, all matched a dest fence."
+        fi
+        return 0
+    fi
+    if [ "${_matched}" -ne 0 ]; then
+        out_die "fence-test: ${_matched} of ${_n} files matched a dest fence. Next: ${_cmd} fence-test --file PATH"
+    fi
+    if [ "${JSON}" -eq 1 ]; then
+        out_json "success" "fence-test: ${_n} files, no dest fence matched." \
+            "command" "fence-test" "files" "${_n}" "matched" "0" "passed" "${_passed}"
+    else
+        out_success "fence-test: ${_n} files, no dest fence matched."
+    fi
 }
 
 ngx_unpublish_conf() {
@@ -2382,8 +2655,9 @@ ngx_approve_one() {
         out_die "Cannot snapshot inbound ${_base} (need regular file, not a symlink)"
     fi
     if ! ngx_validate_request_json "${_snap}" "${NGX_PARSE_DOMAIN}" "${NGX_PARSE_USER}"; then
+        _msg="${NGX_FENCE_MSG:-Request JSON invalid. Dest inbound is JSON.}"
         rm -f "${_snap}"
-        out_die "Snapshot failed JSON re-validate: ${_base}"
+        out_die "${_msg}"
     fi
     _arch=$(ngx_queue_dir approved)
     if [ ! -d "${_arch}" ]; then
@@ -2508,6 +2782,16 @@ ngx_approve_interactive() {
         _base=$(basename -- "${_f}")
         out_empty_line
         out_info "Pending: ${_base}"
+        _skip=""
+        case "${_base}" in
+            [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-*.json) ;;
+            *) _skip="skip-basename" ;;
+        esac
+        if ! ngx_dest_json_fence "${_f}" "" "" "${_skip}"; then
+            out_info "${NGX_FENCE_MSG}"
+            ngx_reject_one "${_base}"
+            continue
+        fi
         ngx_show_request_header "${_f}"
         _choice=$(prompt_approve_choice)
         case "${_choice}" in
@@ -3034,6 +3318,7 @@ ngx_sudoers_json_text() {
     : "${SUBMIT_ACTION:=add}"
     : "${NGINX_ADM_USER:=nginx-adm}"
     : "${SUBMIT_PURPOSE:=}"
+    : "${VERSION:=1.0.0}"
 
     _user=$(id -un 2>/dev/null || echo "unknown")
     case "${_user}" in
@@ -3067,7 +3352,9 @@ ngx_sudoers_json_text() {
       "path": "${_global_path}",
       "args": ["request"]
     }
-  ]
+  ],
+  "submit_app": "${APP_NAME}",
+  "submit_version": "${VERSION}"
 }
 EOF
 }
@@ -3500,6 +3787,9 @@ ngx_conf_to_json() {
         _site="${_site}, \"locations\": [ { \"role\": \"proxy\", \"match\": \"$(util_json_escape "${_mm}")\", \"proxy_pass\": \"$(util_json_escape "${_proxy}")\" } ]"
     fi
 
+    : "${VERSION:=1.0.0}"
+    _ver_esc=$(util_json_escape "${VERSION}")
+    _app_esc=$(util_json_escape "${APP_NAME}")
     _payload=$(printf '%s\n' "{
   \"schema_version\": 1,
   \"purpose\": \"${_purpose_esc}\",
@@ -3508,6 +3798,8 @@ ngx_conf_to_json() {
   \"action\": \"${_act}\",
   \"kind\": \"${_kind_esc}\",
   \"domain\": \"${_sname_esc}\",
+  \"submit_app\": \"${_app_esc}\",
+  \"submit_version\": \"${_ver_esc}\",
   \"site\": { ${_site} }
 }")
     ngx_convert_write "${_payload}"
@@ -3547,6 +3839,10 @@ ngx_json_to_conf() {
 
     _ver=$(printf '%s' "${_raw}" | tr '\n' ' ' | sed -n 's/.*"schema_version"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n1)
     [ "${_ver}" = "1" ] || out_die "schema_version must be 1"
+    _sapp=$(ngx_json_get_str "${_raw}" "submit_app")
+    _sver=$(ngx_json_get_str "${_raw}" "submit_version")
+    [ -n "${_sapp}" ] || out_die "submit_app required"
+    [ -n "${_sver}" ] || out_die "submit_version required"
     _kind=$(ngx_json_get_str "${_raw}" "kind")
     _domain=$(ngx_json_get_str "${_raw}" "domain")
     [ -n "${_kind}" ] || out_die "kind required"
@@ -3868,6 +4164,10 @@ app_help() {
     out_plain "  conf-to-json [file]      nginx-conf text → dest request JSON"
     out_plain "  json-to-conf [file]      dest request JSON → nginx-conf text"
     out_empty_line
+    out_info "Unit test (local test folder):"
+    out_plain "  test-json-format [file]  Dest JSON-format fence against a local JSON file (no sudo; does not queue)"
+    out_plain "  fence-test [file]        Dest fence list against a local JSON file (no sudo; does not queue)"
+    out_empty_line
     out_info "Inbound: /var/nginx-cli/config-request (mode 2770, group nginx-cli-submit, JSON request files)."
     out_info "Submit privilege: root, nginx-adm, or a login listed in /etc/sudoers.d/nginx-cli-submit"
     out_info "(or /etc/sudoers.d/nginx-cli-<login>) and in group nginx-cli-submit. Other users cannot request."
@@ -3885,8 +4185,10 @@ app_help() {
     out_plain "  --purpose TEXT       Purpose string for submit-sudoer-request / conf-to-json"
     out_plain "  --update             submit-sudoer-request as update (not add)"
     out_plain "  --action add|update  conf-to-json action (default add)"
-    out_plain "  --file PATH          convert input (xor stdin)"
+    out_plain "  --file PATH          convert / tester input (xor stdin xor --dir)"
     out_plain "  --out PATH           convert output file (absolute; not /etc)"
+    out_plain "  --dir DIR            fence-test: every regular .json in DIR (xor --file / stdin)"
+    out_plain "  --expect-match       fence-test --dir: succeed only if every file matches a dest fence"
     out_plain "  --allow-test-local   Allow submit-sudoer-request emit when not production"
     out_empty_line
     out_info "Environment:"
@@ -3904,6 +4206,7 @@ app_help() {
     out_plain "  ${APP_NAME} submit-sudoer-request"
     out_plain "  ${APP_NAME} conf-to-json --file ./site.conf"
     out_plain "  ${APP_NAME} json-to-conf --file ./site.json"
+    out_plain "  ${APP_NAME} fence-test --file tests/fixtures/fence-test/pass/20260821-alice-example.com-1.json"
     out_plain "  ${APP_NAME} list-requests"
     out_plain "  ${APP_NAME} approve"
     out_plain "  sudo ${APP_NAME} remove-lpu --force"
@@ -3942,6 +4245,8 @@ app_main() {
     : "${ALLOW_TEST_LOCAL_SUDOERS:=0}"
     : "${CONVERT_FILE:=}"
     : "${CONVERT_OUT:=}"
+    : "${FENCE_TEST_DIR:=}"
+    : "${FENCE_EXPECT_MATCH:=0}"
     : "${USERNAME:=unknown}"
     : "${HOME:=/tmp}"
     : "${XDG_CACHE_HOME:=${HOME}/.cache}"
@@ -4009,7 +4314,19 @@ app_main() {
                 export SUBMIT_ACTION
                 shift
                 ;;
-            version|about|help|install|uninstall|where-is-me|setup|remove-lpu|remove-nginx-adm|request|list-requests|list-approved|list-rejected|approve|reject|enable-login-approval|map-set|map-unset|map-list|submit-sudoer-request|conf-to-json|json-to-conf)
+            --dir)
+                if [ $# -lt 2 ]; then
+                    out_die "--dir requires DIR"
+                fi
+                FENCE_TEST_DIR="$2"
+                export FENCE_TEST_DIR
+                shift
+                ;;
+            --expect-match)
+                FENCE_EXPECT_MATCH=1
+                export FENCE_EXPECT_MATCH
+                ;;
+            version|about|help|install|uninstall|where-is-me|setup|remove-lpu|remove-nginx-adm|request|list-requests|list-approved|list-rejected|approve|reject|enable-login-approval|map-set|map-unset|map-list|submit-sudoer-request|conf-to-json|json-to-conf|test-json-format|fence-test)
                 COMMAND="$1"
                 shift
                 break
@@ -4068,6 +4385,18 @@ app_main() {
                 export SUBMIT_ACTION
                 shift
                 ;;
+            --dir)
+                if [ $# -lt 2 ]; then
+                    out_die "--dir requires DIR"
+                fi
+                FENCE_TEST_DIR="$2"
+                export FENCE_TEST_DIR
+                shift
+                ;;
+            --expect-match)
+                FENCE_EXPECT_MATCH=1
+                export FENCE_EXPECT_MATCH
+                ;;
             *)
                 if [ -z "${_op1}" ]; then
                     _op1="$1"
@@ -4106,6 +4435,8 @@ app_main() {
         submit-sudoer-request)   ngx_submit_sudoer_request "${_op1}" ;;
         conf-to-json)            ngx_conf_to_json "${_op1}" ;;
         json-to-conf)            ngx_json_to_conf "${_op1}" ;;
+        test-json-format)        ngx_test_json_format "${_op1}" ;;
+        fence-test)              ngx_fence_test "${_op1}" ;;
         help|*)                  app_help ;;
     esac
 }

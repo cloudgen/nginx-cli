@@ -285,6 +285,8 @@ STUB
         '  "action": "add",' \
         '  "kind": "redirect",' \
         '  "domain": "example.com",' \
+        '  "submit_app": "nginx-cli",' \
+        '  "submit_version": "1.5.0",' \
         '  "site": {' \
         '    "listen": ["80"],' \
         '    "server_name": ["example.com"],' \
@@ -365,6 +367,60 @@ STUB
     _err=$(HOME="${_fx}/home18" sh "${SCRIPT}" submit-sudoer-request --allow-test-local "${_badpy}" 2>&1 >/dev/null)
     assert_eq "TP-NGX-32 non-listed binary exit 1" 1 "$?"
     assert_contains "TP-NGX-32 path must be nginx-cli" "${_err}" "path must be"
+
+    _pass="${TESTS_ROOT}/fixtures/fence-test/pass"
+    _match="${TESTS_ROOT}/fixtures/fence-test/match"
+
+    _out=$(sh "${SCRIPT}" fence-test --file "${_pass}/20260821-alice-example.com-1.json" 2>&1)
+    assert_eq "TP-NGX-35 fence-test pass exit 0" 0 "$?"
+    assert_contains "TP-NGX-35 no dest fence" "${_out}" "No dest fence matched"
+
+    _out=$(sh "${SCRIPT}" test-json-format --file "${_pass}/20260821-alice-example.com-1.json" 2>&1)
+    assert_eq "TP-NGX-36 test-json-format sibling stamp exit 0" 0 "$?"
+    assert_contains "TP-NGX-36 dest-legal" "${_out}" "dest-legal"
+
+    _err=$(sh "${SCRIPT}" fence-test --file "${_match}/missing-purpose.json" 2>&1 >/dev/null)
+    assert_eq "TP-NGX-37 missing purpose exit 1" 1 "$?"
+    assert_contains "TP-NGX-37 purpose message" "${_err}" "purpose"
+
+    _err=$(sh "${SCRIPT}" fence-test --file "${_match}/unknown-key.json" 2>&1 >/dev/null)
+    assert_eq "TP-NGX-38 unknown key exit 1" 1 "$?"
+    assert_contains "TP-NGX-38 unknown key message" "${_err}" "does not list"
+
+    _err=$(sh "${SCRIPT}" fence-test --dir "${_match}" 2>&1 >/dev/null)
+    assert_eq "TP-NGX-39 dir match fail-closed" 1 "$?"
+
+    _out=$(sh "${SCRIPT}" fence-test --dir "${_match}" --expect-match 2>&1)
+    assert_eq "TP-NGX-40 expect-match exit 0" 0 "$?"
+    assert_contains "TP-NGX-40 all matched" "${_out}" "all matched"
+
+    _out=$(sh "${SCRIPT}" fence-test --dir "${_pass}" 2>&1)
+    assert_eq "TP-NGX-41 pass dir exit 0" 0 "$?"
+
+    _nostamp="${_fx}/nostamp.json"
+    printf '%s\n' '{' \
+        '  "schema_version": 1,' \
+        '  "purpose": "Add HTTPS vhost redirect for example.com",' \
+        '  "username": "alice",' \
+        '  "service": "nginx-cli",' \
+        '  "action": "add",' \
+        '  "kind": "redirect",' \
+        '  "domain": "example.com",' \
+        '  "site": { "listen": ["80"], "server_name": ["example.com"] }' \
+        '}' >"${_nostamp}"
+    _err=$(sh "${SCRIPT}" test-json-format --file "${_nostamp}" 2>&1 >/dev/null)
+    assert_eq "TP-NGX-42 missing stamp tester exit 1" 1 "$?"
+    assert_contains "TP-NGX-42 stamp message" "${_err}" "submit_app"
+
+    _out=$(ngx_fx request example.com "${_jme}" 2>&1)
+    assert_eq "TP-NGX-43 request stamps exit 0" 0 "$?"
+    _stamped=""
+    for _f in "${_q}/config-request/${_day}-"*-example.com-*.json; do
+        [ -f "${_f}" ] || continue
+        _stamped=$(cat "${_f}")
+    done
+    assert_contains "TP-NGX-43 inbound submit_app" "${_stamped}" '"submit_app"'
+    assert_contains "TP-NGX-43 inbound submit_version" "${_stamped}" '"submit_version"'
 
     rm -rf "${_fx}"
 }

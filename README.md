@@ -1,6 +1,6 @@
 # nginx-cli - Nginx least-privilege admin CLI
 
-![Version](https://img.shields.io/badge/Version-1.4.1-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.5.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/nginx-cli?style=flat-square)](https://github.com/cloudgen/nginx-cli)
@@ -19,6 +19,7 @@ Install **location** is still **both**:
 - **Submit gate**: only root, nginx-adm, or logins listed in `/etc/sudoers.d/nginx-cli-submit` **or** `/etc/sudoers.d/nginx-cli-<login>` **and** in group `nginx-cli-submit`
 - **`submit-sudoer-request`**: Type 0 compose to sibling **sudoer-cli** (JSON grant; no `/etc` write)
 - **`conf-to-json` / `json-to-conf`**: Type 0 convert dest nginx-conf text ↔ request JSON (does not queue; dest inbound is dest request JSON)
+- **Unit testers**: `fence-test` / `test-json-format` check dest JSON fences against a local file (no sudo; does not queue)
 - **Request names**: `yyyyMMdd-user-domain-n.json`; queued body is dest request JSON (`request` also accepts nginx-conf text and converts first)
 - **Approve**: snapshot inbound, publish to `sites-available` / enable-dir symlink, unlink inbound (do not `mv`)
 - **Reject**: snapshot inbound into rejected archive, unlink inbound (no publish)
@@ -131,4 +132,4 @@ MIT License — see [`LICENSE.md`](./LICENSE.md).
 
 ## Last Update
 
-2026-08-18 — version **1.4.1** (setup ensures nginx-adm password so `sudo nginx-cli` can authenticate; TP-NGX-02 isolates live host submit grants).
+2026-08-21 — version **1.5.0** (Type 0 `fence-test` / `test-json-format`; dest-owned `submit_app` / `submit_version`; independent dest Fence law).

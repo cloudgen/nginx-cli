@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 2.4.0)  
+**Status**: Active (Version 2.5.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-interface`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -23,6 +23,7 @@ Every command **MUST** map to exactly one privilege type. Unclassified commands 
 | **Type 0 – CLI lifecycle + diagnostics** | Invoking user | `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` |
 | **Type 0 – Sibling compose** | Invoking user | `submit-sudoer-request` (see domain + three-layer) |
 | **Type 0 – Convert dual** | Invoking user | `conf-to-json`, `json-to-conf` (see domain SSOT) |
+| **Type 0 – Test-purpose (unit test; local test folder)** | Invoking user | `test-json-format`, `fence-test` (see dest Fence REQ). **MUST NOT** queue or dest-write. Help lists these **apart** from operational verbs. Type 0 does **not** mean unit test |
 | **Type 1 – Narrow elevated host ops** | Controlled sudo / root | **Domain** — `setup`, `remove-lpu` (see domain SSOT) |
 | **Gated domain** | root / nginx-adm / submit sudoers | **Domain** — request, list, approve, reject, map-* (see domain SSOT) |
 
@@ -41,6 +42,8 @@ Additional flags **MAY** be added only when documented here (or a superseding re
 **Compose flags (submit-sudoer-request only):** `--purpose TEXT`, `--update`, `--allow-test-local` (test_local / unmanaged emit).
 
 **Convert flags:** `--file PATH`, `--out PATH`, `--action add|update`, `--purpose TEXT` (shared with compose).
+
+**Tester flags:** `--file PATH` (xor stdin xor `--dir`); `--dir DIR` (`fence-test` only); `--expect-match` (`fence-test --dir` only).
 
 **Forbidden flags (trimmed):** `--disk`, `--ram` (parent archive). `--allow-test-local` is **not** a print-sudoers flag on this dest.
 
@@ -65,6 +68,7 @@ Additional flags **MAY** be added only when documented here (or a superseding re
 In JSON mode, help **MUST NOT** dump long human text; return a short structured success/note object.
 
 `help` **MUST** list `submit-sudoer-request`.  
+`help` **MUST** list `test-json-format` and `fence-test` under a **Unit test (local test folder)** heading, **apart** from operational Type 0 and dest inbound.  
 `help` **MUST NOT** list backup, restore, or print-sudoers / install-script / remove-draft.
 
 ### 2.5 Implementation Notes (this project)
@@ -97,6 +101,8 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | `submit-sudoer-request` | Type 0 | `ngx_submit_sudoer_request` | Queue this product’s JSON sudoer grant via sudoer-cli; **does not** write `/etc` or `mkdir` inbound |
 | `conf-to-json` | Type 0 | `ngx_conf_to_json` | nginx-conf text → dest request JSON; never queue / never dest write |
 | `json-to-conf` | Type 0 | `ngx_json_to_conf` | dest request JSON → nginx-conf text; never queue / never dest write |
+| `test-json-format` | Type 0 **test-purpose** | `ngx_test_json_format` | dest JSON-format Fence against a local JSON file; no sudo; does not queue |
+| `fence-test` | Type 0 **test-purpose** | `ngx_fence_test` | closed dest Fence list (`--file` / `--dir`); no sudo; does not queue |
 
 #### Global flags (normative wiring)
 
@@ -113,6 +119,8 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | `--file PATH` | `CONVERT_FILE` (convert; xor stdin) |
 | `--out PATH` | `CONVERT_OUT` (convert write target) |
 | `--action add\|update` | `SUBMIT_ACTION` (convert + compose) |
+| `--dir DIR` | `FENCE_TEST_DIR` (`fence-test` only) |
+| `--expect-match` | `FENCE_EXPECT_MATCH=1` (`fence-test --dir` only) |
 
 #### Dispatcher acceptance criteria
 
