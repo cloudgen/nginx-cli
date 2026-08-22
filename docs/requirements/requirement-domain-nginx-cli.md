@@ -395,7 +395,7 @@ Type 0 diagnostics (install, storage, repo) **MUST** remain.
 | **Ship unit** | `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) |
 | **Domain prefix** | `ngx_` |
-| **VERSION** | `1.5.0` (domain law 1.12.0) |
+| **VERSION** | `1.5.1` (domain law 1.12.0) |
 | **Dest Fence** | `requirement-incorrect-json-format` |
 | **Testers** | `fence-test` / `test-json-format` |
 | **Convert verbs** | `conf-to-json` → `ngx_conf_to_json`; `json-to-conf` → `ngx_json_to_conf` |
@@ -466,7 +466,7 @@ Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli
 | **TP-NGX-16..20** | same | have | submit-sudoer-request compose (peer: three-layer + sudoer-json-file) |
 | **TP-NGX-21..24** | same | have | conf-to-json / json-to-conf dual; xor; refuse dest write |
 | **TP-NGX-25..33** | same | have | dest JSON request; inbound body; mismatch; published text; convert --out inbound; grant allowlist |
-| **TP-NGX-35..43** | same | have | dest Fence testers; `submit_app` / `submit_version`; unknown keys; sibling stamp |
+| **TP-NGX-35..49** | same | have | dest Fence testers; xor / expect-match / JSON / no-queue / stdin; `submit_app` / `submit_version` |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`

@@ -18,7 +18,9 @@ Exit **0** when all assertions pass; **1** on failure; **2** if ship unit missin
 | `helpers.sh` | Asserts + isolated HOME | — |
 | `test_cli.sh` | CLI surface, Type N empty argv, offline reject | **TP-CLI-*** |
 | `test_local_lifecycle.sh` | install / uninstall / where-is-me | **TP-LC-*** |
-| `test_domain.sh` | request/approve/reject fixture (no host useradd) | **TP-NGX-*** |
+| `test_domain.sh` | request/approve/reject fixture (no host useradd); dest Fence testers | **TP-NGX-*** |
+| `fixtures/fence-test/pass/` | Dest-legal JSON (sibling `submit_app` dest-legal) | **TP-NGX-35/41/44/46/47/48/49** |
+| `fixtures/fence-test/match/` | Dest Fence matches (missing purpose / unknown key) | **TP-NGX-37..40** |
 
 ## Isolation
 

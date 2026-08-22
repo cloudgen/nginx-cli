@@ -79,7 +79,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | **Primary executable** | `src/nginx-cli` (POSIX `/bin/sh`, single-file ship unit) |
 | **Dispatcher** | `app_main` |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION="1.4.0"` hard-assign in ship unit |
+| **Version SSOT** | `VERSION="1.5.1"` hard-assign in ship unit |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Primary install story** | User bin: `~/.local/bin/nginx-cli` |
 | **Online channel env** | **Not product UX** (trimmed) |
@@ -179,6 +179,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | AC-2 | Help and about omit backup / restore / print-sudoers |
 | AC-5 | Help lists `submit-sudoer-request`; about reports sudoer-cli / sudoer-adm / inbound |
 | AC-6 | Help lists `conf-to-json` and `json-to-conf` |
+| AC-7 | Help lists `test-json-format` and `fence-test` under **Unit test (local test folder)**; `--dir` / `--expect-match` documented |
 | AC-3 | Unknown and trimmed verbs exit non-zero |
 | AC-4 | Empty argv is help |
 
@@ -193,6 +194,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | `requirement-shell-output-requirements` | `out_*` |
 | `requirement-bootstrap-chain` | Trimmed surfaces |
 | `requirement-domain-nginx-cli` | Domain verbs including `submit-sudoer-request` surface |
+| `requirement-incorrect-json-format` | Dest Fence; dual mention of testers |
 | `requirement-three-layer-privilege-model` | Type map + F6 Table A + submit workflow |
 | `requirement-sudoer-json-file` | JSON grant body |
 | `docs/requirements/index.md` | Registry |
@@ -203,7 +205,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
-| **TP-CLI-01..14** | `tests/test_cli.sh` | have | includes stripped-verb fail-closed; help lists submit-sudoer-request |
+| **TP-CLI-01..16** | `tests/test_cli.sh` | have | includes stripped-verb fail-closed; help lists testers apart |
 | **TP-LC-*** | `tests/test_local_lifecycle.sh` | have | lifecycle |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
@@ -219,9 +221,11 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | 2026-08-15 | Active 2.2.0 | Type 0 `submit-sudoer-request`; compose flags; print-sudoers still absent |
 | 2026-08-15 | Active 2.3.0 | Type 0 `conf-to-json` / `json-to-conf` |
 | 2026-08-15 | Active 2.4.0 | Dest inbound is dest request JSON; `request` is dest submitter; VERSION 1.4.0 |
+| 2026-08-21 | Active 2.5.0 | Type 0 test-purpose `test-json-format` / `fence-test`; tester flags |
+| 2026-08-22 | Active 2.5.0 | Notes VERSION 1.5.1; DTV TP-CLI-15/16; AC-7 tester heading |
 
 ---
 
-**Last Updated**: 2026-08-15  
+**Last Updated**: 2026-08-22  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

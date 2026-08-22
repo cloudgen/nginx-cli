@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/nginx-cli`  
-**Product VERSION:** 1.5.0  
+**Product VERSION:** 1.5.1  
 **Last plan update:** 2026-08-21  
-**Last suite run:** PASS=214 FAIL=0 SKIP=0 (2026-08-21)
+**Last suite run:** PASS=230 FAIL=0 SKIP=0 (2026-08-22)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -55,6 +55,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-CLI-13 | backup/restore/print-sudoers unknown | test_cli | requirement-bootstrap-chain · three-layer | **have** |
 | TP-CLI-14 | `nginx-ctl` unknown; help does not list it | test_cli | prevention · three-layer · interface | **have** |
 | TP-CLI-15 | Help lists `fence-test` / `test-json-format` under Unit test heading | test_cli | interface · dest Fence | **have** |
+| TP-CLI-16 | Help documents `--dir` / `--expect-match` tester flags | test_cli | interface · dest Fence | **have** |
 
 ### TP-LC (local lifecycle)
 
@@ -105,6 +106,12 @@ Unchanged **have** TP-LC-01..10 against `src/nginx-cli`.
 | TP-NGX-41 | `fence-test --dir` pass corpus | test_domain | dest Fence | **have** |
 | TP-NGX-42 | tester missing `submit_app` fail-closed | test_domain | dest-owned stamp | **have** |
 | TP-NGX-43 | `request` stamps live `submit_app` / `submit_version` | test_domain | domain §2.2.9 | **have** |
+| TP-NGX-44 | `fence-test` xor `--file` and `--dir`; Next uses running ship unit | test_domain | dest Fence FC-M6 · TP-FENCE-13 | **have** |
+| TP-NGX-45 | `--expect-match` without `--dir` fail-closed | test_domain | dest Fence · TP-FENCE-14 | **have** |
+| TP-NGX-46 | `--json fence-test --file` dest-legal command field | test_domain | dest Fence · TP-FENCE-09 | **have** |
+| TP-NGX-47 | Testers do not queue dest inbound | test_domain | dest Fence · TP-FENCE-08/09 | **have** |
+| TP-NGX-48 | `test-json-format` refuses `--dir`; positional path stands in for `--file` | test_domain | dest Fence · TP-FENCE-08 | **have** |
+| TP-NGX-49 | `fence-test` stdin dest-legal | test_domain | dest Fence · TP-FENCE-09 | **have** |
 
 ---
 

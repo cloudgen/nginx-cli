@@ -422,5 +422,35 @@ STUB
     assert_contains "TP-NGX-43 inbound submit_app" "${_stamped}" '"submit_app"'
     assert_contains "TP-NGX-43 inbound submit_version" "${_stamped}" '"submit_version"'
 
+    _err=$(sh "${SCRIPT}" fence-test --file "${_pass}/20260821-alice-example.com-1.json" --dir "${_pass}" 2>&1 >/dev/null)
+    assert_eq "TP-NGX-44 xor file+dir exit 1" 1 "$?"
+    assert_contains "TP-NGX-44 xor message" "${_err}" "not both"
+    assert_contains "TP-NGX-44 Next running ship" "${_err}" "${SCRIPT}"
+    assert_not_contains "TP-NGX-44 Next not GLOBAL_BIN" "${_err}" "/usr/local/bin/nginx-cli"
+
+    _err=$(sh "${SCRIPT}" fence-test --expect-match --file "${_pass}/20260821-alice-example.com-1.json" 2>&1 >/dev/null)
+    assert_eq "TP-NGX-45 expect-match needs dir exit 1" 1 "$?"
+    assert_contains "TP-NGX-45 expect-match message" "${_err}" "--expect-match"
+
+    _out=$(sh "${SCRIPT}" --json fence-test --file "${_pass}/20260821-alice-example.com-1.json" 2>/dev/null)
+    assert_eq "TP-NGX-46 json fence-test exit 0" 0 "$?"
+    assert_contains "TP-NGX-46 command field" "${_out}" '"command":"fence-test"'
+
+    _before=$(find "${_q}/config-request" -type f 2>/dev/null | wc -l | tr -d ' ')
+    sh "${SCRIPT}" fence-test --file "${_pass}/20260821-alice-example.com-1.json" >/dev/null 2>&1
+    sh "${SCRIPT}" test-json-format --file "${_pass}/20260821-alice-example.com-1.json" >/dev/null 2>&1
+    _after=$(find "${_q}/config-request" -type f 2>/dev/null | wc -l | tr -d ' ')
+    assert_eq "TP-NGX-47 testers do not queue" "${_before}" "${_after}"
+
+    _err=$(sh "${SCRIPT}" test-json-format --dir "${_pass}" 2>&1 >/dev/null)
+    assert_eq "TP-NGX-48 test-json-format --dir exit 1" 1 "$?"
+    assert_contains "TP-NGX-48 not --dir" "${_err}" "not --dir"
+    _out=$(sh "${SCRIPT}" test-json-format "${_pass}/20260821-alice-example.com-1.json" 2>&1)
+    assert_eq "TP-NGX-48 positional file exit 0" 0 "$?"
+
+    _out=$(sh "${SCRIPT}" fence-test < "${_pass}/20260821-alice-example.com-1.json" 2>&1)
+    assert_eq "TP-NGX-49 stdin fence-test exit 0" 0 "$?"
+    assert_contains "TP-NGX-49 stdin no dest fence" "${_out}" "No dest fence matched"
+
     rm -rf "${_fx}"
 }

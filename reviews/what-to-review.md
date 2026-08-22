@@ -5,8 +5,8 @@
 **Origin A:** `cli-template` (frozen at `src/cli-template`) — do not reverse-copy.  
 **Always load first:** `reviews/lessons.md`
 
-**Last plan update:** 2026-08-15  
-**Ship unit VERSION:** 1.4.0  
+**Last plan update:** 2026-08-22  
+**Ship unit VERSION:** 1.5.1  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -16,7 +16,7 @@
 | # | Check | Notes |
 |---|--------|--------|
 | P1 | Read `docs/requirements/index.md` | Class + architecture + shell + one domain SSOT |
-| P2 | Confirm ship unit `src/nginx-cli` | `APP_NAME` / `VERSION` hard-assign (**1.4.0**) |
+| P2 | Confirm ship unit `src/nginx-cli` | `APP_NAME` / `VERSION` hard-assign (**1.5.1**) |
 | P3 | Confirm origin A remains `src/cli-template` | Frozen; no reverse-copy from B |
 | P4 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P5 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
@@ -31,6 +31,7 @@
 | P10 | Inbound still `2770` not `3773` | group `nginx-cli-submit`; dest allowlist |
 | P11 | Type 1 TTY traps | approve no-TTY fail-closed; hook not `sudo -n`; setup no hang |
 | P12 | Prevention catalog vs invented walls | no unpublished denylist; OPEN-UNIT-TOOLS / OPEN-PASSWD-CLI |
+| P17 | Type 0 **test-purpose** `fence-test` / `test-json-format` | local test folder; no sudo; does not queue; help **Unit test** heading; xor `--file`/`--dir`; `--expect-match` only with `--dir` |
 
 ---
 
@@ -48,7 +49,9 @@
 | Modular design | `requirement-shell-modular-function-design.md` | Type 0 prefixes + `ngx_` |
 | Idempotency | `requirement-shell-idempotency.md` | Re-install |
 | Storage | `requirement-shell-cli-storage.md` | Isolation |
-| Domain | `requirement-domain-nginx-cli.md` | JSON dest **and** same-product submitter; convert dual; no second nginx submitter |
+| Domain | `requirement-domain-nginx-cli.md` | JSON dest **and** same-product submitter; dest Fence table; Type 0 `fence-test`; convert dual; no second nginx submitter |
+| Dest Fence | `requirement-incorrect-json-format.md` | incorrect JSON format only; testers; dest-owned `submit_app` / `submit_version` |
+| Coding style | `requirement-shell-script-coding.md` | specialize-in home; no skill-as-law |
 | Sudoer JSON file | `requirement-sudoer-json-file.md` | grant is `nginx-cli request` as nginx-adm only |
 | LPU | `requirement-least-privilege-user.md` | F1–F7; 1999; inbound 2770; not 1776/3773 |
 | Three-layer | `requirement-three-layer-privilege-model.md` | Table A two families; no nginx-ctl; no print-sudoers |

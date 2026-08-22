@@ -94,7 +94,7 @@ nginx-cli fence-test --file tests/fixtures/fence-test/pass/20260821-alice-exampl
 | **Helper** | `ngx_dest_json_fence` |
 | **Dest table** | `requirement-domain-nginx-cli` §2.0 dest fence table |
 | **Inbound owner** | stays the submitter (prevention PREV-CHOWN-REQ) |
-| **Proof** | **TP-NGX-35..43** · **TP-CLI-15** |
+| **Proof** | **TP-NGX-35..49** · **TP-CLI-15..16** |
 
 ### 2.2 Why This Requirement Exists (Direct CIAO Alignment)
 
@@ -147,7 +147,14 @@ nginx-cli fence-test --file tests/fixtures/fence-test/pass/20260821-alice-exampl
 | **TP-NGX-41** | `tests/test_domain.sh` | have |
 | **TP-NGX-42** | `tests/test_domain.sh` | have |
 | **TP-NGX-43** | `tests/test_domain.sh` | have |
+| **TP-NGX-44** | `tests/test_domain.sh` | have |
+| **TP-NGX-45** | `tests/test_domain.sh` | have |
+| **TP-NGX-46** | `tests/test_domain.sh` | have |
+| **TP-NGX-47** | `tests/test_domain.sh` | have |
+| **TP-NGX-48** | `tests/test_domain.sh` | have |
+| **TP-NGX-49** | `tests/test_domain.sh` | have |
 | **TP-CLI-15** | `tests/test_cli.sh` | have |
+| **TP-CLI-16** | `tests/test_cli.sh` | have |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
@@ -159,7 +166,8 @@ nginx-cli fence-test --file tests/fixtures/fence-test/pass/20260821-alice-exampl
 | Date | Status | Note |
 |------|--------|------|
 | 2026-08-21 | Active 1.0.0 | Independent dest Fence; Type 0 `test-json-format` / `fence-test`; dest-owned `submit_app` / `submit_version` |
+| 2026-08-22 | Active 1.0.0 | Proof TP-NGX-44..49 (xor, expect-match, JSON, no-queue, stdin) · TP-CLI-16 |
 
-**Last Updated**: 2026-08-21  
+**Last Updated**: 2026-08-22  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

@@ -50,6 +50,8 @@ run_test_cli() {
     assert_contains "TP-CLI-15 help fence-test" "$_out" "fence-test"
     assert_contains "TP-CLI-15 help test-json-format" "$_out" "test-json-format"
     assert_contains "TP-CLI-15 testers apart" "$_out" "Unit test (local test folder)"
+    assert_contains "TP-CLI-16 help --dir" "$_out" "--dir DIR"
+    assert_contains "TP-CLI-16 help --expect-match" "$_out" "--expect-match"
     assert_contains "TP-CLI-04 help --json" "$_out" "--json"
     assert_not_contains "TP-CLI-04 no backup verb" "$_out" "backup <"
     assert_not_contains "TP-CLI-04 no restore verb" "$_out" "restore <"

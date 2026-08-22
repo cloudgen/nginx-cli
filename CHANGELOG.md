@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.5.1] - 2026-08-22
+
+### Tests
+
+- Close dest Fence **`fence-test`** coverage vs portable **TP-FENCE-08..15** / sibling **TP-SR-FT**: xor `--file`/`--dir`, `--expect-match` without `--dir`, `--json` command field, testers do not queue, `test-json-format` refuses `--dir`, stdin, help `--dir` / `--expect-match` (**TP-NGX-44..49**, **TP-CLI-16**).
+- Next on tester fail names the **running** ship unit, not `/usr/local/bin/nginx-cli`.
+
+### Fixed
+
+- CLI-interface notes VERSION SSOT and ship-unit header comments tracked live `VERSION`.
+- Review plan / RTM / what-to-review still said 1.4.1 after the 1.5.0 dest Fence ship.
+
 ## [1.5.0] - 2026-08-21
 
 ### Added

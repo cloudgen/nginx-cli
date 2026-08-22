@@ -25,6 +25,7 @@ Durable failure modes. **Always re-check on product review.**
 | L-SH-GLOBAL-01 | Nested convert clobbers caller `_` temps or emits a second `--json` object | distinct names (`_jsfile` / `_payload`); `JSON=0` around subroutine convert; TP-NGX-29 | open watch |
 | L-SUDOER-GRANT-01 | File-operand sudoer grant accepts a non-listed binary | allowlist path=`${GLOBAL_BIN}/nginx-cli` args=`request`; TP-NGX-18/32 | open watch |
 | L-TEST-HOST-01 | Live `/etc/sudoers.d/nginx-cli-<login>` makes TP-NGX-02 skip Submit denied | Isolate `NGINX_CLI_SUBMIT_SUDOERS` + `NGINX_CLI_SUBMIT_PER_USER_DIR` | open watch |
+| L-FENCE-TEST-01 | Count dest `approve` as `fence-test`, or testers need sudo / queue / GLOBAL_BIN Next | FC-M6; testers local folder; Next = running ship; TP-NGX-35..49 · TP-CLI-15/16 | open watch |
 
 **Related-product only (do not re-apply as this product’s law):** L-DEPOSIT-01, L-SUDOERS-01..05, L-OVERWRITE-01 stay on folder-backup. Type O empty-argv / online-channel lessons stay on products that own those surfaces. Origin A is `cli-template` (frozen); this product is B.
 
