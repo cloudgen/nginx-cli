@@ -2,7 +2,8 @@
 # tests/test_cli.sh — CLI surface (local-only; no network)
 # =============================================================================
 # Primary REQs: requirement-shell-cli-interface, requirement-shell-cli-zero-arguments,
-# requirement-shell-output-requirements, requirement-shell-cli-storage
+# requirement-shell-cli-default-interaction, requirement-shell-output-requirements,
+# requirement-shell-cli-storage
 # TP family: TP-CLI-*
 # =============================================================================
 
@@ -153,4 +154,74 @@ run_test_cli() {
     _ec=$?
     assert_eq "TP-CLI-14 nginx-ctl exit 1" 1 "$_ec"
     assert_contains "TP-CLI-14 nginx-ctl unknown" "$_err" "Unknown command"
+
+    # TP-CLI-17 menu off-TTY is human help (not the numbered list; empty argv stays help)
+    _out=$(sh "${SCRIPT}" menu 2>/dev/null)
+    _ec=$?
+    assert_eq "TP-CLI-17 menu off-tty exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-17 menu off-tty is help" "$_out" "Usage:"
+    assert_not_contains "TP-CLI-17 menu off-tty no Exit 99 list" "$_out" "99. Exit"
+    assert_not_contains "TP-CLI-17 menu off-tty no numbered remove-lpu row" "$_out" "1. remove-lpu:"
+
+    _out=$(sh "${SCRIPT}" 2>/dev/null)
+    assert_contains "TP-CLI-17 empty argv still help" "$_out" "Usage:"
+    assert_not_contains "TP-CLI-17 empty argv is not the numbered list" "$_out" "99. Exit"
+
+    _out=$(sh "${SCRIPT}" --quiet menu 2>/dev/null)
+    _ec=$?
+    assert_eq "TP-CLI-17 quiet menu off-tty exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-17 quiet menu off-tty still help" "$_out" "Usage:"
+
+    # TP-CLI-18 menu --json off-TTY is JSON help
+    _out=$(sh "${SCRIPT}" --json menu 2>/dev/null)
+    _ec=$?
+    assert_eq "TP-CLI-18 menu --json off-tty exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-18 menu --json type success" "$_out" '"type":"success"'
+    assert_not_contains "TP-CLI-18 menu --json no numbered list" "$_out" "99. Exit"
+
+    _out=$(sh "${SCRIPT}" menu --json 2>/dev/null)
+    assert_contains "TP-CLI-18 menu then --json type success" "$_out" '"type":"success"'
+
+    # TP-CLI-19 main off-TTY is human help
+    _out=$(sh "${SCRIPT}" main 2>/dev/null)
+    _ec=$?
+    assert_eq "TP-CLI-19 main off-tty exit 0" 0 "$_ec"
+    assert_contains "TP-CLI-19 main off-tty is help" "$_out" "Usage:"
+    assert_not_contains "TP-CLI-19 main off-tty no Exit 99 list" "$_out" "99. Exit"
+
+    # TP-CLI-20 help lists menu / main
+    _out=$(sh "${SCRIPT}" help 2>/dev/null)
+    assert_contains "TP-CLI-20 help lists menu" "$_out" "menu"
+    assert_contains "TP-CLI-20 help lists main alias" "$_out" "Alias of menu"
+    assert_contains "TP-CLI-20 help numbered-list heading" "$_out" "Numbered list"
+
+    # TP-CLI-21 / TP-CLI-22 TTY numbered list (skip when no PTY helper)
+    _pty_py="${TESTS_ROOT}/helpers/pty_feed.py"
+    _pty_out=""
+    _pty_ok=1
+    if command -v python3 >/dev/null 2>&1 && [ -f "${_pty_py}" ]; then
+        _pty_out=$(MENU_INPUT='99
+' python3 "${_pty_py}" sh "${SCRIPT}" menu 2>/dev/null)
+        _pty_ok=$?
+    fi
+    if [ "${_pty_ok}" -eq 0 ] && [ -n "${_pty_out}" ] && printf '%s' "${_pty_out}" | grep -q "99. Exit"; then
+        assert_contains "TP-CLI-21 TTY menu has Exit 99" "${_pty_out}" "99. Exit"
+        assert_contains "TP-CLI-21 TTY menu row 1 remove-lpu" "${_pty_out}" "1. remove-lpu:"
+        assert_contains "TP-CLI-21 TTY menu row 14 json-to-conf" "${_pty_out}" "14. json-to-conf:"
+        assert_not_contains "TP-CLI-21 TTY menu omits help row" "${_pty_out}" "help: Show this help"
+        assert_not_contains "TP-CLI-21 TTY menu omits install row" "${_pty_out}" "1. install:"
+        assert_not_contains "TP-CLI-21 TTY menu omits setup row" "${_pty_out}" "setup: Create nginx-adm"
+        assert_not_contains "TP-CLI-21 TTY menu omits version row" "${_pty_out}" "version: Show local version"
+        assert_not_contains "TP-CLI-21 TTY menu omits about row" "${_pty_out}" "about: Show diagnostics"
+        assert_not_contains "TP-CLI-21 TTY menu omits fence-test row" "${_pty_out}" "fence-test: Dest fence list"
+        assert_not_contains "TP-CLI-21 TTY menu omits test-json-format row" "${_pty_out}" "test-json-format: Dest JSON-format"
+        assert_not_contains "TP-CLI-21 TTY menu omits menu as a choice" "${_pty_out}" "menu: Numbered list"
+        _pty_json=$(MENU_INPUT='99
+' python3 "${_pty_py}" sh "${SCRIPT}" --json menu 2>/dev/null)
+        assert_contains "TP-CLI-22 TTY menu --json still numbered list" "${_pty_json}" "99. Exit"
+        assert_not_contains "TP-CLI-22 TTY menu --json is not JSON help" "${_pty_json}" '"type":"success"'
+    else
+        t_skip "TP-CLI-21 TTY menu numbered list (no PTY)"
+        t_skip "TP-CLI-22 TTY menu --json still list (no PTY)"
+    fi
 }

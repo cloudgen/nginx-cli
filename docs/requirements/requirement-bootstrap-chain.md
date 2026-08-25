@@ -79,7 +79,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | Concern | Value |
 |---------|---------|
 | `APP_NAME` | `nginx-cli` |
-| `VERSION` | `1.4.0` (product version SSOT in ship unit) |
+| `VERSION` | `1.7.0` (product version SSOT in ship unit) |
 | Primary install story | Local copy from running ship unit → `${USER_BIN}` (default `~/.local/bin`) |
 | README one-liner | **No** `curl \| sh` channel claim |
 
@@ -88,7 +88,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | Item | Value |
 |------|--------|
 | **Product** | `nginx-cli` |
-| **Workspace** | `/home/leolio/prjs/nginx-cli` |
+| **Workspace** | RAM-drive first: `/dev/shm/nginx-cli` when present, else `{{PROJECTS_ROOT}}/nginx-cli` |
 | **Ship unit** | `src/nginx-cli` |
 | **Origin A (frozen)** | `cli-template` at `src/cli-template` — do not reverse-copy B onto A |
 | **Role** | Specialized product B. Not hop 0. Not a child of selfmanaged or folder-backup. |

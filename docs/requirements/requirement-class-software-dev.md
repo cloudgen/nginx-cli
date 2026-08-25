@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-class-software-dev.md  
-**Status**: Active (Version 1.8.0 – dest Fence + fence-test + coding-style pointer)  
+**Status**: Active (Version 1.8.1 – dest Fence + fence-test + coding-style + menu pointer)  
 **Area**: class  
 **Key**: `requirement-class-software-dev`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -108,7 +108,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | **Architectures supported** | any arch with POSIX sh and the external tools the script invokes |
 | **Git surface** | used when product is published |
 | **Ship unit / install** | yes — `src/nginx-cli` → `${USER_BIN}/nginx-cli` (default `~/.local/bin/nginx-cli`); **local-only** install (no online channel) |
-| **Product version SSOT** | `VERSION="1.4.0"` hard-assign in `src/nginx-cli` |
+| **Product version SSOT** | `VERSION="1.7.0"` hard-assign in `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) — this product is B. No live parent hop. |
 
 **Residual ownership table:**
@@ -122,6 +122,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Project layout / ship path | `requirement-project-folder` | `src/` + bin targets |
 | Type 0 CLI surface / flags / dispatch | `requirement-shell-cli-interface` | Do not duplicate |
 | Empty argv Type N help | `requirement-shell-cli-zero-arguments` | Local-only |
+| Numbered TTY list (`menu`/`main`) | `requirement-shell-cli-default-interaction` | Case 3; empty argv stays help |
 | Local self-managed lifecycle | `requirement-shell-local-self-management` | install / uninstall / where-is-me |
 | Output SSOT (`out_*`) | `requirement-shell-output-requirements` | Do not duplicate |
 | Scratch/cache storage resolve | `requirement-shell-cli-storage` | Do not duplicate |
@@ -135,7 +136,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Folder archive backup / restore / retention | **intentionally absent** | Not this product’s domain (sibling folder-backup) |
 | Domain surface (`requirement-domain-*`) | `requirement-domain-nginx-cli` | file-based JSON dest **and** same-product submitter (`request`); compose to sudoer-cli |
 | Dest Fence: incorrect JSON format | `requirement-incorrect-json-format` | Independent Fence REQ; dest table still prints; Type 0 `test-json-format`; list tester `fence-test` |
-| Coding-style related REQ | `requirement-shell-script-coding` | Specialize-in home; without it portable lessons arrive raw |
+| Coding-style related REQ | `requirement-shell-script-coding` | Specialize-in home; remaining mold rules apply (**PP-A-21**) |
 | Prompt helper bodies / temp leaves | **intentionally absent as extra REQs** | interactive + storage |
 | Online install / remote self-management / companion checksum | **intentionally absent** | Not this product’s channel |
 
@@ -206,6 +207,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | `requirement-project-folder` | Layout and install locations |
 | `requirement-shell-cli-interface` | Command surface, flags, dispatch |
 | `requirement-shell-cli-zero-arguments` | Type N empty argv |
+| `requirement-shell-cli-default-interaction` | Numbered list on `menu`/`main` |
 | `requirement-shell-local-self-management` | Local install lifecycle |
 | `requirement-shell-output-requirements` | `out_*` SSOT |
 | `requirement-shell-cli-storage` | Scratch/cache resolve |
@@ -229,9 +231,10 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | 2026-08-15 | Active 1.6.0 | Residual owner: JSON sudoer file; VERSION 1.2.0 |
 | 2026-08-15 | Active 1.7.0 | Domain residual: JSON dest + same-product submitter |
 | 2026-08-21 | Active 1.8.0 | Dest Fence pointer; Type 0 fence-test; coding-style pointer |
+| 2026-08-23 | Active 1.8.1 | Residual pointer: `menu`/`main` on `requirement-shell-cli-default-interaction` |
 
 ---
 
-**Last Updated**: 2026-08-21  
+**Last Updated**: 2026-08-23  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

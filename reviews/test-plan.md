@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/nginx-cli`  
-**Product VERSION:** 1.5.1  
-**Last plan update:** 2026-08-21  
-**Last suite run:** PASS=230 FAIL=0 SKIP=0 (2026-08-22)
+**Product VERSION:** 1.7.0  
+**Last plan update:** 2026-08-25  
+**Last suite run:** PASS=293 FAIL=0 SKIP=0 (2026-08-25)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -18,6 +18,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Syntax `sh -n` | have | TP-CLI-01 |
 | version / help / about human + JSON | have | TP-CLI-02..06 |
 | Type N empty argv = help | have | TP-CLI-07 |
+| `menu`/`main` off-TTY help; TTY numbered list | have | TP-CLI-17..22 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
 | No online verbs / no SCRIPT_URL UX | have | TP-CLI-04, TP-CLI-10 |
@@ -27,7 +28,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Dest F6 / inbound / no nginx-ctl | have | TP-CLI-14, TP-NGX-14..15 |
 | submit-sudoer-request compose | have | TP-NGX-16..20 · TP-CLI-04/06 |
 | Type 1 approve no-TTY fail-closed | have | TP-NGX-11 |
-| Login hook password sudo (not `-n`) | have | TP-NGX-14 |
+| Login hook as-login (not `sudo`, not `-n`) | have | TP-NGX-14, TP-NGX-50 |
 | Live `setup` useradd on host | skip | Requires root; negative non-root covered |
 | Live F6 visudo install | skip | Requires root; static writer covered by TP-NGX-15 |
 | Online curl / companion checksum | n/a | Local-only product |
@@ -56,6 +57,12 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-CLI-14 | `nginx-ctl` unknown; help does not list it | test_cli | prevention · three-layer · interface | **have** |
 | TP-CLI-15 | Help lists `fence-test` / `test-json-format` under Unit test heading | test_cli | interface · dest Fence | **have** |
 | TP-CLI-16 | Help documents `--dir` / `--expect-match` tester flags | test_cli | interface · dest Fence | **have** |
+| TP-CLI-17 | `menu` off-TTY human help; not numbered list; empty argv still help | test_cli | default-interaction · zero-arguments | **have** |
+| TP-CLI-18 | `menu --json` off-TTY JSON help | test_cli | default-interaction | **have** |
+| TP-CLI-19 | `main` off-TTY human help | test_cli | default-interaction | **have** |
+| TP-CLI-20 | Help lists `menu` / `main` | test_cli | interface · default-interaction | **have** |
+| TP-CLI-21 | TTY `menu` numbered list N=14 Exit 99; exclusions | test_cli | default-interaction | **have** (skip if no PTY) |
+| TP-CLI-22 | TTY `menu --json` still the list | test_cli | default-interaction | **have** (skip if no PTY) |
 
 ### TP-LC (local lifecycle)
 
@@ -78,8 +85,8 @@ Unchanged **have** TP-LC-01..10 against `src/nginx-cli`.
 | TP-NGX-11 | interactive approve no-TTY fail-closed | test_domain | interactive · prevention | **have** |
 | TP-NGX-12 | JSON list-approved | test_domain | output + domain | **have** |
 | TP-NGX-13 | missing inbound fail-closed | test_domain | public queue Type 0 no-mkdir · prevention | **have** |
-| TP-NGX-14 | hook is password `sudo … approve`, not `sudo -n` | test_domain | three-layer · prevention · domain | **have** |
-| TP-NGX-15 | ship unit inbound `2770` not `3773`; F6 has unit NOPASSWD; no NOPASSWD on `/usr/local/bin/nginx-cli` | test_domain | LPU · three-layer · prevention | **have** |
+| TP-NGX-14 | hook is as-login `… nginx-cli approve`, not `sudo` / `sudo -n` | test_domain | three-layer · prevention · domain | **have** |
+| TP-NGX-15 | ship unit inbound `2770` not `3773`; F6 has unit NOPASSWD; no NOPASSWD on `/usr/local/bin/nginx-cli`; Family 1 leading `--json`; no `--json setup` | test_domain | LPU · three-layer · prevention | **have** |
 | TP-NGX-16 | submit-sudoer-request fail-closed when sudoer-cli missing | test_domain | three-layer §2.5.3 | **have** |
 | TP-NGX-17 | submit via stub sudoer-cli into writable inbound | test_domain | three-layer §2.5.3 | **have** |
 | TP-NGX-18 | refuse OS-tool / approve grant file | test_domain | requirement-sudoer-json-file | **have** |
@@ -112,6 +119,10 @@ Unchanged **have** TP-LC-01..10 against `src/nginx-cli`.
 | TP-NGX-47 | Testers do not queue dest inbound | test_domain | dest Fence · TP-FENCE-08/09 | **have** |
 | TP-NGX-48 | `test-json-format` refuses `--dir`; positional path stands in for `--file` | test_domain | dest Fence · TP-FENCE-08 | **have** |
 | TP-NGX-49 | `fence-test` stdin dest-legal | test_domain | dest Fence · TP-FENCE-09 | **have** |
+| TP-NGX-50 | replace stale `sudo … approve` managed hook | test_domain | domain §2.2.6 · PREV-HOOK-SUDO | **have** |
+| TP-NGX-51 | setup fail-closed when `nginx-adm` or UID/GID 1999 is a foreign identity | test_domain | LPU Collision · L-COLLIDE-01 | **have** |
+| TP-NGX-52 | `setup` auto-queues `login-hook-elev` JSON when sibling inbound exists; skip when missing | test_domain | three-layer §2.5.0 · sudoer-json-file | **have** |
+| TP-NGX-53 | `setup` does not write `/etc/sudoers.d/nginx-adm` or `nginx-cli-submit` | test_domain | PREV-SUDOERS-MAIN · LPU 1.3.0 | **have** |
 
 ---
 

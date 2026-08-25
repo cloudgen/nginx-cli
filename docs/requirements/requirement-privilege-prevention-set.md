@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-privilege-prevention-set.md  
-**Status**: Active (Version 1.4.0)  
+**Status**: Active (Version 1.6.0)  
 **Area**: architecture  
 **Key**: `requirement-privilege-prevention-set`  
 **id**: RQ-PRIVILEGE-PREVENTION-SET  
@@ -33,7 +33,7 @@ A wall that is not a §2.2 row is **not** product law.
 | ID | What is stopped | Who / when | How it stops | Owner |
 |----|-----------------|------------|--------------|-------|
 | **PREV-PASSWD** | Hand-edit `/etc/passwd`, `/etc/group`, `/etc/shadow`, or `/etc/gshadow`; `chpasswd`; `passwd --stdin`; any scripted secret | any type | Fail closed. Create/teardown the LPU with `useradd` / `userdel` only. Type 1 `setup` **MAY** invoke `passwd(1)` for **this** LPU so the operator types a password (JOB-PASSWD) | LPU · three-layer |
-| **PREV-SUDOERS-MAIN** | Write `/etc/sudoers` (the main file); Type 0 write `/etc/sudoers.d`; Type 1 write a **foreign** name under `/etc/sudoers.d` | Type 0 / foreign | Fail closed. This product **does** write product-owned names (`nginx-adm`, `nginx-cli-submit`) | three-layer · domain |
+| **PREV-SUDOERS-MAIN** | Write `/etc/sudoers` (the main file); Type 0 **or Type 1 `setup`** write `/etc/sudoers.d` | Type 0 / Type 1 setup | Fail closed. Family 1 dest is sibling-approved `nginx-cli-nginx-adm`. Listed-submitter dest is `nginx-cli-<login>` | three-layer · domain |
 | **PREV-T0-USER** | Create or delete the LPU (`useradd` / `userdel`) | Type 0 | Fail closed; no account mutate | LPU · domain |
 | **PREV-T0-QUEUE** | `mkdir` the production inbound / approved / rejected trio | Type 0 | Fail closed if the dir is missing | domain · LPU |
 | **PREV-T0-SUDOER-MKDIR** | `mkdir` sibling `/var/sudoer-cli/sudoer-request` (or its parent / F4 view) | Type 0 `submit-sudoer-request` | Fail closed if inbound missing | three-layer |
@@ -71,7 +71,8 @@ A wall that is not a §2.2 row is **not** product law.
 | **PREV-COLLIDE** | `setup` when UID, GID, or LPU name exists and is **not** this identity | Type 1 bootstrap | Exit non-zero; no partial create | LPU |
 | **PREV-UNINST-F7** | Type 0 `uninstall` treated as LPU teardown | Type 0 | `uninstall` removes the **managed binary only** | LPU · local-self-management |
 | **PREV-USERDEL-QUEUES** | Rely on `userdel -r` to remove `/var/nginx-cli` | F7 | F7 **MUST** backup+remove the public root first | LPU |
-| **PREV-SUDO-N-CLI** | Bootstrap, login hook, or day-to-day `nginx-cli` documented or implemented as `sudo -n` | Type 1 / hook | Password `sudo` or a root login. Unit tools stay NOPASSWD | three-layer · domain |
+| **PREV-SUDO-N-CLI** | Bootstrap, login hook, or day-to-day `nginx-cli` documented or implemented as `sudo -n` | Type 1 / hook | Password `sudo` (Family 1 / bootstrap) or a root login; login hook is as-login (no sudo). Unit tools stay NOPASSWD | three-layer · domain |
+| **PREV-HOOK-SUDO** | Login hook documented or implemented as `sudo … nginx-cli approve` (password or `-n`) | Type 1 / hook | As-login `${GLOBAL_BIN}/nginx-cli approve`. Family 1 stays password sudo for explicit sudo | domain · three-layer |
 | **PREV-T2** | A Type 2 execution euid for dest writes (`su` / `runuser` to the LPU) | design / code | Type 2 remains **Not used** | three-layer |
 | **PREV-MAP-PUBLIC** | Put `user-domain-map` on the public queue root | setup / design | Map stays under LPU home | LPU · domain |
 | **PREV-FIXTURE-VAR** | Write `/var/nginx-cli` from fixture mode | tests | Fixture queues stay under `/tmp` | domain |
@@ -91,7 +92,7 @@ A wall that is not a §2.2 row is **not** product law.
 |----|-----------------|------------|--------------|-------|
 | **PREV-EMPTY-INT** | Empty argv becoming `approve` | any uid | Empty argv is Type N help | CLI · zero-arguments · domain |
 | **PREV-HELP** | Listing a verb in `help` that has no dispatcher arm; listing `print-sudoers` / `backup` / `nginx-ctl` | help | Must not list. **Must** list `submit-sudoer-request`, `conf-to-json`, `json-to-conf` | CLI · domain |
-| **PREV-SUBMIT-OS-TOOL** | Submit a JSON/text grant that lists OS tools or dest-forbidden verbs (`approve`, `setup`, …) | Type 0 compose | Fail closed | sudoer-json-file |
+| **PREV-SUBMIT-OS-TOOL** | Type 0 compose JSON that lists OS tools, `approve`, `setup`, or `kind=login-hook-elev` | Type 0 compose | Fail closed | sudoer-json-file |
 | **PREV-HANG** | Prompt or hang when `TTY` is not `1`; login hook hanging `scp` / CI | `approve` / hook | Fail closed; hook skips when `PS1` unset | interactive · domain |
 | **PREV-TEST-ROOTS** | Pointing production dest / queues at a fake root without fixture flags **and** `/tmp` paths | Type 0 / tests | Fail closed | domain |
 
@@ -102,7 +103,7 @@ A wall that is not a §2.2 row is **not** product law.
 | **OPEN-ELEV** | Run the Type 1 job the operator invoked | After password `sudo` **or** a root login | That elev **is** the approval. **MUST NOT** invent a second lock |
 | **OPEN-SUDO** | The ship unit **MAY** invoke password `sudo` (outer **or** in-tool) | Mix model | “Avoid `sudo -n` on nginx-cli” is **not** “avoid `sudo`” |
 | **OPEN-PASSWD-CLI** | nginx-adm **MUST** be able to `sudo /usr/local/bin/nginx-cli` day-to-day verbs **with a password** | After F6 | Dest F6 family 1. `setup` **MUST** TTY-`passwd` or warn; a locked account is a setup gap |
-| **OPEN-ADM-NOSUDO** | Login `nginx-adm` **MAY** run day-to-day verbs **without** sudo | After setup | `ngx_can_approve` / `ngx_can_submit`. Does not replace Family 1 or the hook |
+| **OPEN-ADM-NOSUDO** | Login `nginx-adm` **MAY** run day-to-day verbs **without** sudo | After setup | `ngx_can_approve` / `ngx_can_submit`. The login hook **MUST** use this path. Does not replace Family 1 |
 | **OPEN-UNIT-TOOLS** | nginx-adm **MUST** keep `NOPASSWD` `/usr/sbin/nginx` and unit `systemctl` / `journalctl` | After F6 | Dest F6 family 2. **MUST NOT** drop these when adding password `nginx-cli` |
 | **OPEN-USERADD** | Type 1 `setup` / `remove-lpu` **MUST** call `useradd` / `userdel` | After euid 0 | Account create is a script job, not an F6 Cmnd |
 | **OPEN-TOOLS** | Type 1 **MAY** run the OS tools the job needs (`mkdir`, `chmod`, `visudo -cf`, `install`, product-scoped `rm`, …) | After euid 0 | Table A is not a live-command catalog |
@@ -120,7 +121,7 @@ A wall that is not a §2.2 row is **not** product law.
 | **OPEN-TABLE-A** | Table A stays **two families**. It **MUST NOT** collapse to one NOPASSWD whole-binary line | emit | Sibling sudoer-cli shape is **not** this dest |
 | **OPEN-TABLE-C** | Table C rows **MUST NOT** be copied into F6 | emit vs script | Wrong surface |
 | **OPEN-ETC-USER** | Type 1 **MUST** put LPU home / map / hooks under `/etc/nginx-adm/` when free | After euid 0 | Prefer `/etc/{{username}}/`. There is **no** blanket “do not write `/etc`” |
-| **OPEN-SUDOERS-D-EX** | Type 1 **MAY** write product-owned files under `/etc/sudoers.d/` (`nginx-adm`; create-if-absent `nginx-cli-submit`) | After euid 0 | Exception to the portable “do not write sudoers.d” default. Still **PREV-PASSWD**, **PREV-SUDOERS-MAIN** |
+| **OPEN-SETUP-JSON** | Type 1 `setup` **MAY** write `login-hook-elev` JSON into sibling inbound when dest exists | After euid 0 | Not Type 0 `submit-sudoer-request`. **MUST NOT** `mkdir` inbound or write `/etc/sudoers.d` |
 | **OPEN-SITES** | Type 1 approve **MAY** write `${NGINX_CONF_ROOT}/sites-available` and enable-dir symlinks | After authz | That is the dest of this machine |
 
 ### 2.4 Sensitive is not blocked
@@ -141,9 +142,11 @@ These steps are **hard to undo**. They stay **allowed** after elev. The extra ga
 | **Product** | `nginx-cli` |
 | **Ship unit** | `src/nginx-cli` |
 | **LPU** | `nginx-adm` (UID/GID `1999`, create home `/etc/nginx-adm`; public queues `/var/nginx-cli/` inbound **2770**) |
-| **F6 file** | `/etc/sudoers.d/nginx-adm` = password `nginx-cli` day-to-day **plus** `NOPASSWD` unit tools |
-| **Submit file** | `/etc/sudoers.d/nginx-cli-submit` (shared allowlist) **or** `/etc/sudoers.d/nginx-cli-<login>` (sibling dest) |
+| **Family 2 file** | `/etc/nginx-adm/sudoers` = NOPASSWD unit tools only |
+| **Family 1 dest** | `/etc/sudoers.d/nginx-cli-nginx-adm` after sibling approve (JSON auto-queue) |
+| **Listed-submitter dest** | `/etc/sudoers.d/nginx-cli-<login>` after sibling approve |
 | **Usual bootstrap** | `sudo src/nginx-cli setup` or `sudo nginx-cli setup` (password `sudo` OK) |
+| **Login hook** | `/usr/local/bin/nginx-cli approve` as-login (**no** `sudo`; **PREV-HOOK-SUDO**) |
 | **Fixture** | `NGINX_CLI_FIXTURE=1` + homes/queues under `/tmp` |
 | **Absent verbs** | `print-sudoers`, `nginx-ctl`, online self-update |
 | **Present compose** | `submit-sudoer-request` (Type 0; no `/etc` write) |
@@ -176,10 +179,11 @@ These steps are **hard to undo**. They stay **allowed** after elev. The extra ga
 2. Close a §2.3 row (drop `NOPASSWD` unit tools; put `NOPASSWD` on `nginx-cli`; require `sudo -n` for `setup`; require the operator to already be the LPU; invent `nginx-ctl`; die “not enabled”).  
 3. Put Table C OS tools into Table A **or** refuse to run those tools after euid 0 because they are not in Table A.  
 4. Invent a Type 2 euid, or `su` / `runuser` to the LPU, in order to write dest.  
-5. Write `/etc/passwd` or `/etc/sudoers` (main file) by hand, or invent a blanket “do not write `/etc`” that blocks `/etc/nginx-adm/` **or** this product’s Type 1 sudoers.d / sites-available writes. Type 1 **MAY** run `passwd nginx-adm`. **MUST NOT** `chpasswd` or put a password on a command line.  
+5. Write `/etc/passwd` or `/etc/sudoers` (main file) by hand, or invent a blanket “do not write `/etc`” that blocks `/etc/nginx-adm/` **or** Type 1 sites-available writes. Type 1 **MUST NOT** write `/etc/sudoers.d`. Type 1 **MAY** run `passwd nginx-adm`. **MUST NOT** `chpasswd` or put a password on a command line.  
 6. Use `--force` to skip Type 1 authz or to auto-approve.  
 7. Document bootstrap or the login hook as `sudo -n nginx-cli`.  
-8. Copy sudoer-cli prevention rows (3773 inbound, JSON schema, NOPASSWD whole CLI) as if they were this dest.
+8. Copy sudoer-cli prevention rows (3773 inbound, JSON schema, NOPASSWD whole CLI) as if they were this dest.  
+9. Wrap the nginx-adm login hook in password `sudo` or leave a stale `sudo … approve` managed block on re-run (`PREV-HOOK-SUDO`).
 
 **Violating this rule is a critical privilege / invented-wall regression.**
 
@@ -190,7 +194,8 @@ These steps are **hard to undo**. They stay **allowed** after elev. The extra ga
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
 | **TP-CLI-04,10,13,14** | `tests/test_cli.sh` | have | no online / print-sudoers / backup / nginx-ctl; help lists submit-sudoer-request |
-| **TP-NGX-01,11,13,14,15,34** | `tests/test_domain.sh` | have | euid; no-TTY; no-mkdir; hook not `-n`; 2770 / F6 families; passwd-ensure |
+| **TP-NGX-01,11,13,14,15,34,50** | `tests/test_domain.sh` | have | euid; no-TTY; no-mkdir; hook as-login (no sudo); replace stale sudo block; 2770 / F6 families; passwd-ensure |
+| **TP-NGX-52,53** | same | have | setup auto-queue Family 1 JSON; MUST NOT write `/etc/sudoers.d` |
 | **TP-NGX-16,18,19** | same | have | compose fail-closed / refuse OS-tool / no Type 0 sibling mkdir |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
@@ -207,6 +212,6 @@ These steps are **hard to undo**. They stay **allowed** after elev. The extra ga
 | `docs/requirements/requirement-shell-cli-interface.md` | Dispatcher / Type 0 catalog |
 | `./src/nginx-cli` | Ship unit |
 
-**Last Updated**: 2026-08-15 (1.4.0 — PREV-PASSWD allows Type 1 passwd(1); OPEN-ADM-NOSUDO)  
+**Last Updated**: 2026-08-23 (1.6.0 — setup MUST NOT write `/etc/sudoers.d`; Family 1 via sibling JSON)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

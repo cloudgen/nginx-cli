@@ -140,9 +140,26 @@ run_test_domain() {
     _out=$(ngx_fx enable-login-approval 2>&1)
     _hits=$(grep -c "interactive approval (managed)" "${_home}/.bashrc" || true)
     assert_eq "TP-NGX-10 hook inserted once (two marker lines)" 2 "${_hits}"
-    assert_contains "TP-NGX-14 hook uses password sudo approve" "$(cat "${_home}/.bashrc")" "sudo "
     assert_contains "TP-NGX-14 hook calls approve" "$(cat "${_home}/.bashrc")" "approve"
-    assert_not_contains "TP-NGX-14 hook not sudo -n" "$(cat "${_home}/.bashrc")" "sudo -n"
+    assert_contains "TP-NGX-14 hook is as-login global binary" "$(cat "${_home}/.bashrc")" "/usr/local/bin/nginx-cli approve"
+    assert_not_contains "TP-NGX-14 hook not sudo" "$(cat "${_home}/.bashrc")" "sudo"
+
+    # TP-NGX-50 replace a stale sudo-shaped managed block
+    {
+        printf '%s\n' "# >>> nginx-cli interactive approval (managed) >>>"
+        printf 'if [ -n "${PS1-}" ]; then\n'
+        printf '    sudo /usr/local/bin/nginx-cli approve\n'
+        printf 'fi\n'
+        printf '%s\n' "# <<< nginx-cli interactive approval (managed) <<<"
+    } > "${_home}/.bashrc"
+    _out=$(ngx_fx enable-login-approval 2>&1)
+    _hits=$(grep -c "interactive approval (managed)" "${_home}/.bashrc" || true)
+    assert_eq "TP-NGX-50 still one managed pair" 2 "${_hits}"
+    assert_contains "TP-NGX-50 reports replaced" "${_out}" "Replaced"
+    assert_contains "TP-NGX-50 hook calls approve" "$(cat "${_home}/.bashrc")" "/usr/local/bin/nginx-cli approve"
+    assert_not_contains "TP-NGX-50 hook not sudo" "$(cat "${_home}/.bashrc")" "sudo"
+    _out=$(ngx_fx enable-login-approval 2>&1)
+    assert_contains "TP-NGX-50 second run already present" "${_out}" "already present"
 
     # TP-NGX-11 approve without basename non-tty fail-closed
     _err=$(ngx_fx approve 2>&1 >/dev/null)
@@ -162,6 +179,37 @@ run_test_domain() {
     assert_not_contains "TP-NGX-15 no inbound 3773" "$(cat "${SCRIPT}")" "3773"
     assert_contains "TP-NGX-15 NOPASSWD unit nginx" "$(cat "${SCRIPT}")" "NOPASSWD: %s"
     assert_not_contains "TP-NGX-15 no NOPASSWD on nginx-cli path" "$(cat "${SCRIPT}")" "NOPASSWD: /usr/local/bin/nginx-cli"
+    assert_contains "TP-NGX-15 F6 --json approve" "$(cat "${SCRIPT}")" '--json %s\n'
+    assert_contains "TP-NGX-15 F6 --json argv helper" "$(cat "${SCRIPT}")" "ngx_f6_cli_argv"
+    assert_contains "TP-NGX-15 F6 --json list-requests argv" "$(cat "${SCRIPT}")" '"list-requests"'
+    assert_not_contains "TP-NGX-15 F6 no --json setup" "$(cat "${SCRIPT}")" '--json setup'
+    assert_not_contains "TP-NGX-15 F6 no --json star-all argv" "$(cat "${SCRIPT}")" 'ngx_f6_cli_argv "${NGINX_ADM_USER}" "${_cli}" "--json *"'
+    assert_contains "TP-NGX-53 Family 2 dest is /etc/nginx-adm/sudoers" "$(cat "${SCRIPT}")" 'NGINX_ADM_SUDOERS:=/etc/nginx-adm/sudoers'
+    assert_not_contains "TP-NGX-53 default dest not sudoers.d/nginx-adm" "$(cat "${SCRIPT}")" 'NGINX_ADM_SUDOERS:=/etc/sudoers.d/nginx-adm'
+    assert_contains "TP-NGX-53 refuse sudoers.d Family 2 dest" "$(cat "${SCRIPT}")" 'Family 2 dest must not be under /etc/sudoers.d'
+    _setup_fn=$(sed -n '/^ngx_setup() {/,/^}/p' "${SCRIPT}")
+    _coll=$(sed -n '/^ngx_adm_collision_check() {/,/^}/p' "${SCRIPT}")
+    _pent=$(sed -n '/^ngx_passwd_ent() {/,/^}/p' "${SCRIPT}")
+    _gent=$(sed -n '/^ngx_group_ent() {/,/^}/p' "${SCRIPT}")
+    assert_contains "TP-NGX-51 collision probes passwd UID" "${_coll}" 'ngx_passwd_ent "${NGINX_ADM_UID}"'
+    assert_contains "TP-NGX-51 collision probes passwd name" "${_coll}" 'ngx_passwd_ent "${NGINX_ADM_USER}"'
+    assert_contains "TP-NGX-51 collision probes group GID" "${_coll}" 'ngx_group_ent "${NGINX_ADM_GID}"'
+    assert_contains "TP-NGX-51 passwd_ent uses getent passwd" "${_pent}" 'getent passwd "${_key}"'
+    assert_contains "TP-NGX-51 group_ent uses getent group" "${_gent}" 'getent group "${_key}"'
+    assert_contains "TP-NGX-51 refuse rewrite live identity" "${_coll}" "Will not rewrite a live identity"
+    assert_contains "TP-NGX-51 collision Next getent passwd UID" "${_coll}" 'Next: getent passwd ${NGINX_ADM_UID}'
+    _create=$(sed -n '/^ngx_create_adm_user() {/,/^}/p' "${SCRIPT}")
+    assert_contains "TP-NGX-51 create calls collision check" "${_create}" "ngx_adm_collision_check"
+    assert_contains "TP-NGX-51 useradd tries /usr/sbin" "$(sed -n '/^ngx_find_host_bin() {/,/^}/p' "${SCRIPT}")" "/usr/sbin/"
+    _reqfn=$(sed -n '/^ngx_require_root() {/,/^}/p' "${SCRIPT}")
+    assert_contains "TP-NGX-51 require_root consumes TTY" "${_reqfn}" 'TTY'
+    assert_not_contains "TP-NGX-51 require_root no live [ -t 0 ]" "${_reqfn}" '[ ! -t 0 ]'
+
+    assert_contains "TP-NGX-52 setup auto-queues Family 1 JSON" "${_setup_fn}" "ngx_submit_login_hook_sudoer_request"
+    assert_not_contains "TP-NGX-53 setup does not write submit sudoers.d template" "${_setup_fn}" "ngx_write_submit_sudoers_template"
+    assert_not_contains "TP-NGX-53 no submit sudoers.d writer in ship unit" "$(cat "${SCRIPT}")" "ngx_write_submit_sudoers_template"
+    assert_contains "TP-NGX-52 login-hook-elev kind in ship unit" "$(cat "${SCRIPT}")" '"kind":"login-hook-elev"'
+    assert_contains "TP-NGX-52 skip when sibling missing" "$(cat "${SCRIPT}")" 'Family 1 sudoer JSON skipped'
 
     # TP-NGX-34 Family 1 needs a real nginx-adm password (no chpasswd / no scripted secret)
     assert_contains "TP-NGX-34 setup calls passwd-ensure" "$(cat "${SCRIPT}")" "ngx_ensure_adm_password"
@@ -219,6 +267,7 @@ STUB
     assert_contains "TP-NGX-20 grant path is global nginx-cli" "${_grant}" '"/usr/local/bin/nginx-cli"'
     assert_contains "TP-NGX-20 grant args request" "${_grant}" '"request"'
     assert_contains "TP-NGX-20 grant service nginx-cli" "${_grant}" '"service": "nginx-cli"'
+    assert_contains "TP-NGX-20 type-2-switch kind" "${_grant}" '"kind": "type-2-switch"'
     assert_not_contains "TP-NGX-20 no mkdir path" "${_grant}" "/usr/bin/mkdir"
     assert_not_contains "TP-NGX-20 no approve verb" "${_grant}" '"approve"'
 
@@ -235,6 +284,11 @@ STUB
     _err=$(HOME="${_fx}/home18" sh "${SCRIPT}" submit-sudoer-request --allow-test-local "${_badappr}" 2>&1 >/dev/null)
     assert_eq "TP-NGX-18 refuse approve grant exit 1" 1 "$?"
     assert_contains "TP-NGX-18 refuse approve message" "${_err}" "args must be"
+    _badhook="${_fx}/home18/bad-hook.json"
+    printf '%s\n' '{"kind":"login-hook-elev","commands":[{"path":"/usr/local/bin/nginx-cli","args":["approve"]}]}' >"${_badhook}"
+    _err=$(HOME="${_fx}/home18" sh "${SCRIPT}" submit-sudoer-request --allow-test-local "${_badhook}" 2>&1 >/dev/null)
+    assert_eq "TP-NGX-52 Type 0 refuses login-hook-elev exit 1" 1 "$?"
+    assert_contains "TP-NGX-52 Type 0 refuses login-hook-elev message" "${_err}" "login-hook-elev"
 
     # TP-NGX-19 about prefers public inbound; Type 0 must not mkdir
     _pub19="${_fx}/var-sudoer-cli"

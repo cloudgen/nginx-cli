@@ -13,6 +13,7 @@
 # - requirement-project-folder.md
 # - requirement-shell-cli-interface.md
 # - requirement-shell-cli-zero-arguments.md  (Type N empty argv = help)
+# - requirement-shell-cli-default-interaction.md  (menu/main; case 3)
 # - requirement-shell-local-self-management.md
 # - requirement-shell-cli-storage.md
 # - requirement-shell-idempotency.md
@@ -23,6 +24,7 @@
 # - requirement-incorrect-json-format.md
 # - requirement-shell-script-coding.md
 # - requirement-three-layer-privilege-model.md
+# - requirement-least-privilege-user.md
 # - requirement-sudoer-json-file.md
 # Plus CIAO Protection Zones and "DO NOT MODIFY" rules.
 #
@@ -32,7 +34,7 @@
 # Single-file ship unit under src/; install to ~/.local/bin (user) or /usr/local/bin (root/--global).
 #
 # APP NAME: hard-assign APP_NAME="nginx-cli"
-# VERSION: hard-assign VERSION="1.5.1"
+# VERSION: hard-assign VERSION="1.7.0"
 #
 # =============================================================================
 
@@ -47,9 +49,9 @@ APP_NAME="nginx-cli"
 : "${APP_NAME:=nginx-cli}"
 : "${APP_DESC:=Nginx least-privilege admin CLI (setup nginx-adm, request/approve site conf)}"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
-: "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, interactive approval, submit-sudoer-request, test-json-format, and fence-test.}"
+: "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, interactive approval, submit-sudoer-request, test-json-format, fence-test, and a TTY numbered list (menu/main).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.5.1"
+VERSION="1.7.0"
 : "${VERSION:=1.0.0}"
 # Repository identity SSOT (git host owner/repo for project-repository alignment).
 # Install remains local-only: SCRIPT_URL stays empty (no online curl|sh channel).
@@ -1439,7 +1441,7 @@ ngx_defaults() {
     : "${NGINX_ADM_SHELL:=/bin/bash}"
     : "${NGINX_ADM_GECOS:=Admin user for nginx configuration}"
     : "${NGINX_CONF_ROOT:=/etc/nginx}"
-    : "${NGINX_ADM_SUDOERS:=/etc/sudoers.d/nginx-adm}"
+    : "${NGINX_ADM_SUDOERS:=/etc/nginx-adm/sudoers}"
     : "${NGINX_CLI_SUBMIT_SUDOERS:=/etc/sudoers.d/nginx-cli-submit}"
     : "${NGINX_CLI_SUBMIT_PER_USER_DIR:=/etc/sudoers.d}"
     : "${NGINX_CLI_SUBMIT_GROUP:=nginx-cli-submit}"
@@ -1480,6 +1482,158 @@ ngx_path_under_tmp() {
             return 1
             ;;
     esac
+}
+
+# =============================================================================
+# ngx_find_host_bin() - Resolve useradd/groupadd/userdel/groupdel
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Root PATH is often short. Prefer command -v, then /usr/sbin/<name>.
+#
+# ALIGNMENT:
+# - requirement-least-privilege-user.md
+#
+# Last updated: 2026-08-25
+# =============================================================================
+ngx_find_host_bin() {
+    _nhb="${1-}"
+    [ -n "${_nhb}" ] || return 1
+    _p=$(command -v "${_nhb}" 2>/dev/null || true)
+    if [ -n "${_p}" ]; then
+        printf '%s' "${_p}"
+        return 0
+    fi
+    if [ -x "/usr/sbin/${_nhb}" ]; then
+        printf '%s' "/usr/sbin/${_nhb}"
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
+# ngx_expected_adm_home() - Collision expected home (override or preferred-/etc)
+# =============================================================================
+#
+# Last updated: 2026-08-25
+# =============================================================================
+ngx_expected_adm_home() {
+    ngx_defaults
+    if [ -n "${NGINX_ADM_HOME:-}" ]; then
+        printf '%s' "${NGINX_ADM_HOME}"
+        return 0
+    fi
+    printf '%s' "/etc/${NGINX_ADM_USER}"
+}
+
+# Live home matches this identity: override/preferred, or documented fallback /home/<user>.
+ngx_adm_home_is_this_identity() {
+    _live="${1-}"
+    _exp=$(ngx_expected_adm_home)
+    if [ "${_live}" = "${_exp}" ]; then
+        return 0
+    fi
+    if [ -z "${NGINX_ADM_HOME:-}" ] && [ "${_live}" = "/home/${NGINX_ADM_USER}" ]; then
+        return 0
+    fi
+    return 1
+}
+
+ngx_passwd_ent() {
+    _key="${1-}"
+    _line=""
+    if command -v getent >/dev/null 2>&1; then
+        _line=$(getent passwd "${_key}" 2>/dev/null || true)
+    fi
+    if [ -z "${_line}" ] && [ -r /etc/passwd ]; then
+        case "${_key}" in
+            *[!0-9]*)
+                _line=$(awk -F: -v u="${_key}" '$1==u {print; exit}' /etc/passwd 2>/dev/null || true)
+                ;;
+            *)
+                _line=$(awk -F: -v u="${_key}" '$3==u {print; exit}' /etc/passwd 2>/dev/null || true)
+                ;;
+        esac
+    fi
+    printf '%s' "${_line}"
+}
+
+ngx_group_ent() {
+    _key="${1-}"
+    _line=""
+    if command -v getent >/dev/null 2>&1; then
+        _line=$(getent group "${_key}" 2>/dev/null || true)
+    fi
+    if [ -z "${_line}" ] && [ -r /etc/group ]; then
+        case "${_key}" in
+            *[!0-9]*)
+                _line=$(awk -F: -v u="${_key}" '$1==u {print; exit}' /etc/group 2>/dev/null || true)
+                ;;
+            *)
+                _line=$(awk -F: -v u="${_key}" '$3==u {print; exit}' /etc/group 2>/dev/null || true)
+                ;;
+        esac
+    fi
+    printf '%s' "${_line}"
+}
+
+# =============================================================================
+# ngx_adm_collision_check() - Fail closed on foreign UID/GID/name/home
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# If nginx-adm or UID/GID 1999 exists and is not this identity, setup MUST
+# exit non-zero. Do not rewrite a live foreign account.
+#
+# ALIGNMENT:
+# - requirement-least-privilege-user.md (Collision)
+#
+# Last updated: 2026-08-25
+# =============================================================================
+ngx_adm_collision_check() {
+    ngx_defaults
+    _exp_home=$(ngx_expected_adm_home)
+
+    _pw=$(ngx_passwd_ent "${NGINX_ADM_UID}")
+    if [ -n "${_pw}" ]; then
+        _n=$(printf '%s' "${_pw}" | cut -d: -f1)
+        _h=$(printf '%s' "${_pw}" | cut -d: -f6)
+        if [ "${_n}" != "${NGINX_ADM_USER}" ]; then
+            out_die "UID ${NGINX_ADM_UID} is already account ${_n}. Will not steal that UID. Next: getent passwd ${NGINX_ADM_UID}"
+        fi
+        if ! ngx_adm_home_is_this_identity "${_h}"; then
+            out_die "${NGINX_ADM_USER} UID ${NGINX_ADM_UID} home is ${_h}, expected ${_exp_home}. Will not move a live home. Next: getent passwd ${NGINX_ADM_UID}"
+        fi
+    fi
+
+    _pw=$(ngx_passwd_ent "${NGINX_ADM_USER}")
+    if [ -n "${_pw}" ]; then
+        _u=$(printf '%s' "${_pw}" | cut -d: -f3)
+        _g=$(printf '%s' "${_pw}" | cut -d: -f4)
+        _h=$(printf '%s' "${_pw}" | cut -d: -f6)
+        if [ "${_u}" != "${NGINX_ADM_UID}" ] || [ "${_g}" != "${NGINX_ADM_GID}" ]; then
+            out_die "${NGINX_ADM_USER} already exists as ${_u}:${_g}, expected ${NGINX_ADM_UID}:${NGINX_ADM_GID}. Will not rewrite a live identity. Next: id ${NGINX_ADM_USER}"
+        fi
+        if ! ngx_adm_home_is_this_identity "${_h}"; then
+            out_die "${NGINX_ADM_USER} home is ${_h}, expected ${_exp_home}. Will not move a live home. Next: getent passwd ${NGINX_ADM_USER}"
+        fi
+    fi
+
+    _gr=$(ngx_group_ent "${NGINX_ADM_GID}")
+    if [ -n "${_gr}" ]; then
+        _n=$(printf '%s' "${_gr}" | cut -d: -f1)
+        if [ "${_n}" != "${NGINX_ADM_USER}" ]; then
+            out_die "GID ${NGINX_ADM_GID} is already group ${_n}. Will not steal that GID. Next: getent group ${NGINX_ADM_GID}"
+        fi
+    fi
+
+    _gr=$(ngx_group_ent "${NGINX_ADM_USER}")
+    if [ -n "${_gr}" ]; then
+        _g=$(printf '%s' "${_gr}" | cut -d: -f3)
+        if [ "${_g}" != "${NGINX_ADM_GID}" ]; then
+            out_die "group ${NGINX_ADM_USER} exists as gid ${_g}, expected ${NGINX_ADM_GID}. Will not rewrite it. Next: getent group ${NGINX_ADM_USER}"
+        fi
+    fi
 }
 
 ngx_fixture_mode() {
@@ -1608,6 +1762,7 @@ ngx_require_root() {
     ngx_defaults
     : "${JSON:=0}"
     : "${QUIET:=0}"
+    : "${TTY:=0}"
     if ngx_is_root; then
         return 0
     fi
@@ -1615,7 +1770,8 @@ ngx_require_root() {
         out_die "setup/remove-lpu require real root. Fixture mode cannot create or delete host accounts."
     fi
     # Non-interactive: fail closed (never password-sudo hang; never silent host mutate via sudo -n).
-    if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ ! -t 0 ] || [ ! -t 1 ]; then
+    # Consume TTY measured in the main process (no-retest-tty).
+    if [ "${JSON}" -eq 1 ] || [ "${QUIET}" -eq 1 ] || [ "${TTY}" -ne 1 ]; then
         out_die "This command requires root. Run: sudo ${APP_NAME} ${COMMAND}"
     fi
     if command -v sudo >/dev/null 2>&1; then
@@ -1666,10 +1822,11 @@ ngx_ensure_submit_group() {
     if getent group "${NGINX_CLI_SUBMIT_GROUP}" >/dev/null 2>&1; then
         return 0
     fi
-    if ! command -v groupadd >/dev/null 2>&1; then
-        out_die "groupadd not found (need ${NGINX_CLI_SUBMIT_GROUP})"
+    _ga=$(ngx_find_host_bin groupadd) || _ga=""
+    if [ -z "${_ga}" ]; then
+        out_die "groupadd not found (need ${NGINX_CLI_SUBMIT_GROUP}). Next: install passwd tools or put groupadd on PATH (/usr/sbin)."
     fi
-    if ! groupadd "${NGINX_CLI_SUBMIT_GROUP}"; then
+    if ! "${_ga}" "${NGINX_CLI_SUBMIT_GROUP}"; then
         out_die "groupadd failed for ${NGINX_CLI_SUBMIT_GROUP}"
     fi
 }
@@ -2817,9 +2974,24 @@ ngx_approve_interactive() {
     fi
 }
 
+# ngx_login_hook_block() - Managed nginx-adm .bashrc snippet to stdout
+#
+# As-login approve (OPEN-ADM-NOSUDO). MUST NOT wrap sudo or sudo -n.
+# ALIGNMENT: requirement-domain-nginx-cli.md §2.2.6
+ngx_login_hook_block() {
+    ngx_defaults
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    printf '%s\n' "# >>> ${APP_NAME} interactive approval (managed) >>>"
+    printf 'if [ -n "${PS1-}" ]; then\n'
+    printf '    %s/%s approve\n' "${GLOBAL_BIN}" "${APP_NAME}"
+    printf 'fi\n'
+    printf '%s\n' "# <<< ${APP_NAME} interactive approval (managed) <<<"
+}
+
 ngx_enable_login_approval() {
     ngx_defaults
     ngx_require_approve
+    : "${JSON:=0}"
     _home=$(ngx_resolve_adm_home)
     _rc="${_home}/.bashrc"
     _begin="# >>> ${APP_NAME} interactive approval (managed) >>>"
@@ -2831,20 +3003,49 @@ ngx_enable_login_approval() {
         : > "${_rc}"
         ngx_chown_adm "${_rc}"
     fi
+    _want=$(ngx_login_hook_block)
     if grep -qF "${_begin}" "${_rc}" 2>/dev/null; then
-        out_success "Login approval hook already present in ${_rc}"
+        _cur=$(awk -v b="${_begin}" -v e="${_end}" '
+            $0 == b { p=1 }
+            p { print }
+            $0 == e { p=0 }
+        ' "${_rc}")
+        if [ "${_cur}" = "${_want}" ]; then
+            out_success "Login approval hook already present in ${_rc}"
+            if [ "${JSON}" -eq 1 ]; then
+                out_json "enable-login-approval" "already present" "path" "${_rc}"
+            fi
+            return 0
+        fi
+        _tmp=$(mktemp "${EFFECTIVE_STORAGE_DIR:-/tmp}/ngx-bashrc.XXXXXX")
+        if [ -z "${_tmp}" ] || [ ! -f "${_tmp}" ]; then
+            out_die "cannot create temp for ${_rc}"
+        fi
+        if ! awk -v b="${_begin}" -v e="${_end}" '
+            $0 == b { p=1; next }
+            p && $0 == e { p=0; next }
+            p { next }
+            { print }
+        ' "${_rc}" > "${_tmp}"; then
+            rm -f "${_tmp}"
+            out_die "cannot rewrite ${_rc}"
+        fi
+        if ! printf '\n%s\n' "${_want}" >> "${_tmp}"; then
+            rm -f "${_tmp}"
+            out_die "cannot rewrite ${_rc}"
+        fi
+        if ! mv -f "${_tmp}" "${_rc}"; then
+            rm -f "${_tmp}"
+            out_die "cannot replace ${_rc}"
+        fi
+        ngx_chown_adm "${_rc}"
+        out_success "Replaced login approval hook in ${_rc}"
         if [ "${JSON}" -eq 1 ]; then
-            out_json "enable-login-approval" "already present" "path" "${_rc}"
+            out_json "enable-login-approval" "replaced" "path" "${_rc}"
         fi
         return 0
     fi
-    {
-        printf '\n%s\n' "${_begin}"
-        printf 'if [ -n "${PS1-}" ]; then\n'
-        printf '    sudo %s/%s approve\n' "${GLOBAL_BIN:-/usr/local/bin}" "${APP_NAME}"
-        printf 'fi\n'
-        printf '%s\n' "${_end}"
-    } >> "${_rc}"
+    printf '\n%s\n' "${_want}" >> "${_rc}"
     ngx_chown_adm "${_rc}"
     out_success "Added login approval hook to ${_rc}"
     if [ "${JSON}" -eq 1 ]; then
@@ -2852,29 +3053,42 @@ ngx_enable_login_approval() {
     fi
 }
 
+# ngx_f6_cli_argv() - Family 1 sudoers argv + leading --json (password, never NOPASSWD)
+#
+# sudoers matches argv exactly. nginx-cli --json list-requests is not list-requests.
+# MUST NOT emit a lone glob after --json (that would include setup / remove-lpu).
+#
+# ALIGNMENT: requirement-three-layer-privilege-model.md Table A
+# Last updated: 2026-08-23
+ngx_f6_cli_argv() {
+    _f6_user="${1-}"
+    _f6_cli="${2-}"
+    _f6_argv="${3-}"
+    printf '%s ALL=(root) %s %s\n' "${_f6_user}" "${_f6_cli}" "${_f6_argv}"
+    printf '%s ALL=(root) %s --json %s\n' "${_f6_user}" "${_f6_cli}" "${_f6_argv}"
+}
+
 ngx_write_adm_sudoers() {
     ngx_defaults
     : "${GLOBAL_BIN:=/usr/local/bin}"
-    _cli="${GLOBAL_BIN}/${APP_NAME}"
     _dest="${NGINX_ADM_SUDOERS}"
+    case "${_dest}" in
+        */sudoers.d/*)
+            out_die "Family 2 dest must not be under /etc/sudoers.d (${_dest}). Family 1 is a sibling JSON grant."
+            ;;
+    esac
+    _ddir=$(dirname -- "${_dest}")
+    if [ ! -d "${_ddir}" ]; then
+        if ! mkdir -p "${_ddir}"; then
+            out_die "Cannot create ${_ddir} for Family 2 unit-tools sudoers"
+        fi
+    fi
     _tmp=$(mktemp "${EFFECTIVE_STORAGE_DIR:-/tmp}/ngx-sudoers.XXXXXX")
     {
-        printf '%s\n' "# ${NGINX_ADM_USER} restricted sudoers — password sudo of ${APP_NAME} + NOPASSWD nginx unit tools"
+        printf '%s\n' "# ${NGINX_ADM_USER} Family 2 — NOPASSWD nginx unit tools only (not under /etc/sudoers.d)"
         printf '%s\n' "# Generated by ${APP_NAME} setup"
-        printf '%s\n' "# There is no nginx-ctl command. NOPASSWD only on nginx / systemctl / journalctl."
-        printf '%s ALL=(root) %s approve\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s approve *\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s reject *\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s request\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s request *\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s list-requests\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s list-approved\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s list-rejected\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s map-set *\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s map-unset *\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s map-list\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s map-list *\n' "${NGINX_ADM_USER}" "${_cli}"
-        printf '%s ALL=(root) %s enable-login-approval\n' "${NGINX_ADM_USER}" "${_cli}"
+        printf '%s\n' "# Family 1 nginx-cli verbs are a sibling dest JSON grant, not this file."
+        printf '%s\n' "# There is no nginx-ctl command."
         printf '%s ALL=(ALL) NOPASSWD: /bin/systemctl start %s\n' "${NGINX_ADM_USER}" "${NGINX_WEB_UNIT}"
         printf '%s ALL=(ALL) NOPASSWD: /bin/systemctl stop %s\n' "${NGINX_ADM_USER}" "${NGINX_WEB_UNIT}"
         printf '%s ALL=(ALL) NOPASSWD: /bin/systemctl reload %s\n' "${NGINX_ADM_USER}" "${NGINX_WEB_UNIT}"
@@ -2906,29 +3120,9 @@ ngx_write_adm_sudoers() {
     chown root:root "${_dest}" 2>/dev/null || true
 }
 
-ngx_write_submit_sudoers_template() {
-    ngx_defaults
-    _dest="${NGINX_CLI_SUBMIT_SUDOERS}"
-    if [ -f "${_dest}" ]; then
-        out_info "Submit sudoers already present: ${_dest}"
-        return 0
-    fi
-    _gbin="${GLOBAL_BIN:-/usr/local/bin}"
-    {
-        printf '%s\n' "# ${APP_NAME} submitter software allowlist — NOT nginx / systemctl elev"
-        printf '%s\n' "# Uncomment and list logins who may submit config requests."
-        printf '%s\n' "# Those logins must also be in group ${NGINX_CLI_SUBMIT_GROUP} to write inbound."
-        printf '%s\n' "# Type 0 request runs as the invoker (no sudo -u ${NGINX_ADM_USER} deposit)."
-        printf '%s\n' "# User_Alias NGINX_CLI_SUBMITTERS = alice, bob"
-        printf '%s\n' "# NGINX_CLI_SUBMITTERS ALL=(${NGINX_ADM_USER}) NOPASSWD: ${_gbin}/${APP_NAME} request"
-        printf '\n'
-    } > "${_dest}"
-    chmod 0440 "${_dest}"
-    chown root:root "${_dest}" 2>/dev/null || true
-}
-
 ngx_create_adm_user() {
     ngx_defaults
+    ngx_adm_collision_check
     if command -v getent >/dev/null 2>&1 && getent passwd "${NGINX_ADM_USER}" >/dev/null 2>&1; then
         out_info "Account ${NGINX_ADM_USER} already exists"
         return 0
@@ -2953,23 +3147,20 @@ ngx_create_adm_user() {
     else
         _home="${_etc_home}"
     fi
-    if command -v getent >/dev/null 2>&1 && getent passwd "${NGINX_ADM_UID}" >/dev/null 2>&1; then
-        _exist=$(getent passwd "${NGINX_ADM_UID}" | cut -d: -f1)
-        if [ "${_exist}" != "${NGINX_ADM_USER}" ]; then
-            out_die "UID ${NGINX_ADM_UID} already used by ${_exist}"
-        fi
-    fi
     if ! getent group "${NGINX_ADM_USER}" >/dev/null 2>&1; then
-        if command -v groupadd >/dev/null 2>&1; then
-            if ! groupadd -g "${NGINX_ADM_GID}" "${NGINX_ADM_USER}"; then
-                out_die "groupadd failed for ${NGINX_ADM_USER}"
-            fi
+        _ga=$(ngx_find_host_bin groupadd) || _ga=""
+        if [ -z "${_ga}" ]; then
+            out_die "groupadd not found (need ${NGINX_ADM_USER}). Next: install passwd tools or put groupadd on PATH (/usr/sbin)."
+        fi
+        if ! "${_ga}" -g "${NGINX_ADM_GID}" "${NGINX_ADM_USER}"; then
+            out_die "groupadd failed for ${NGINX_ADM_USER}"
         fi
     fi
-    if ! command -v useradd >/dev/null 2>&1; then
-        out_die "useradd not found"
+    _ua=$(ngx_find_host_bin useradd) || _ua=""
+    if [ -z "${_ua}" ]; then
+        out_die "useradd not found. Next: install passwd tools or put useradd on PATH (/usr/sbin)."
     fi
-    if ! useradd -u "${NGINX_ADM_UID}" -g "${NGINX_ADM_GID}" -d "${_home}" -s "${NGINX_ADM_SHELL}" -c "${NGINX_ADM_GECOS}" -m "${NGINX_ADM_USER}"; then
+    if ! "${_ua}" -u "${NGINX_ADM_UID}" -g "${NGINX_ADM_GID}" -d "${_home}" -s "${NGINX_ADM_SHELL}" -c "${NGINX_ADM_GECOS}" -m "${NGINX_ADM_USER}"; then
         out_die "useradd failed for ${NGINX_ADM_USER}"
     fi
     out_success "Created ${NGINX_ADM_USER} uid=${NGINX_ADM_UID} home=${_home} (${_home_sel})"
@@ -3098,10 +3289,29 @@ ngx_setup() {
     ngx_setup_ownership
     ngx_setup_symlinks
     ngx_write_adm_sudoers
-    ngx_write_submit_sudoers_template
     ngx_enable_login_approval
     ngx_ensure_adm_password
+    ngx_submit_login_hook_sudoer_request
     out_success "nginx-adm least-privilege setup complete"
+    case "${LOGIN_HOOK_SUDOER_STATUS:-skipped}" in
+        submitted)
+            out_info "Queued Family 1 JSON grant for ${NGINX_ADM_USER} (password sudo ${APP_NAME} verbs). Approver: sudoer-adm"
+            if [ -n "${LOGIN_HOOK_SUDOER_REQUEST_ID:-}" ]; then
+                out_info "login_hook request_id=${LOGIN_HOOK_SUDOER_REQUEST_ID}"
+            fi
+            out_info "This CLI did not write /etc/sudoers.d. Dest approval reviews the JSON."
+            ;;
+        failed)
+            if [ -n "${LOGIN_HOOK_SUDOER_ERROR:-}" ]; then
+                out_warn "Could not queue Family 1 JSON: ${LOGIN_HOOK_SUDOER_ERROR}"
+            else
+                out_warn "Could not queue Family 1 JSON into sibling inbound"
+            fi
+            ;;
+        *)
+            out_info "Family 1 sudoer JSON skipped (sudoer-cli / sudoer-adm / inbound not present). Next: sudo sudoer-cli setup"
+            ;;
+    esac
     if [ "${JSON}" -eq 1 ]; then
         out_json "setup" "complete" \
             "user" "${NGINX_ADM_USER}" \
@@ -3110,7 +3320,9 @@ ngx_setup() {
             "queue_root" "$(ngx_resolve_queue_root)" \
             "submit_group" "${NGINX_CLI_SUBMIT_GROUP}" \
             "conf_root" "${NGINX_CONF_ROOT}" \
-            "passwd_status" "$(ngx_adm_passwd_status)"
+            "passwd_status" "$(ngx_adm_passwd_status)" \
+            "login_hook_sudoer" "${LOGIN_HOOK_SUDOER_STATUS:-skipped}" \
+            "login_hook_sudoer_request_id" "${LOGIN_HOOK_SUDOER_REQUEST_ID:-}"
     fi
 }
 
@@ -3131,7 +3343,6 @@ ngx_remove_lpu() {
         fi
     fi
     ngx_backup_remove_sudoers "${NGINX_ADM_SUDOERS}"
-    ngx_backup_remove_sudoers "${NGINX_CLI_SUBMIT_SUDOERS}"
     ngx_backup_remove_queue_root
     if [ -d "${NGINX_CONF_ROOT}" ]; then
         _own=$(stat -c '%U' "${NGINX_CONF_ROOT}" 2>/dev/null || echo "")
@@ -3141,18 +3352,31 @@ ngx_remove_lpu() {
         fi
     fi
     if id "${NGINX_ADM_USER}" >/dev/null 2>&1; then
-        if ! userdel -r "${NGINX_ADM_USER}"; then
+        _ud=$(ngx_find_host_bin userdel) || _ud=""
+        if [ -z "${_ud}" ]; then
+            out_die "userdel not found. Next: install passwd tools or put userdel on PATH (/usr/sbin)."
+        fi
+        if ! "${_ud}" -r "${NGINX_ADM_USER}"; then
             out_die "userdel -r ${NGINX_ADM_USER} failed"
         fi
         out_success "Removed account ${NGINX_ADM_USER} (home via userdel -r)"
     else
         out_info "Account ${NGINX_ADM_USER} already absent"
     fi
+    _gd=$(ngx_find_host_bin groupdel) || _gd=""
     if getent group "${NGINX_ADM_USER}" >/dev/null 2>&1; then
-        groupdel "${NGINX_ADM_USER}" 2>/dev/null || true
+        if [ -n "${_gd}" ]; then
+            "${_gd}" "${NGINX_ADM_USER}" 2>/dev/null || true
+        else
+            groupdel "${NGINX_ADM_USER}" 2>/dev/null || true
+        fi
     fi
     if getent group "${NGINX_CLI_SUBMIT_GROUP}" >/dev/null 2>&1; then
-        groupdel "${NGINX_CLI_SUBMIT_GROUP}" 2>/dev/null || true
+        if [ -n "${_gd}" ]; then
+            "${_gd}" "${NGINX_CLI_SUBMIT_GROUP}" 2>/dev/null || true
+        else
+            groupdel "${NGINX_CLI_SUBMIT_GROUP}" 2>/dev/null || true
+        fi
     fi
     if [ "${JSON}" -eq 1 ]; then
         out_json "remove-lpu" "removed" "user" "${NGINX_ADM_USER}"
@@ -3343,6 +3567,7 @@ ngx_sudoers_json_text() {
     cat <<EOF
 {
   "schema_version": 1,
+  "kind": "type-2-switch",
   "purpose": "${_purpose}",
   "username": "${_user}",
   "service": "${APP_NAME}",
@@ -3361,6 +3586,193 @@ ngx_sudoers_json_text() {
 EOF
 }
 
+# ngx_sudoers_json_login_hook_text() - Family 1 JSON (password, --json prefixes)
+#
+# ALIGNMENT: requirement-sudoer-json-file.md kind=login-hook-elev
+# Last updated: 2026-08-23
+ngx_sudoers_json_cmd() {
+    _sj_path="${1-}"
+    _sj_args="${2-}"
+    printf '{"runas":"root","tags":[],"path":"%s","args":%s}' "${_sj_path}" "${_sj_args}"
+}
+
+ngx_sudoers_json_login_hook_text() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    : "${SUBMIT_ACTION:=add}"
+    : "${NGINX_ADM_USER:=nginx-adm}"
+    : "${VERSION:=1.0.0}"
+    _action="${SUBMIT_ACTION}"
+    case "${_action}" in
+        add|update) ;;
+        *) _action="add" ;;
+    esac
+    _path="${GLOBAL_BIN}/${APP_NAME}"
+    _purpose="Allow ${NGINX_ADM_USER} to sudo ${_path} day-to-day verbs with a password. Login hook stays as-login approve without sudo."
+    _cmds=$(
+        ngx_sudoers_json_cmd "${_path}" '["approve"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","approve"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["approve","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","approve","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["reject","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","reject","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["request"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","request"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["request","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","request","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["list-requests"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","list-requests"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["list-requests","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","list-requests","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["list-approved"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","list-approved"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["list-approved","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","list-approved","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["list-rejected"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","list-rejected"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["list-rejected","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","list-rejected","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["map-set","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","map-set","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["map-unset","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","map-unset","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["map-list"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","map-list"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["map-list","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","map-list","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["enable-login-approval"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","enable-login-approval"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["enable-login-approval","*"]'
+        printf ','
+        ngx_sudoers_json_cmd "${_path}" '["--json","enable-login-approval","*"]'
+    )
+    printf '%s\n' "{\"schema_version\":1,\"kind\":\"login-hook-elev\",\"purpose\":\"${_purpose}\",\"username\":\"${NGINX_ADM_USER}\",\"service\":\"${APP_NAME}\",\"action\":\"${_action}\",\"submit_app\":\"${APP_NAME}\",\"submit_version\":\"${VERSION}\",\"commands\":[${_cmds}]}"
+}
+
+ngx_alloc_sudoer_inbound_id() {
+    _in="${1:-}"
+    _user="${2:-}"
+    _svc="${3:-}"
+    _act="${4:-}"
+    [ -n "${_in}" ] && [ -d "${_in}" ] || return 1
+    [ -n "${_user}" ] && [ -n "${_svc}" ] && [ -n "${_act}" ] || return 1
+    _root=$(dirname -- "${_in}")
+    _ad=$(date +%Y%m%d)
+    _n=1
+    while [ "${_n}" -le 999 ]; do
+        _id="sudoer-${_ad}-${_svc}-${_user}-${_act}-${_n}.json"
+        if [ ! -e "${_in}/${_id}" ] && \
+           [ ! -e "${_root}/sudoer-approved/${_id}" ] && \
+           [ ! -e "${_root}/sudoer-rejected/${_id}" ]; then
+            printf '%s' "${_id}"
+            return 0
+        fi
+        _n=$((_n + 1))
+    done
+    return 1
+}
+
+# ngx_submit_login_hook_sudoer_request() - Type 1 setup auto-queue Family 1 JSON
+#
+# MUST NOT mkdir inbound, chown inbound, call dest Type 0, or write /etc/sudoers.d.
+# Missing sibling → skip (setup still succeeds).
+#
+# ALIGNMENT: requirement-three-layer-privilege-model.md §2.5.0
+# Last updated: 2026-08-23
+ngx_submit_login_hook_sudoer_request() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${JSON:=0}"
+    : "${SUDOER_ADM_USER:=sudoer-adm}"
+    : "${NGINX_ADM_USER:=nginx-adm}"
+    : "${GLOBAL_BIN:=/usr/local/bin}"
+    LOGIN_HOOK_SUDOER_STATUS="skipped"
+    LOGIN_HOOK_SUDOER_REQUEST_ID=""
+    LOGIN_HOOK_SUDOER_ERROR=""
+    _cli=""
+    if ! _cli=$(ngx_detect_sudoer_cli); then
+        LOGIN_HOOK_SUDOER_STATUS="skipped"
+        return 0
+    fi
+    _adm=""
+    if ! _adm=$(ngx_detect_sudoer_adm); then
+        LOGIN_HOOK_SUDOER_STATUS="skipped"
+        return 0
+    fi
+    _inbound=""
+    if ! _inbound=$(ngx_detect_sudoer_inbound); then
+        LOGIN_HOOK_SUDOER_STATUS="skipped"
+        return 0
+    fi
+    if [ ! -w "${_inbound}" ]; then
+        LOGIN_HOOK_SUDOER_STATUS="skipped"
+        return 0
+    fi
+    SUBMIT_ACTION="add"
+    if [ -f "${NGINX_CLI_SUBMIT_PER_USER_DIR:-/etc/sudoers.d}/${APP_NAME}-${NGINX_ADM_USER}" ]; then
+        SUBMIT_ACTION="update"
+    fi
+    _rid=$(ngx_alloc_sudoer_inbound_id "${_inbound}" "${NGINX_ADM_USER}" "${APP_NAME}" "${SUBMIT_ACTION}") || {
+        LOGIN_HOOK_SUDOER_STATUS="failed"
+        LOGIN_HOOK_SUDOER_ERROR="cannot allocate dest request_id under ${_inbound}"
+        return 0
+    }
+    _stor="${EFFECTIVE_STORAGE_DIR:-${TMPDIR:-/tmp}}"
+    _tmp=$(mktemp "${_stor}/.ngx-hook.XXXXXX") || {
+        LOGIN_HOOK_SUDOER_STATUS="failed"
+        LOGIN_HOOK_SUDOER_ERROR="cannot create temp Family 1 JSON"
+        return 0
+    }
+    ngx_sudoers_json_login_hook_text >"${_tmp}" || {
+        rm -f "${_tmp}"
+        LOGIN_HOOK_SUDOER_STATUS="failed"
+        LOGIN_HOOK_SUDOER_ERROR="cannot write temp Family 1 JSON"
+        return 0
+    }
+    _dest="${_inbound}/${_rid}"
+    if ! mv "${_tmp}" "${_dest}"; then
+        rm -f "${_tmp}"
+        LOGIN_HOOK_SUDOER_STATUS="failed"
+        LOGIN_HOOK_SUDOER_ERROR="cannot write ${_dest}"
+        return 0
+    fi
+    chmod 0640 "${_dest}" 2>/dev/null || true
+    LOGIN_HOOK_SUDOER_STATUS="submitted"
+    LOGIN_HOOK_SUDOER_REQUEST_ID="${_rid}"
+    return 0
+}
+
 # =============================================================================
 # ngx_sudoers_refuse_forbidden_grant() - Fail closed on OS-tool / F6 grants
 # =============================================================================
@@ -3375,6 +3787,11 @@ ngx_sudoers_refuse_forbidden_grant() {
         out_die "sudoer grant file missing"
     fi
     _gb=$(cat "${_gf}" 2>/dev/null || true)
+    case "${_gb}" in
+        *'"kind":"login-hook-elev"'*|*'"kind": "login-hook-elev"'*)
+            out_die "Type 0 submit-sudoer-request must not queue login-hook-elev. That grant is Type 1 setup only."
+            ;;
+    esac
     _need="${GLOBAL_BIN}/${APP_NAME}"
     _path=$(printf '%s' "${_gb}" | tr '\n' ' ' | sed -n 's/.*"path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
     if [ "${_path}" != "${_need}" ]; then
@@ -4105,6 +4522,7 @@ app_about() {
     out_empty_line
     out_info "Useful commands:"
     out_info "   ${APP_NAME} help            → Full usage"
+    out_info "   ${APP_NAME} menu            → Numbered list of live work commands (real terminal)"
     out_info "   ${APP_NAME} setup           → Create nginx-adm (root)"
     out_info "   ${APP_NAME} submit-sudoer-request → JSON request into /var/sudoer-cli/sudoer-request"
     out_info "   ${APP_NAME} --json          → Machine-readable output"
@@ -4143,8 +4561,12 @@ app_help() {
     out_plain "  about                Show diagnostics (includes nginx-adm fields)"
     out_plain "  help                 Show this help"
     out_empty_line
+    out_info "Numbered list (real terminal; empty argv is still help):"
+    out_plain "  menu                 Numbered list of live work commands (alias: main)"
+    out_plain "  main                 Alias of menu"
+    out_empty_line
     out_info "Host setup (Type 1 — root; internal sudo re-exec):"
-    out_plain "  setup                Create nginx-adm (UID 1999), /var/nginx-cli queues, sudoers, views"
+    out_plain "  setup                Create nginx-adm (UID 1999), queues, /etc/nginx-adm/sudoers, Family 1 JSON"
     out_plain "  remove-lpu           Remove nginx-adm (confirm or --force); alias: remove-nginx-adm"
     out_empty_line
     out_info "Config request workflow:"
@@ -4154,7 +4576,7 @@ app_help() {
     out_plain "  list-rejected            Rejected archive"
     out_plain "  approve [basename]       Interactive one-by-one, or approve one file"
     out_plain "  reject <basename>        Reject one pending request"
-    out_plain "  enable-login-approval    Add interactive approve to nginx-adm ~/.bashrc"
+    out_plain "  enable-login-approval    Add or refresh as-login approve in nginx-adm ~/.bashrc (no sudo)"
     out_plain "  map-set <user> <domain>  Add user-domain-map entry (chown nginx-adm)"
     out_plain "  map-unset <user> <domain>  Remove map entry"
     out_plain "  map-list [user]          Show user-domain-map"
@@ -4176,6 +4598,7 @@ app_help() {
     out_info "Approvers: root, or nginx-adm as that login, or via password sudo /usr/local/bin/nginx-cli."
     out_info "sudo nginx-cli as nginx-adm needs that account's password. Set: passwd nginx-adm"
     out_info "Logged in as nginx-adm, day-to-day verbs also work without sudo (nginx-cli approve)."
+    out_info "Login hook runs nginx-cli approve as nginx-adm (no sudo; not sudo -n)."
     out_info "nginx-adm may also NOPASSWD sudo /usr/sbin/nginx and systemctl start|stop|reload|restart nginx (not status) and journalctl -u nginx."
     out_empty_line
     out_info "Global Options:"
@@ -4214,7 +4637,282 @@ app_help() {
     out_plain "  sudo ${APP_NAME} remove-lpu --force"
     out_empty_line
     out_info "Empty argv shows help (Type N — local-only; no curl|sh install-ensure)."
+    out_info "On a real terminal, ${APP_NAME} menu (or main) shows a numbered list of live work commands."
     out_info "Archive-deposit and online-channel verbs are intentionally absent."
+}
+
+# =============================================================================
+# app_menu_choice_to_verb() - Map numbered list input to a live work command
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Translate a number or verb token from the case-3 menu into a dispatcher
+# token. Empty / unknown → empty string. Exit tokens → "exit".
+#
+# ALIGNMENT:
+# - requirement-shell-cli-default-interaction.md
+#
+# Last updated: 2026-08-23
+# =============================================================================
+app_menu_choice_to_verb() {
+    _mmc="${1-}"
+    case "${_mmc}" in
+        1|remove-lpu|remove-nginx-adm) printf '%s' "remove-lpu" ;;
+        2|request) printf '%s' "request" ;;
+        3|list-requests) printf '%s' "list-requests" ;;
+        4|list-approved) printf '%s' "list-approved" ;;
+        5|list-rejected) printf '%s' "list-rejected" ;;
+        6|approve) printf '%s' "approve" ;;
+        7|reject) printf '%s' "reject" ;;
+        8|enable-login-approval) printf '%s' "enable-login-approval" ;;
+        9|map-set) printf '%s' "map-set" ;;
+        10|map-unset) printf '%s' "map-unset" ;;
+        11|map-list) printf '%s' "map-list" ;;
+        12|submit-sudoer-request) printf '%s' "submit-sudoer-request" ;;
+        13|conf-to-json) printf '%s' "conf-to-json" ;;
+        14|json-to-conf) printf '%s' "json-to-conf" ;;
+        99|exit|quit) printf '%s' "exit" ;;
+        *) printf '%s' "" ;;
+    esac
+}
+
+# =============================================================================
+# app_menu_print() - Numbered list (labels = help one-liners)
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Print the case-3 main menu. N=14 operational rows; Exit is 99.
+# MUST NOT list help, install/setup, self-managed, version/about, testers,
+# or menu/main itself.
+#
+# ALIGNMENT:
+# - requirement-shell-cli-default-interaction.md
+#
+# Last updated: 2026-08-23
+# =============================================================================
+app_menu_print() {
+    : "${APP_NAME:=nginx-cli}"
+    out_info "${APP_NAME} — numbered list of live work commands"
+    out_plain "  1. remove-lpu: Remove nginx-adm (confirm or --force)"
+    out_plain "  2. request: Submit dest JSON (or nginx-conf text dual)"
+    out_plain "  3. list-requests: Approving / pending list"
+    out_plain "  4. list-approved: Approved archive"
+    out_plain "  5. list-rejected: Rejected archive"
+    out_plain "  6. approve: Interactive one-by-one, or approve one file"
+    out_plain "  7. reject: Reject one pending request"
+    out_plain "  8. enable-login-approval: Add or refresh as-login approve in nginx-adm ~/.bashrc (no sudo)"
+    out_plain "  9. map-set: Add user-domain-map entry (chown nginx-adm)"
+    out_plain "  10. map-unset: Remove map entry"
+    out_plain "  11. map-list: Show user-domain-map"
+    out_plain "  12. submit-sudoer-request: Queue JSON grant via sudoer-cli (needs --allow-test-local unless global install)"
+    out_plain "  13. conf-to-json: nginx-conf text → dest request JSON"
+    out_plain "  14. json-to-conf: dest request JSON → nginx-conf text"
+    out_plain "  99. Exit"
+}
+
+# =============================================================================
+# app_menu_collect_ops() - TTY one-field-at-a-time for listed verbs that need operands
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Fill _mm_op1 / _mm_op2 (and SUBMIT_PURPOSE when needed). Empty required
+# field → print Next: and return 1 (do not hang).
+#
+# ALIGNMENT:
+# - requirement-shell-cli-default-interaction.md
+#
+# Last updated: 2026-08-23
+# =============================================================================
+app_menu_collect_ops() {
+    : "${APP_NAME:=nginx-cli}"
+    _mm_verb="${1-}"
+    _mm_op1=""
+    _mm_op2=""
+    case "${_mm_verb}" in
+        request)
+            _mm_op1=$(prompt_ask "Domain" "")
+            if [ -z "${_mm_op1}" ]; then
+                out_info "Next: ${APP_NAME} request <domain> <file>"
+                return 1
+            fi
+            _mm_op2=$(prompt_ask "JSON or nginx-conf file" "")
+            if [ -z "${_mm_op2}" ]; then
+                out_info "Next: ${APP_NAME} request ${_mm_op1} <file>"
+                return 1
+            fi
+            ;;
+        reject)
+            _mm_op1=$(prompt_ask "Request basename" "")
+            if [ -z "${_mm_op1}" ]; then
+                out_info "Next: ${APP_NAME} reject <basename>"
+                return 1
+            fi
+            ;;
+        map-set)
+            _mm_op1=$(prompt_ask "Submitter login" "")
+            _mm_op2=$(prompt_ask "Domain" "")
+            if [ -z "${_mm_op1}" ] || [ -z "${_mm_op2}" ]; then
+                out_info "Next: ${APP_NAME} map-set <user> <domain>"
+                return 1
+            fi
+            ;;
+        map-unset)
+            _mm_op1=$(prompt_ask "Submitter login" "")
+            _mm_op2=$(prompt_ask "Domain" "")
+            if [ -z "${_mm_op1}" ] || [ -z "${_mm_op2}" ]; then
+                out_info "Next: ${APP_NAME} map-unset <user> <domain>"
+                return 1
+            fi
+            ;;
+        conf-to-json)
+            _mm_op1=$(prompt_ask "nginx-conf file" "")
+            if [ -z "${_mm_op1}" ]; then
+                out_info "Next: ${APP_NAME} conf-to-json --file PATH"
+                return 1
+            fi
+            _mm_purp=$(prompt_ask "Purpose (optional)" "")
+            if [ -n "${_mm_purp}" ]; then
+                SUBMIT_PURPOSE="${_mm_purp}"
+                export SUBMIT_PURPOSE
+            fi
+            ;;
+        json-to-conf)
+            _mm_op1=$(prompt_ask "JSON file" "")
+            if [ -z "${_mm_op1}" ]; then
+                out_info "Next: ${APP_NAME} json-to-conf --file PATH"
+                return 1
+            fi
+            ;;
+        *)
+            ;;
+    esac
+    return 0
+}
+
+# =============================================================================
+# app_run_command() - Dispatch one live command token
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Single command-to-handler table used by app_main and the numbered list.
+#
+# ALIGNMENT:
+# - requirement-shell-cli-interface.md
+# - requirement-shell-cli-default-interaction.md
+# - requirement-domain-nginx-cli.md
+#
+# Last updated: 2026-08-23
+# =============================================================================
+app_run_command() {
+    _arc_cmd="${1-}"
+    _arc_a="${2-}"
+    _arc_b="${3-}"
+    case "${_arc_cmd}" in
+        version)                 app_version ;;
+        about)                   app_about ;;
+        install)                 inst_local_install ;;
+        uninstall)               inst_local_uninstall ;;
+        where-is-me)             app_where_is_me ;;
+        setup)                   ngx_setup ;;
+        remove-lpu|remove-nginx-adm) ngx_remove_lpu ;;
+        request)                 ngx_request_submit "${_arc_a}" "${_arc_b}" ;;
+        list-requests)           ngx_list_queue pending ;;
+        list-approved)           ngx_list_queue approved ;;
+        list-rejected)           ngx_list_queue rejected ;;
+        approve)                 ngx_approve_interactive "${_arc_a}" ;;
+        reject)                  ngx_reject_one "${_arc_a}" ;;
+        enable-login-approval)   ngx_enable_login_approval ;;
+        map-set)                 ngx_map_set "${_arc_a}" "${_arc_b}" ;;
+        map-unset)               ngx_map_unset "${_arc_a}" "${_arc_b}" ;;
+        map-list)                ngx_map_list "${_arc_a}" ;;
+        submit-sudoer-request)   ngx_submit_sudoer_request "${_arc_a}" ;;
+        conf-to-json)            ngx_conf_to_json "${_arc_a}" ;;
+        json-to-conf)            ngx_json_to_conf "${_arc_a}" ;;
+        test-json-format)        ngx_test_json_format "${_arc_a}" ;;
+        fence-test)              ngx_fence_test "${_arc_a}" ;;
+        menu|main)               app_main_menu ;;
+        help|*)                  app_help ;;
+    esac
+}
+
+# =============================================================================
+# app_main_menu() - Case 3 numbered list (verb menu/main)
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# TTY: numbered list of live work commands; read a number or verb; run it.
+# Non-TTY: reuse app_help (human, or JSON when JSON=1). MUST NOT hang.
+# Interactive ignores --json. Empty argv is NOT this path.
+#
+# ALIGNMENT:
+# - requirement-shell-cli-default-interaction.md
+# - requirement-shell-cli-zero-arguments.md
+# - requirement-shell-interactive-vs-noninteractive.md
+#
+# Last updated: 2026-08-23
+# =============================================================================
+app_main_menu() {
+    : "${TTY:=0}"
+    : "${JSON:=0}"
+    : "${QUIET:=0}"
+    : "${APP_NAME:=nginx-cli}"
+
+    if [ "${TTY}" -ne 1 ]; then
+        if [ "${JSON}" -eq 1 ]; then
+            app_help
+            return $?
+        fi
+        _mm_saved_q="${QUIET}"
+        QUIET=0
+        app_help
+        _mm_ec=$?
+        QUIET="${_mm_saved_q}"
+        return "${_mm_ec}"
+    fi
+
+    _mm_saved_json="${JSON}"
+    _mm_saved_quiet="${QUIET}"
+    JSON=0
+    QUIET=0
+    INTERACTIVE=1
+    export INTERACTIVE
+
+    app_menu_print
+    _mm_choice=$(prompt_ask "Choice (number or command)" "")
+    _mm_choice=$(printf '%s' "${_mm_choice}" | tr -d '\r')
+    _mm_choice=$(printf '%s' "${_mm_choice}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+    if [ -z "${_mm_choice}" ]; then
+        out_info "No choice. Next: ${APP_NAME} menu"
+        JSON="${_mm_saved_json}"
+        QUIET="${_mm_saved_quiet}"
+        unset INTERACTIVE
+        return 0
+    fi
+
+    _mm_verb=$(app_menu_choice_to_verb "${_mm_choice}")
+    if [ -z "${_mm_verb}" ]; then
+        unset INTERACTIVE
+        out_die "That is not a menu choice. Next: ${APP_NAME} menu"
+    fi
+    if [ "${_mm_verb}" = "exit" ]; then
+        JSON="${_mm_saved_json}"
+        QUIET="${_mm_saved_quiet}"
+        unset INTERACTIVE
+        return 0
+    fi
+
+    if ! app_menu_collect_ops "${_mm_verb}"; then
+        JSON="${_mm_saved_json}"
+        QUIET="${_mm_saved_quiet}"
+        unset INTERACTIVE
+        return 0
+    fi
+
+    JSON="${_mm_saved_json}"
+    QUIET="${_mm_saved_quiet}"
+    unset INTERACTIVE
+    app_run_command "${_mm_verb}" "${_mm_op1}" "${_mm_op2}"
 }
 
 # =============================================================================
@@ -4224,15 +4922,15 @@ app_help() {
 # GENERAL PURPOSE:
 # Single dispatcher for nginx-cli (Type 0 + domain).
 # Empty argv = Type N help (not install-ensure).
+# menu/main = case 3 numbered list (not empty argv).
 #
 # ALIGNMENT:
 # - requirement-shell-cli-interface.md
 # - requirement-shell-cli-zero-arguments.md
+# - requirement-shell-cli-default-interaction.md
 # - requirement-domain-nginx-cli.md
 #
-# !!! DO NOT MODIFY OR SIMPLIFY THIS FUNCTION !!!
-#
-# Last reviewed: 2026-08-13
+# Last updated: 2026-08-23
 # =============================================================================
 app_main() {
     : "${COMMAND:=help}"
@@ -4328,7 +5026,7 @@ app_main() {
                 FENCE_EXPECT_MATCH=1
                 export FENCE_EXPECT_MATCH
                 ;;
-            version|about|help|install|uninstall|where-is-me|setup|remove-lpu|remove-nginx-adm|request|list-requests|list-approved|list-rejected|approve|reject|enable-login-approval|map-set|map-unset|map-list|submit-sudoer-request|conf-to-json|json-to-conf|test-json-format|fence-test)
+            version|about|help|menu|main|install|uninstall|where-is-me|setup|remove-lpu|remove-nginx-adm|request|list-requests|list-approved|list-rejected|approve|reject|enable-login-approval|map-set|map-unset|map-list|submit-sudoer-request|conf-to-json|json-to-conf|test-json-format|fence-test)
                 COMMAND="$1"
                 shift
                 break
@@ -4416,31 +5114,7 @@ app_main() {
 
     out_debug "dispatch command=${COMMAND} quiet=${QUIET} json=${JSON} force=${FORCE} force_global=${FORCE_GLOBAL}"
 
-    case "${COMMAND}" in
-        version)                 app_version ;;
-        about)                   app_about ;;
-        install)                 inst_local_install ;;
-        uninstall)               inst_local_uninstall ;;
-        where-is-me)             app_where_is_me ;;
-        setup)                   ngx_setup ;;
-        remove-lpu|remove-nginx-adm) ngx_remove_lpu ;;
-        request)                 ngx_request_submit "${_op1}" "${_op2}" ;;
-        list-requests)           ngx_list_queue pending ;;
-        list-approved)           ngx_list_queue approved ;;
-        list-rejected)           ngx_list_queue rejected ;;
-        approve)                 ngx_approve_interactive "${_op1}" ;;
-        reject)                  ngx_reject_one "${_op1}" ;;
-        enable-login-approval)   ngx_enable_login_approval ;;
-        map-set)                 ngx_map_set "${_op1}" "${_op2}" ;;
-        map-unset)               ngx_map_unset "${_op1}" "${_op2}" ;;
-        map-list)                ngx_map_list "${_op1}" ;;
-        submit-sudoer-request)   ngx_submit_sudoer_request "${_op1}" ;;
-        conf-to-json)            ngx_conf_to_json "${_op1}" ;;
-        json-to-conf)            ngx_json_to_conf "${_op1}" ;;
-        test-json-format)        ngx_test_json_format "${_op1}" ;;
-        fence-test)              ngx_fence_test "${_op1}" ;;
-        help|*)                  app_help ;;
-    esac
+    app_run_command "${COMMAND}" "${_op1}" "${_op2}"
 }
 
 # =============================================================================

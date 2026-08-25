@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-zero-arguments.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.1.1)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-zero-arguments`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -70,7 +70,8 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 
 1. Change empty argv to install-ensure while the product remains local-only.  
 2. Copy Type O empty-argv law wholesale without updating this file and install mode.  
-3. Make bare invocation run domain `backup`.
+3. Make bare invocation run domain `backup`.  
+4. Replace empty argv with the numbered list (`menu` / `main`). That list is `requirement-shell-cli-default-interaction` (case 3).
 
 **Violating this rule is a critical dispatcher regression.**
 
@@ -91,6 +92,7 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 | Key | Relationship |
 |-----|--------------|
 | `requirement-shell-cli-interface` | Dispatcher command table |
+| `requirement-shell-cli-default-interaction` | Numbered list is `menu`/`main`; this file keeps empty argv |
 | `requirement-shell-local-self-management` | Explicit install |
 | `requirement-bootstrap-chain` | Trim of Type O from parent |
 | `docs/requirements/index.md` | Registry |
@@ -112,9 +114,10 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 |------|--------|------|
 | 2026-08-03 | Active | Type N for local-only folder-backup |
 | 2026-08-15 | Active 1.1.0 | Notes/examples name this product nginx-cli |
+| 2026-08-23 | Active 1.1.1 | Empty argv stays help when `menu`/`main` is added |
 
 ---
 
-**Last Updated**: 2026-08-15  
+**Last Updated**: 2026-08-23  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

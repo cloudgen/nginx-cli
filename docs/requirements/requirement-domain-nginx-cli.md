@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-nginx-cli.md  
-**Status**: Active (Version 1.12.0)  
+**Status**: Active (Version 1.14.0)  
 **Area**: domain  
 **Key**: `requirement-domain-nginx-cli`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -55,7 +55,7 @@ OS identities (not machine roles). Every domain verb **MUST** match this table. 
 | Actor | How identified | `setup` / `remove-lpu` | `request` | `list-requests` / `list-approved` / `list-rejected` | `map-list` | `map-set` / `map-unset` | `approve` / `reject` / `enable-login-approval` | Write inbound FS | Sudoers fragment |
 |-------|----------------|------------------------|-----------|-----------------------------------------------------|------------|-------------------------|------------------------------------------------|------------------|------------------|
 | **root** | euid 0 | yes | yes, **any** domain | yes, **all** names | yes | yes | yes | yes | neither required |
-| **nginx-adm** | login `nginx-adm` | no (needs root) | yes, **any** domain | yes, **all** names | yes | yes | yes (`sudo nginx-cli …`, **password required**) | yes (dir owner) | `/etc/sudoers.d/nginx-adm` — **password** `sudo` of `/usr/local/bin/nginx-cli` day-to-day verbs **plus** `NOPASSWD` `/usr/sbin/nginx` and `systemctl`/`journalctl` for unit `nginx` (**not** `setup`/`remove-lpu`; **no** `nginx-ctl`) |
+| **nginx-adm** | login `nginx-adm` | no (needs root) | yes, **any** domain | yes, **all** names | yes | yes | yes (`sudo nginx-cli …`, **password required**) | yes (dir owner) | Family 1 `/etc/sudoers.d/nginx-cli-nginx-adm` after sibling approve — **password** `sudo` of `/usr/local/bin/nginx-cli` day-to-day verbs. Family 2 `/etc/nginx-adm/sudoers` — **NOPASSWD** `/usr/sbin/nginx` and `systemctl`/`journalctl` for unit `nginx` (**not** `setup`/`remove-lpu`; **no** `nginx-ctl`) |
 | **Listed submitter** | (uncommented login in `/etc/sudoers.d/nginx-cli-submit` **or** per-user `/etc/sudoers.d/nginx-cli-<login>` present as a regular file) **and** member of group `nginx-cli-submit` | no | yes, **only** domains in that login’s `user-domain-map` (fail closed if map missing) | yes, **own** basename user only | yes | no | no | yes (group `2770`) | shared `/etc/sudoers.d/nginx-cli-submit` **or** sibling dest `/etc/sudoers.d/nginx-cli-<login>` (Type 0 `request` as invoker) |
 | **Anyone else** | not root, not nginx-adm, not listed+grouped | no | no | no | no | no | no | no | — |
 
@@ -128,7 +128,7 @@ Every domain verb **MUST** map to exactly one privilege class. Domain functions 
 
 | Command | Type | Who | Handler | Behavior |
 |---------|------|-----|---------|----------|
-| `setup` | Type 1 | root (internal `sudo` re-exec if needed) | `ngx_setup` | Idempotent create of nginx-adm (UID/GID/home/shell), submit group, public queue root, F4 home views, home map subtree, affected-folder ownership, home→sites symlinks, nginx-adm sudoers, submit-sudoers template, optional login hook |
+| `setup` | Type 1 | root (internal `sudo` re-exec if needed) | `ngx_setup` | Idempotent create of nginx-adm, submit group, public trio, F4 views, map, ownership, sites symlinks, Family 2 `/etc/nginx-adm/sudoers`, as-login hook, password-ensure. **MUST** auto-queue Family 1 JSON (`login-hook-elev`) into sibling inbound when dest exists. **MUST NOT** write `/etc/sudoers.d` |
 | `remove-lpu` | Type 1 | root | `ngx_remove_lpu` | Reverse sudoers → backup+remove public queue root → reverse affected ownership (content kept) → `userdel -r` (+ groupdel of nginx-adm and submit group). Confirm unless `--force` |
 | `remove-nginx-adm` | Type 1 | root | `ngx_remove_lpu` | Alias of `remove-lpu` |
 | `request <domain> [file]` | gated submit | root **or** nginx-adm **or** listed submitter | `ngx_request_submit` | Exclusive-create dest request **JSON** into inbound (accept JSON or convert text dual). stdin if file is `-` or omitted and stdin is not a TTY |
@@ -137,7 +137,7 @@ Every domain verb **MUST** map to exactly one privilege class. Domain functions 
 | `list-rejected` | gated list | same | `ngx_list_queue rejected` | Rejected archive list |
 | `approve [basename]` | approver | root or nginx-adm | `ngx_approve_interactive` or `ngx_approve_one` | No operand + TTY → one-by-one; operand → single file. Non-TTY without operand **MUST** fail closed |
 | `reject <basename>` | approver | root or nginx-adm | `ngx_reject_one` | Snapshot inbound, install snapshot into rejected archive, unlink inbound; no publish |
-| `enable-login-approval` | approver | root or nginx-adm | `ngx_enable_login_approval` | Idempotent marked block in nginx-adm `.bashrc` |
+| `enable-login-approval` | approver | root or nginx-adm | `ngx_enable_login_approval` | Idempotent marked block in nginx-adm `.bashrc`; replace inner command when it differs |
 | `map-set <user> <domain>` | approver | root or nginx-adm | `ngx_map_set` | Add domain line; **chown back** to nginx-adm |
 | `map-unset <user> <domain>` | approver | root or nginx-adm | `ngx_map_unset` | Remove domain line; chown back |
 | `map-list [user]` | gated list | root, nginx-adm, or submitter | `ngx_map_list` | Show map file(s) |
@@ -153,14 +153,14 @@ Every domain verb **MUST** map to exactly one privilege class. Domain functions 
 
 #### 2.2.1 nginx-adm create (setup)
 
-`setup` **MUST** create the LPU, submit group, public trio, F4 views, home map, F6, submit fragment, and optional login hook **as specified** in `requirement-least-privilege-user.md` (F1–F7) and `requirement-three-layer-privilege-model.md` (Table A + both fragment samples). This section owns only **machine** facts that those files point back to:
+`setup` **MUST** create the LPU, submit group, public trio, F4 views, home map, Family 2 unit-tools file, and optional login hook **as specified** in `requirement-least-privilege-user.md` (F1–F7) and `requirement-three-layer-privilege-model.md` (auto-queue + Family 2 sample). This section owns only **machine** facts that those files point back to:
 
 1. Public inbound last component **MUST NOT** be a symlink. Type 0 **MUST NOT** `mkdir` production inbound or archives; missing inbound **MUST** fail closed.  
 2. `user-domain-map` **MUST** stay under LPU home (never on the public queue root).  
 3. If setup finds a **real** (non-symlink) home queue dir from a prior revision, it **MUST** migrate files into the public trio, then replace the home dir with the F4 view.  
 4. Re-run **MUST NOT** destroy existing site conf. If the account already exists with the expected identity, repair layout/ownership/sudoers only.  
-5. Complete F6 and submit-fragment text **MUST** match three-layer §2.5 — do not keep a second copy here.  
-6. `setup` **MUST** leave Family 1 authenticatable: TTY `passwd nginx-adm` (operator types; never recorded) or a non-TTY warn with that command. **MUST NOT** `chpasswd` or script a secret. A locked nginx-adm password makes the login hook and `sudo nginx-cli` fail with `sudo: a password is required`.
+5. Family 1 **MUST** be sibling JSON (`requirement-sudoer-json-file` `login-hook-elev`). **MUST NOT** copy `/etc/sudoers.d/nginx-adm`. Missing sibling → skip (setup succeeds).  
+6. `setup` **MUST** leave Family 1 authenticatable: TTY `passwd nginx-adm` (operator types; never recorded) or a non-TTY warn with that command. **MUST NOT** `chpasswd` or script a secret. A locked nginx-adm password makes Family 1 `sudo nginx-cli` fail with `sudo: a password is required`. The login hook **MUST NOT** depend on that password.
 
 #### 2.2.2 remove-lpu
 
@@ -245,14 +245,14 @@ Paired **text duals** (what `json-to-conf` renders; also legal `request` input) 
 
 #### 2.2.6 Login hook
 
-Idempotent markers in `/etc/nginx-adm/.bashrc` only. The snippet **MUST** skip when `PS1` is unset (scp / non-interactive). Empty argv of this CLI **MUST** still be help (the hook calls `approve`, not bare `nginx-cli`). Interactive login **MUST** use **`sudo /usr/local/bin/nginx-cli approve`** (password prompt). **MUST NOT** use `sudo -n`. That sudo authenticates as **nginx-adm** — the account **MUST** have a usable password (`setup` JOB-PASSWD). Login `nginx-adm` **MAY** also run `nginx-cli approve` **without** sudo (`OPEN-ADM-NOSUDO`).
+Idempotent markers in `/etc/nginx-adm/.bashrc` only. The snippet **MUST** skip when `PS1` is unset (scp / non-interactive). Empty argv of this CLI **MUST** still be help (the hook calls `approve`, not bare `nginx-cli`). Interactive login **MUST** run **`/usr/local/bin/nginx-cli approve`** as login `nginx-adm` (**no** `sudo`; `OPEN-ADM-NOSUDO`). **MUST NOT** wrap the hook in `sudo` or `sudo -n`. Family 1 password `sudo nginx-cli` stays available for operators who choose sudo (`OPEN-PASSWD-CLI`); it is **not** the login-hook argv. Re-run of `enable-login-approval` / `setup` **MUST** replace the managed marker block when the inner command differs (a prior `sudo … approve` line **MUST** be rewritten).
 
 Complete snippet (setup **MUST** write this shape):
 
 ```sh
 # >>> nginx-cli interactive approval (managed) >>>
 if [ -n "${PS1-}" ]; then
-    sudo /usr/local/bin/nginx-cli approve
+    /usr/local/bin/nginx-cli approve
 fi
 # <<< nginx-cli interactive approval (managed) <<<
 ```
@@ -395,7 +395,7 @@ Type 0 diagnostics (install, storage, repo) **MUST** remain.
 | **Ship unit** | `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) |
 | **Domain prefix** | `ngx_` |
-| **VERSION** | `1.5.1` (domain law 1.12.0) |
+| **VERSION** | `1.7.0` (domain law 1.14.0) |
 | **Dest Fence** | `requirement-incorrect-json-format` |
 | **Testers** | `fence-test` / `test-json-format` |
 | **Convert verbs** | `conf-to-json` → `ngx_conf_to_json`; `json-to-conf` → `ngx_json_to_conf` |
@@ -450,7 +450,8 @@ Type 0 diagnostics (install, storage, repo) **MUST** remain.
 11. Duplicate F1–F7, Table A/B/C, or the prevention catalog in this file (those have peer owners).  
 12. Add `requirement-shell-prompt` or `requirement-shell-temp-file-system` for this dest — interactive and storage already own those surfaces.  
 13. Invent a second nginx submitter ship unit (this product **is** the dest submitter).  
-14. Queue nginx-conf **text** as dest inbound, or treat compose sudoer JSON as dest inbound.
+14. Queue nginx-conf **text** as dest inbound, or treat compose sudoer JSON as dest inbound.  
+15. Wrap the nginx-adm login hook in `sudo` or `sudo -n` (as-login `approve` is the hook argv; Family 1 password sudo stays for explicit sudo).
 
 Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli`, world-wx inbound, Type 0 mkdir inbound, F7 vs uninstall, nologin shell) are **owned** by `requirement-privilege-prevention-set.md` and **MUST NOT** be re-opened here as a second list.
 
@@ -462,7 +463,8 @@ Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli
 
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
-| **TP-NGX-01..15** | `tests/test_domain.sh` | have | fixture request/approve/reject/hook; hook not `sudo -n`; inbound 2770 / F6 static |
+| **TP-NGX-01..15** | `tests/test_domain.sh` | have | fixture request/approve/reject/hook; hook as-login (no sudo); inbound 2770 / F6 static |
+| **TP-NGX-50** | same | have | replace stale `sudo … approve` managed block |
 | **TP-NGX-16..20** | same | have | submit-sudoer-request compose (peer: three-layer + sudoer-json-file) |
 | **TP-NGX-21..24** | same | have | conf-to-json / json-to-conf dual; xor; refuse dest write |
 | **TP-NGX-25..33** | same | have | dest JSON request; inbound body; mismatch; published text; convert --out inbound; grant allowlist |
@@ -486,6 +488,6 @@ Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli
 | `docs/requirements/requirement-shell-modular-function-design.md` | `ngx_` prefix |
 | `./src/nginx-cli` | Implementation |
 
-**Last Updated**: 2026-08-21 (1.12.0 — dest Fence table; Type 0 fence-test; dest-owned submit_app / submit_version)  
+**Last Updated**: 2026-08-23 (1.14.0 — setup auto-queues Family 1 JSON; MUST NOT write `/etc/sudoers.d`)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

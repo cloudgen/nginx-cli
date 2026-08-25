@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-interactive-vs-noninteractive.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.1.1)  
 **Area**: shell  
 **Key**: `requirement-shell-interactive-vs-noninteractive`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -45,6 +45,7 @@ Rules:
 | Missing required operand | Clear error | Clear error; non-zero exit |
 | `submit-sudoer-request` | May show detect/submit via `out_*` | No prompts; fail closed if sudoer-cli / inbound missing; no hang |
 | `conf-to-json` / `json-to-conf` | May emit dual via `out_*` / stdout | No prompts; TTY without `--file` fails closed (`xor_input`); no hang |
+| `menu` / `main` | Numbered list; `--json` ignored | **Help** (human; `--json` → JSON help). **MUST NOT** prompt or draw the list |
 
 ### 2.4 Implementation Notes (this project)
 
@@ -101,6 +102,7 @@ Rules:
 | `requirement-shell-cli-interface` | Flags |
 | `requirement-shell-local-self-management` | Uninstall confirm |
 | `requirement-shell-output-requirements` | Quiet/json emission |
+| `requirement-shell-cli-default-interaction` | Case 3 `menu`/`main` mode check |
 | `docs/requirements/index.md` | Registry |
 
 ---
@@ -111,9 +113,10 @@ Rules:
 |------|--------|------|
 | 2026-08-03 | Active | Interactive vs non-interactive for folder-backup |
 | 2026-08-15 | Active 1.1.0 | Purpose names this product nginx-cli |
+| 2026-08-23 | Active 1.1.1 | `menu`/`main` TTY list vs off-TTY help |
 
 ---
 
-**Last Updated**: 2026-08-15  
+**Last Updated**: 2026-08-23  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

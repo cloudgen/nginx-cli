@@ -1,29 +1,30 @@
 # Requirements index
 
 **Product:** nginx-cli (POSIX `/bin/sh` CLI — Type 0 lifecycle + nginx-adm request/approve domain)  
-**Workspace state:** Specialized product law (left genesis); **software-development** class; **this product is B = nginx-cli**; **bootstrap origin A = cli-template** (frozen at `src/cli-template`). Online / Type O, backup / restore / print-sudoers **intentionally absent**. Type 0 **`submit-sudoer-request`** is **present**.  
-**Updated:** 2026-08-21
+**Workspace state:** Specialized product law (left genesis); **software-development** class; **this product is B = nginx-cli**; **bootstrap origin A = cli-template** (frozen at `src/cli-template`). Online / Type O, backup / restore / print-sudoers **intentionally absent**. Type 0 **`submit-sudoer-request`** is **present**. Type 0 **`menu` / `main`** (numbered list; empty argv stays help) is **present**.  
+**Updated:** 2026-08-23
 
 | ID / key | Title | Area | Status | Path | Updated |
 |----------|-------|------|--------|------|---------|
-| requirement-class-software-dev | Software-development class law + residual stack (posix-sh, local-only); dest Fence + coding-style pointers; dest Fences ship Type 0 **test-purpose** `fence-test` | class | Active (1.8.0) | `requirement-class-software-dev.md` | 2026-08-21 |
+| requirement-class-software-dev | Software-development class law + residual stack (posix-sh, local-only); dest Fence + coding-style pointers; dest Fences ship Type 0 **test-purpose** `fence-test`; `menu`/`main` pointer | class | Active (1.8.1) | `requirement-class-software-dev.md` | 2026-08-23 |
 | requirement-bootstrap-chain | Bootstrap A = cli-template (frozen); this product is B = nginx-cli | architecture | Active (4.1.0) | `requirement-bootstrap-chain.md` | 2026-08-15 |
 | requirement-project-folder | Project layout (`src/nginx-cli` + frozen `src/cli-template`); install bins; no durable backup deposit | architecture | Active (2.1.0) | `requirement-project-folder.md` | 2026-08-15 |
-| requirement-shell-cli-interface | Shell CLI interface (Type 0 lifecycle + operational convert/submit + Type 0 **test-purpose** `test-json-format` / `fence-test`; Type 1 setup) | shell | Active (2.5.0) | `requirement-shell-cli-interface.md` | 2026-08-21 |
-| requirement-shell-script-coding | Specialize-in home for POSIX writing lessons (without it, portable lessons arrive raw) | shell | Active (1.0.0) | `requirement-shell-script-coding.md` | 2026-08-21 |
-| requirement-shell-cli-zero-arguments | Empty argv Type N help (local-only) | shell | Active (1.1.0) | `requirement-shell-cli-zero-arguments.md` | 2026-08-15 |
+| requirement-shell-cli-interface | Shell CLI interface (Type 0 lifecycle + operational convert/submit + Type 0 **test-purpose** `test-json-format` / `fence-test`; Type 0 `menu`/`main`; Type 1 setup) | shell | Active (2.6.0) | `requirement-shell-cli-interface.md` | 2026-08-23 |
+| requirement-shell-script-coding | Specialize-in home for POSIX writing lessons. Remaining mold rules apply (**PP-A-21**). **PP-A-19** / **PP-A-20**: nginx-adm is a sudoer; inbound owner stays submitter. | shell | Active (1.2.0) | `requirement-shell-script-coding.md` | 2026-08-22 |
+| requirement-shell-cli-zero-arguments | Empty argv Type N help (local-only) | shell | Active (1.1.1) | `requirement-shell-cli-zero-arguments.md` | 2026-08-23 |
+| requirement-shell-cli-default-interaction | TTY numbered list of live work commands (`menu` / `main`); case 3 — empty argv stays help | shell | Active (1.0.0) | `requirement-shell-cli-default-interaction.md` | 2026-08-23 |
 | requirement-shell-local-self-management | Local install / uninstall / where-is-me; **mode 0755** multi-user | shell | Active (1.4.0) | `requirement-shell-local-self-management.md` | 2026-08-15 |
 | requirement-shell-output-requirements | Central `out_*` output SSOT | shell | Active (1.1.0) | `requirement-shell-output-requirements.md` | 2026-08-15 |
-| requirement-shell-modular-function-design | Single-file modular prefixes (`out_`/`inst_`/`app_`/`ngx_`) | shell | Active (2.1.0) | `requirement-shell-modular-function-design.md` | 2026-08-15 |
+| requirement-shell-modular-function-design | Single-file modular prefixes (`out_`/`inst_`/`app_`/`ngx_`) | shell | Active (2.1.1) | `requirement-shell-modular-function-design.md` | 2026-08-23 |
 | requirement-shell-idempotency | Re-run safety for install / uninstall | shell | Active (1.2.0) | `requirement-shell-idempotency.md` | 2026-08-15 |
-| requirement-shell-interactive-vs-noninteractive | Interactive vs non-interactive / confirm policy | shell | Active (1.1.0) | `requirement-shell-interactive-vs-noninteractive.md` | 2026-08-15 |
+| requirement-shell-interactive-vs-noninteractive | Interactive vs non-interactive / confirm policy | shell | Active (1.1.1) | `requirement-shell-interactive-vs-noninteractive.md` | 2026-08-23 |
 | requirement-shell-cli-storage | Scratch/cache resolve (no backup staging) | shell | Active (1.2.0) | `requirement-shell-cli-storage.md` | 2026-08-15 |
-| requirement-three-layer-privilege-model | Type 0/1 map; F6 two families; **submit-sudoer-request** workflow; no print-sudoers | architecture | Active (1.2.0) | `requirement-three-layer-privilege-model.md` | 2026-08-15 |
-| requirement-sudoer-json-file | JSON sudoer file: grant is **`nginx-cli request`** as `nginx-adm` only; Type 0 stamps `submit_app` / `submit_version` | architecture | Active (1.1.0) | `requirement-sudoer-json-file.md` | 2026-08-21 |
-| requirement-least-privilege-user | nginx-adm F1–F7; home `/etc/nginx-adm`; F5 `/var/nginx-cli/` inbound 2770 + F4 views | architecture | Active (1.1.0) | `requirement-least-privilege-user.md` | 2026-08-15 |
-| requirement-privilege-prevention-set | Closed catalog; dest inbound is JSON; convert never dest/queue | architecture | Active (1.4.0) | `requirement-privilege-prevention-set.md` | 2026-08-15 |
+| requirement-three-layer-privilege-model | Type 0/1 map; Family 1 via sibling JSON; Family 2 `/etc/nginx-adm/sudoers`; **submit-sudoer-request**; setup MUST NOT write `/etc/sudoers.d` | architecture | Active (1.5.0) | `requirement-three-layer-privilege-model.md` | 2026-08-23 |
+| requirement-sudoer-json-file | Two JSON kinds: Type 0 `type-2-switch` (`request` as nginx-adm); Type 1 setup `login-hook-elev` (Family 1 password + `--json`) | architecture | Active (1.2.0) | `requirement-sudoer-json-file.md` | 2026-08-23 |
+| requirement-least-privilege-user | nginx-adm F1–F7; Family 2 `/etc/nginx-adm/sudoers`; Family 1 sibling dest; hook as-login | architecture | Active (1.3.0) | `requirement-least-privilege-user.md` | 2026-08-23 |
+| requirement-privilege-prevention-set | Closed catalog; setup MUST NOT write `/etc/sudoers.d`; **PREV-HOOK-SUDO** | architecture | Active (1.6.0) | `requirement-privilege-prevention-set.md` | 2026-08-23 |
 | requirement-incorrect-json-format | Dest **Fence**: incorrect JSON format; Type 0 **test-purpose** `test-json-format`; list tester `fence-test`; dest-owned `submit_app` / `submit_version` | architecture | Active (1.0.0) | `requirement-incorrect-json-format.md` | 2026-08-21 |
-| requirement-domain-nginx-cli | File-based JSON dest for nginx-conf **and** same-product submitter; dest Fence table; Type 0 `fence-test`; dest-owned `submit_app` / `submit_version`; convert dual; compose to sudoer-cli | domain | Active (1.12.0) | `requirement-domain-nginx-cli.md` | 2026-08-21 |
+| requirement-domain-nginx-cli | File-based JSON dest for nginx-conf **and** same-product submitter; setup auto-queues Family 1 sudoer JSON; dest Fence; testers; login hook as-login | domain | Active (1.14.0) | `requirement-domain-nginx-cli.md` | 2026-08-23 |
 
 ## Surfaces by design (this product)
 
@@ -34,9 +35,10 @@
 | Automatic companion `.sha256` channel integrity law | **Absent** |
 | Folder archive backup / restore / retention | **Absent** |
 | Domain SSOT (`requirement-domain-*`) | **Active** — `requirement-domain-nginx-cli.md` (one current Domain SSOT) |
-| print-sudoers / sudoers-install-script / remove-draft | **Absent** (setup writes host fragments; no print verbs) |
+| print-sudoers / sudoers-install-script / remove-draft | **Absent** (setup writes Family 2 `/etc/nginx-adm/sudoers` and queues Family 1 JSON; no print verbs) |
 | `submit-sudoer-request` | **Present** (Type 0 compose to sibling sudoer-cli; no `/etc` write) |
 | `conf-to-json` / `json-to-conf` | **Present** (Type 0 convert dual; dest inbound is dest request JSON) |
+| `menu` / `main` | **Present** (case 3 numbered list; empty argv stays help) |
 | Type 1 `setup` / `remove-lpu` | **Present** (domain + LPU + three-layer) |
 | `requirement-shell-prompt` / `requirement-shell-temp-file-system` | **Absent** — prompt bodies on interactive REQ; temp roots on storage REQ |
 

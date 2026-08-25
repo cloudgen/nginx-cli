@@ -5,6 +5,75 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+## [1.7.0] - 2026-08-25
+
+### Changed
+
+- Type 1 `setup` auto-queues Family 1 JSON (`kind=login-hook-elev`, password `nginx-cli` verbs + leading `--json`) into sibling sudoer-cli inbound when dest exists; skip when missing. **MUST NOT** write `/etc/sudoers.d`. After sudoer-adm approve, dest is `/etc/sudoers.d/nginx-cli-nginx-adm`.
+- Family 2 unit tools dest is `/etc/nginx-adm/sudoers`. `ngx_write_adm_sudoers` refuses any dest under `/etc/sudoers.d`.
+- Type 0 `submit-sudoer-request` refuses `kind=login-hook-elev` (that grant is Type 1 setup only). Type 0 remains `type-2-switch` (`request` as nginx-adm).
+- Login hook stays as-login `nginx-cli approve` (no sudo).
+
+### Fixed
+
+- `setup` fail-closed when `nginx-adm` or UID/GID **1999** is a foreign identity (`ngx_adm_collision_check`; L-COLLIDE-01). Does not rewrite a live foreign account.
+- `useradd` / `groupadd` / `userdel` / `groupdel` also try `/usr/sbin` when root PATH is short.
+- Type 1 `setup` / `remove-lpu` consume the main-process `TTY` flag (no live `[ -t 0 ]` retest).
+
+### Law
+
+- Three-layer **1.5.0** · sudoer-json-file **1.2.0** · LPU **1.3.0** · prevention **1.6.0** · domain **1.14.0** · default-interaction **1.0.0**.
+
+### Tests
+
+- TP-NGX-51 **have** (collision identity + `/usr/sbin` host-bin). TP-NGX-52 / TP-NGX-53 **have**. TP-CLI-17..22 **have** (`menu`/`main`). Live root inbound write is not in the fixture. Suite PASS=293 FAIL=0 SKIP=0.
+
+## [1.6.1] - 2026-08-23
+
+### Changed
+
+- F6 `/etc/sudoers.d/nginx-adm` now includes a leading **`--json`** form of every Family 1 verb (`sudo nginx-cli --json list-requests`, `sudo nginx-cli --json approve …`). Still password-required. **MUST NOT** `--json *` (that would include `setup`).
+
+### Law
+
+- Three-layer **1.4.0** (Table A + complete fragment).
+
+### Tests
+
+- TP-NGX-15: `--json` prefix present; no `--json setup`; no NOPASSWD on the CLI path.
+
+## [1.6.0] - 2026-08-23
+
+### Added
+
+- Type 0 **`menu`** (alias **`main`**): on a real terminal, a numbered list of live work commands (N=14, Exit **99**). Empty argv stays help. Off-TTY `menu` reuses help (JSON help with `--json`). Interactive `menu --json` still shows the list.
+
+### Law
+
+- `requirement-shell-cli-default-interaction` **1.0.0** (case 3). Interface **2.6.0**. Zero-arguments **1.1.1**. Interactive **1.1.1**. Modular **2.1.1**. Class residual **1.8.1**.
+
+### Tests
+
+- TP-CLI-17..22: off-TTY help / JSON help / `main` alias / help lists menu; TTY list + `--json` ignored (skip if no PTY).
+
+## [1.5.2] - 2026-08-23
+
+### Fixed
+
+- Login hook is as-login `/usr/local/bin/nginx-cli approve` (**no** `sudo`). Interactive `nginx-adm` login no longer prompts for a sudo password (`INC-20260823-001`).
+- `enable-login-approval` / `setup` **replace** a stale managed `.bashrc` block (a prior `sudo … approve` line is rewritten). Marker-present is no longer “already present” forever.
+- **MUST NOT** wrap the hook in `sudo` or `sudo -n`. Family 1 password `sudo nginx-cli` is unchanged.
+
+### Law
+
+- Domain **1.13.0** · LPU **1.2.0** · three-layer **1.3.0** · prevention **1.5.0** (`PREV-HOOK-SUDO`).
+
+### Tests
+
+- TP-NGX-14: hook as-login (no `sudo`). TP-NGX-50: replace stale sudo-shaped managed block.
+
 ## [1.5.1] - 2026-08-22
 
 ### Tests

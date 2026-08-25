@@ -4,12 +4,10 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.4.1 (current) | Yes |
-| 1.4.0 | Yes |
-| 1.3.0 | Best effort |
-| 1.2.0 | Best effort |
-| 1.1.0 | Best effort |
-| 1.0.0 | Best effort |
+| 1.7.0 (current) | Yes |
+| 1.6.x | Best effort |
+| 1.5.x | Best effort |
+| 1.4.x | Best effort |
 
 ## Reporting a Vulnerability
 
@@ -38,8 +36,8 @@ This section is **design posture**, not a third-party certification claim.
 
 ## Scope notes
 
-- Type 1 `setup` **does** write product-owned `/etc/sudoers.d/nginx-adm` (password `nginx-cli` + NOPASSWD unit `nginx` tools) and create-if-absent `/etc/sudoers.d/nginx-cli-submit`. It does **not** write `/etc/sudoers` (main) or emit a `print-sudoers` verb.  
-- Type 0 `submit-sudoer-request` hands a dest-honest JSON grant (`nginx-cli request` as `nginx-adm`) to sibling **sudoer-cli**. It does **not** write `/etc` and does **not** `mkdir` the sibling inbound.  
+- Type 1 `setup` **MAY** write Family 2 unit tools to `/etc/nginx-adm/sudoers` (not under `/etc/sudoers.d`). Family 1 (password `nginx-cli` verbs + `--json`) is a sibling JSON grant (`kind=login-hook-elev`). Setup **MUST NOT** write `/etc/sudoers.d`. It does **not** write `/etc/sudoers` (main) or emit a `print-sudoers` verb.  
+- Type 0 `submit-sudoer-request` hands a dest-honest JSON grant (`kind=type-2-switch`, `nginx-cli request` as `nginx-adm`) to sibling **sudoer-cli**. It **MUST NOT** queue `login-hook-elev`. It does **not** write `/etc` and does **not** `mkdir` the sibling inbound.  
 - Public queues live under `/var/nginx-cli` (inbound `2770`, group `nginx-cli-submit`). `user-domain-map` stays under LPU home.  
 - Type 0 `uninstall` removes only the managed binary — not the LPU or queues.  
 - Local `~/.local/bin` install is user-rewritable; prefer global `/usr/local/bin/nginx-cli` on multi-user hosts (production F6 Cmnd).  
