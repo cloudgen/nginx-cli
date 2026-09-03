@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-zero-arguments.md  
-**Status**: Active (Version 1.1.1)  
+**Status**: Active (Version 1.2.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-zero-arguments`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -23,8 +23,8 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 
 ### 2.1 Single meaning of empty argv
 
-1. When **argv is empty** (`$# -eq 0` at entry to `app_main`), the dispatcher **MUST** route to **`help`** / usage (`app_help`).  
-2. Empty argv **MUST NOT** perform install or any state-changing ensure.  
+1. When **argv is empty** (`$# -eq 0` at entry to `app_main`) **and** `TTY=1`, the dispatcher **MUST** route to the numbered list (`app_main_menu`). Topic owner: `requirement-shell-cli-default-interaction`.  
+2. When **argv is empty** **and** `TTY=0`, the dispatcher **MUST** route to **`help`** / usage (`app_help`). Empty argv **MUST NOT** perform install or dest `approve`.  
 3. Explicit `nginx-cli help` remains a valid full-usage path (same content family as empty argv).  
 4. Explicit `nginx-cli install` remains the only first-time local install path (plus documented force refresh).  
 5. Script entry **MUST** always call `app_main "$@"` (no basename product-name gate that blocks dispatch).
@@ -33,7 +33,8 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 
 | Invocation | Behavior |
 |------------|----------|
-| `nginx-cli` (no args) | Show help; exit 0 |
+| `nginx-cli` (no args, `TTY=1`) | Numbered list |
+| `nginx-cli` (no args, `TTY=0`) | Show help; exit 0 |
 | `nginx-cli help` | Show help; exit 0 |
 | `nginx-cli install` | Local install ensure |
 | Flags only (e.g. `--json` with no command) | **MUST** still resolve to help (or fail with clear usage if product chooses fail-closed) — default: **help** after flag parse with no command token |
@@ -71,7 +72,7 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 1. Change empty argv to install-ensure while the product remains local-only.  
 2. Copy Type O empty-argv law wholesale without updating this file and install mode.  
 3. Make bare invocation run domain `backup`.  
-4. Replace empty argv with the numbered list (`menu` / `main`). That list is `requirement-shell-cli-default-interaction` (case 3).
+4. Change empty argv to dest `approve` or to install-ensure. Interactive empty argv **MUST** stay the numbered list; non-interactive empty argv **MUST** stay help.
 
 **Violating this rule is a critical dispatcher regression.**
 

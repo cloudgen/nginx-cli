@@ -1,8 +1,8 @@
 # Requirements index
 
 **Product:** nginx-cli (POSIX `/bin/sh` CLI — Type 0 lifecycle + nginx-adm request/approve domain)  
-**Workspace state:** Specialized product law (left genesis); **software-development** class; **this product is B = nginx-cli**; **bootstrap origin A = cli-template** (frozen at `src/cli-template`). Online / Type O, backup / restore / print-sudoers **intentionally absent**. Type 0 **`submit-sudoer-request`** is **present**. Type 0 **`menu` / `main`** (numbered list; empty argv stays help) is **present**.  
-**Updated:** 2026-08-23
+**Workspace state:** Specialized product law (left genesis); **software-development** class; **this product is B = nginx-cli**; **bootstrap origin A = cli-template** (frozen at `src/cli-template`). Online / Type O, backup / restore / print-sudoers **intentionally absent**. Type 0 **`submit-sudoer-request`** is **present**. Type 0 numbered list (TTY empty argv and **`menu` / `main`**; off-TTY empty argv stays help) is **present**. Login hook is **`nginx-cli-hook`**.  
+**Updated:** 2026-09-03
 
 | ID / key | Title | Area | Status | Path | Updated |
 |----------|-------|------|--------|------|---------|
@@ -11,8 +11,8 @@
 | requirement-project-folder | Project layout (`src/nginx-cli` + frozen `src/cli-template`); install bins; no durable backup deposit | architecture | Active (2.1.0) | `requirement-project-folder.md` | 2026-08-15 |
 | requirement-shell-cli-interface | Shell CLI interface (Type 0 lifecycle + operational convert/submit + Type 0 **test-purpose** `test-json-format` / `fence-test`; Type 0 `menu`/`main`; Type 1 setup) | shell | Active (2.6.0) | `requirement-shell-cli-interface.md` | 2026-08-23 |
 | requirement-shell-script-coding | Specialize-in home for POSIX writing lessons. Remaining mold rules apply (**PP-A-21**). **PP-A-19** / **PP-A-20**: nginx-adm is a sudoer; inbound owner stays submitter. | shell | Active (1.2.0) | `requirement-shell-script-coding.md` | 2026-08-22 |
-| requirement-shell-cli-zero-arguments | Empty argv Type N help (local-only) | shell | Active (1.1.1) | `requirement-shell-cli-zero-arguments.md` | 2026-08-23 |
-| requirement-shell-cli-default-interaction | TTY numbered list of live work commands (`menu` / `main`); case 3 — empty argv stays help | shell | Active (1.0.0) | `requirement-shell-cli-default-interaction.md` | 2026-08-23 |
+| requirement-shell-cli-zero-arguments | Empty argv: TTY numbered list; off-TTY help (local-only; not install) | shell | Active (1.2.0) | `requirement-shell-cli-zero-arguments.md` | 2026-09-03 |
+| requirement-shell-cli-default-interaction | TTY numbered list (empty argv + `menu` / `main`); default style; off-TTY help | shell | Active (1.1.0) | `requirement-shell-cli-default-interaction.md` | 2026-09-03 |
 | requirement-shell-local-self-management | Local install / uninstall / where-is-me; **mode 0755** multi-user | shell | Active (1.4.0) | `requirement-shell-local-self-management.md` | 2026-08-15 |
 | requirement-shell-output-requirements | Central `out_*` output SSOT | shell | Active (1.1.0) | `requirement-shell-output-requirements.md` | 2026-08-15 |
 | requirement-shell-modular-function-design | Single-file modular prefixes (`out_`/`inst_`/`app_`/`ngx_`) | shell | Active (2.1.1) | `requirement-shell-modular-function-design.md` | 2026-08-23 |

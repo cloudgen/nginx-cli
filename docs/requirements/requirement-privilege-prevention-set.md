@@ -146,7 +146,7 @@ These steps are **hard to undo**. They stay **allowed** after elev. The extra ga
 | **Family 1 dest** | `/etc/sudoers.d/nginx-cli-nginx-adm` after sibling approve (JSON auto-queue) |
 | **Listed-submitter dest** | `/etc/sudoers.d/nginx-cli-<login>` after sibling approve |
 | **Usual bootstrap** | `sudo src/nginx-cli setup` or `sudo nginx-cli setup` (password `sudo` OK) |
-| **Login hook** | `/usr/local/bin/nginx-cli approve` as-login (**no** `sudo`; **PREV-HOOK-SUDO**) |
+| **Login hook** | `/usr/local/bin/nginx-cli-hook approve` as-login (**no** `sudo`; **PREV-HOOK-SUDO**) |
 | **Fixture** | `NGINX_CLI_FIXTURE=1` + homes/queues under `/tmp` |
 | **Absent verbs** | `print-sudoers`, `nginx-ctl`, online self-update |
 | **Present compose** | `submit-sudoer-request` (Type 0; no `/etc` write) |

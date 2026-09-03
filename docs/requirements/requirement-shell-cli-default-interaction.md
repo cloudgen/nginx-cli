@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-default-interaction.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.1.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-default-interaction`  
 **id**: RQ-SHELL-CLI-DEFAULT-INTERACTION  
@@ -7,11 +7,11 @@
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for nginx-cli’s optional **TTY numbered list of live work commands**. The product **claims** that list. Empty argv already has a dedicated requirement (help, not install). This file therefore **MUST NOT** steal empty argv. The list opens when the operator types **`nginx-cli menu`** (or **`main`**) on a real terminal.
+This requirement is the **project Single Source of Truth** for nginx-cli’s optional **TTY numbered list of live work commands**. The product **claims** that list. Look **MUST** be default CLI main menu style: header **nginx-cli**(*version*) then `command: what it does` with gray italic descriptions on a TTY. The zero-argument requirement assigns **interactive** empty argv to this list and keeps off-TTY empty argv as help. `menu` / `main` are the same handler.
 
 ### 1.1 Human-facing
 
-**In one sentence:** On a real terminal, type `nginx-cli menu` (or `main`) to get a numbered list of live work commands; typing only `nginx-cli` still shows help.
+**In one sentence:** On a real terminal, type `nginx-cli` (or `nginx-cli menu` / `main`) to get a numbered list of live work commands; a script still gets help.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
@@ -47,10 +47,12 @@ This requirement is the **project Single Source of Truth** for nginx-cli’s opt
 | **Online-installable** | **no** (local-only) |
 | **Case** | **3** |
 
-1. Empty argv **MUST** follow `requirement-shell-cli-zero-arguments` (help; not install; not this menu).  
-2. The numbered list **MUST** be routed-verb **`menu`**. **`main` MUST** be the same handler (alias).  
-3. **MUST NOT** attach the list to empty argv.  
-4. **MUST NOT** list `menu` / `main` as a numbered choice on its own list.
+1. Empty argv **MUST** follow `requirement-shell-cli-zero-arguments`: **TTY=1** this numbered list; **TTY=0** help; never install.  
+2. The numbered list **MUST** also be routed-verb **`menu`**. **`main` MUST** be the same handler (alias).  
+3. **MUST NOT** draw the list off-TTY.  
+4. **MUST NOT** list `menu` / `main` as a numbered choice on its own list.  
+5. Choice **MUST** be current-shell `prompt_ask` then `PROMPT_ASK_VALUE`. **MUST NOT** `_choice=$(prompt_ask …)`.  
+6. Look **MUST** use `util_app_ident` + `out_menu_choice` (TTY explain italic + light gray).
 
 ### 2.2 `menu` / `main` mode check (case 3)
 

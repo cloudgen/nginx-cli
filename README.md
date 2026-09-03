@@ -1,6 +1,6 @@
 # nginx-cli - Nginx least-privilege admin CLI
 
-![Version](https://img.shields.io/badge/Version-1.7.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.8.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/nginx-cli?style=flat-square)](https://github.com/cloudgen/nginx-cli)
@@ -14,7 +14,7 @@ Install **location** is still **both**:
 ## Features
 
 - **Self-management**: `install`, `uninstall`, `where-is-me`, `version`, `about`, `help`
-- **Numbered list**: on a real terminal, `menu` (or `main`) lists live work commands; typing only `nginx-cli` still shows help
+- **Numbered list**: on a real terminal, typing `nginx-cli` (or `menu` / `main`) lists live work commands; a script still gets help
 - **nginx-adm LPU**: `setup` creates UID/GID **1999**, home `/etc/nginx-adm`, sites ownership, Family 2 `/etc/nginx-adm/sudoers`, and queues Family 1 JSON when sudoer-cli exists (does **not** write `/etc/sudoers.d`)
 - **Request queues** under `/var/nginx-cli`: `config-request` (`2770`, group `nginx-cli-submit`), `config-approved`, `config-rejected`; **user-domain-map** stays under nginx-adm home
 - **Submit gate**: only root, nginx-adm, or logins listed in `/etc/sudoers.d/nginx-cli-submit` **or** `/etc/sudoers.d/nginx-cli-<login>` **and** in group `nginx-cli-submit`
@@ -24,8 +24,8 @@ Install **location** is still **both**:
 - **Request names**: `yyyyMMdd-user-domain-n.json`; queued body is dest request JSON (`request` also accepts nginx-conf text and converts first)
 - **Approve**: snapshot inbound, publish to `sites-available` / enable-dir symlink, unlink inbound (do not `mv`)
 - **Reject**: snapshot inbound into rejected archive, unlink inbound (no publish)
-- **Interactive approval** and optional nginx-adm `.bashrc` login hook
-- **Type N empty argv**: no arguments shows help; `menu` / `main` opens the numbered list on a real terminal
+- **Interactive approval** and nginx-adm `.bashrc` login hook (`/usr/local/bin/nginx-cli-hook approve`)
+- **Type N empty argv**: no arguments on a real terminal opens the numbered list; in a script it shows help (never install)
 - **CIAO / CIAO-Lite** defensive design (`out_*` output SSOT)
 
 ## Quick Installation
@@ -54,28 +54,30 @@ sudo sh src/nginx-cli install
 sudo nginx-cli setup
 ```
 
+`setup` copies the program to `/usr/local/bin/nginx-cli` and, when missing, creates `/usr/local/bin/nginx-cli-hook` as a symlink.
+
 This product is **local-only** for its install channel (no default `SCRIPT_URL` online install). Bootstrap origin: [cloudgen/cli-template](https://github.com/cloudgen/cli-template).
 
-After install, on a terminal (`nginx-cli menu`; empty argv still shows help):
+After install, on a terminal:
 
 ```text
-$ nginx-cli menu
-[INFO] nginx-cli — numbered list of live work commands
-  1. remove-lpu: Remove nginx-adm (confirm or --force)
-  2. request: Submit dest JSON (or nginx-conf text dual)
-  3. list-requests: Approving / pending list
-  4. list-approved: Approved archive
-  5. list-rejected: Rejected archive
-  6. approve: Interactive one-by-one, or approve one file
-  7. reject: Reject one pending request
-  8. enable-login-approval: Add or refresh as-login approve in nginx-adm ~/.bashrc (no sudo)
-  9. map-set: Add user-domain-map entry (chown nginx-adm)
-  10. map-unset: Remove map entry
-  11. map-list: Show user-domain-map
-  12. submit-sudoer-request: Queue JSON grant via sudoer-cli (needs --allow-test-local unless global install)
-  13. conf-to-json: nginx-conf text → dest request JSON
-  14. json-to-conf: dest request JSON → nginx-conf text
-  99. Exit
+$ nginx-cli
+[INFO] **nginx-cli**(*1.8.0*) — numbered list of live work commands
+1. remove-lpu: Remove nginx-adm (confirm or --force)
+2. request: Submit dest JSON (or nginx-conf text dual)
+3. list-requests: Approving / pending list
+4. list-approved: Approved archive
+5. list-rejected: Rejected archive
+6. approve: Interactive one-by-one, or approve one file
+7. reject: Reject one pending request
+8. enable-login-approval: Add or refresh as-login approve in nginx-adm ~/.bashrc (no sudo)
+9. map-set: Add user-domain-map entry (chown nginx-adm)
+10. map-unset: Remove map entry
+11. map-list: Show user-domain-map
+12. submit-sudoer-request: Queue JSON grant via sudoer-cli (needs --allow-test-local unless global install)
+13. conf-to-json: nginx-conf text → dest request JSON
+14. json-to-conf: dest request JSON → nginx-conf text
+99. Exit
 ```
 
 Choose a number, or type the command name. `99` exits.
@@ -129,7 +131,7 @@ sudo nginx-cli map-set alice example.com
 nginx-cli request example.com ./example.com.conf
 
 # Approver login (or run explicitly). As nginx-adm, no sudo is required:
-# the login hook runs nginx-cli approve (not sudo, not sudo -n).
+# the login hook runs /usr/local/bin/nginx-cli-hook approve (not sudo, not sudo -n).
 nginx-cli approve
 # sudo nginx-cli approve needs the nginx-adm account password (not NOPASSWD).
 ```
@@ -160,4 +162,4 @@ MIT License — see [`LICENSE.md`](./LICENSE.md).
 
 ## Last Update
 
-2026-08-25 — version **1.7.0** (`setup` auto-queues Family 1 JSON; collision identity fail-closed; numbered list on `menu`/`main`).
+2026-09-03 — version **1.8.0** (TTY empty-argv numbered list; login-hook symlink `/usr/local/bin/nginx-cli-hook`).

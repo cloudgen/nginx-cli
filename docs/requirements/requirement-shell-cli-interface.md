@@ -52,7 +52,7 @@ Additional flags **MAY** be added only when documented here (or a superseding re
 
 1. **Single entry:** `app_main` **MUST** parse global flags and route commands.  
 2. **Unknown command:** **MUST** fail loudly with pointer to `help` (via output SSOT).  
-3. **Empty argv:** **Type N → help** (`requirement-shell-cli-zero-arguments.md`). **MUST NOT** become `menu`.  
+3. **Empty argv:** **Type N** (`requirement-shell-cli-zero-arguments.md`): TTY → numbered list; off-TTY → help. **MUST NOT** become install-ensure.  
 4. **No raw user I/O:** User-facing messages **MUST** go through `out_*`.  
 5. Script end **MUST** call `app_main "$@"` (no basename gate that blocks dispatch).  
 6. Trimmed parent verbs (`backup`, `restore`, `print-sudoers`, `print-sudoers-install-script`, `remove-project-sudoers`) **MUST** fail as unknown.

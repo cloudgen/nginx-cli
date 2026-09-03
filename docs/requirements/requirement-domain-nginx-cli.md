@@ -245,14 +245,23 @@ Paired **text duals** (what `json-to-conf` renders; also legal `request` input) 
 
 #### 2.2.6 Login hook
 
-Idempotent markers in `/etc/nginx-adm/.bashrc` only. The snippet **MUST** skip when `PS1` is unset (scp / non-interactive). Empty argv of this CLI **MUST** still be help (the hook calls `approve`, not bare `nginx-cli`). Interactive login **MUST** run **`/usr/local/bin/nginx-cli approve`** as login `nginx-adm` (**no** `sudo`; `OPEN-ADM-NOSUDO`). **MUST NOT** wrap the hook in `sudo` or `sudo -n`. Family 1 password `sudo nginx-cli` stays available for operators who choose sudo (`OPEN-PASSWD-CLI`); it is **not** the login-hook argv. Re-run of `enable-login-approval` / `setup` **MUST** replace the managed marker block when the inner command differs (a prior `sudo … approve` line **MUST** be rewritten).
+Idempotent markers in `/etc/nginx-adm/.bashrc` (and `.profile` create-if-absent). Type 1 `setup` **MUST** copy the ship unit to `/usr/local/bin/nginx-cli` then create `/usr/local/bin/nginx-cli-hook` as a symlink when that name is missing (**MUST NOT** overwrite; fixture **MUST NOT** write live `/usr/local/bin`). Interactive login **MUST** run **`/usr/local/bin/nginx-cli-hook approve`** as login `nginx-adm` (**no** `sudo`; `OPEN-ADM-NOSUDO`). **MUST NOT** wrap the hook in `sudo` or `sudo -n`. Re-run **MUST** rewrite a prior `/usr/local/bin/nginx-cli approve` or `sudo … approve` managed block to the hook name. Empty argv of this CLI is the numbered list on a TTY and help off-TTY — the hook still calls `approve`.
 
 Complete snippet (setup **MUST** write this shape):
 
 ```sh
 # >>> nginx-cli interactive approval (managed) >>>
-if [ -n "${PS1-}" ]; then
-    /usr/local/bin/nginx-cli approve
+if [ -z "${NGINX_CLI_HOOK_RAN:-}" ] \
+    && [ -n "${PS1:-}" ] \
+    && [ -t 0 ] && [ -t 1 ] \
+    && case "$-" in *i*) true ;; *) false ;; esac \
+    && [ "$(id -un)" = "nginx-adm" ] \
+    && [ -z "${SSH_ORIGINAL_COMMAND:-}" ]; then
+    NGINX_CLI_HOOK_RAN=1
+    export NGINX_CLI_HOOK_RAN
+    if ! /usr/local/bin/nginx-cli-hook approve; then
+        printf '%s\n' "nginx-cli: login review hook skipped (approve failed)" >&2
+    fi
 fi
 # <<< nginx-cli interactive approval (managed) <<<
 ```

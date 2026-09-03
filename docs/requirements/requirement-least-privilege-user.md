@@ -96,7 +96,7 @@ F7 order **MUST** be: backup+remove `/etc/nginx-adm/sudoers` → backup+remove t
 | Listed-submitter dest | After sibling approve: `/etc/sudoers.d/nginx-cli-<login>` | sibling dest |
 | Related group | `nginx-cli-submit` (inbound write); listing in submit sudoers **and** group membership are both required | — |
 | Approval subject | nginx-conf (`#` comments + nginx `server` block) | LPA leaf |
-| Login hook | `${F3}/.bashrc` only; marker managed by domain; command `/usr/local/bin/nginx-cli approve` (as-login; **not** `sudo`; **not** `sudo -n`) | F5 rc / domain SSOT |
+| Login hook | `${F3}/.bashrc` (and `.profile` create-if-absent); command `/usr/local/bin/nginx-cli-hook approve` (as-login; **not** `sudo`; **not** `sudo -n`) | F5 rc / domain SSOT |
 | Remove | `sudo nginx-cli remove-lpu` (or `remove-nginx-adm`) — any host admin already euid 0 | F7 |
 
 **Routing status:** `setup` / `remove-lpu` **are live** (useradd / queues / hook / password-ensure / userdel / Family 2 file / Family 1 JSON auto-queue). Family 1 dest `/etc/sudoers.d/nginx-cli-nginx-adm` is sibling-approved, not copied by `setup`. Bootstrap is **any** host admin already root (`sudo nginx-cli setup`); **not** `sudo -n`. Re-run **MUST** still ensure a usable nginx-adm password. Missing sibling dest → skip JSON queue (setup still succeeds).

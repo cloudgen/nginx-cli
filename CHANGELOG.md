@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-03
+
+### Added
+
+- **TTY empty-argv numbered list.** On a real terminal, `nginx-cli` with no arguments opens the live-command menu (default style: **nginx-cli**(*version*) header; gray italic descriptions). Off-TTY empty argv still shows help (Type N — not install). `menu` / `main` remain the same handler.
+- **Login-hook symlink.** Type 1 `setup` copies to `/usr/local/bin/nginx-cli` then creates `/usr/local/bin/nginx-cli-hook` when that name is missing (does not overwrite). nginx-adm `.bashrc` calls `/usr/local/bin/nginx-cli-hook approve` (as-login, no sudo). Heal rewrites a stale `/usr/local/bin/nginx-cli approve` line. Missing `.profile` is created so login shells source `.bashrc`. Fixture mode does not write live `/usr/local/bin`.
+
+### Changed
+
+- Menu choice uses current-shell `PROMPT_ASK_VALUE` (no `$()` of `prompt_ask`).
+- Complete login-hook guards (session, TTY, identity, scp) in the managed snippet.
+
 ## [1.7.0] - 2026-08-25
 
 ### Changed

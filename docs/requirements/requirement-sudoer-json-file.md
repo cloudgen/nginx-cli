@@ -16,7 +16,7 @@ This requirement is the **product Single Source of Truth** for the **JSON-type s
 
 Both grants **MUST** name only the project command **`nginx-cli`**. They **MUST NOT** allowlist other shell or OS tools. They **MUST NOT** grant `setup` / `remove-lpu` / `install` / `uninstall`. Extra tools increase design complexity and weaken security.
 
-**Dest-honest vs dns-cli:** sibling dest uses the same `kind` enum. This dest’s login hook is **as-login** `/usr/local/bin/nginx-cli approve` (**no** `sudo`, **no** `sudo -n`). The `login-hook-elev` JSON is **Family 1** (password `sudo nginx-cli <verb>` after dest approve). **MUST NOT** copy dns-cli `args: ["interactive"]` or `NOPASSWD` on this kind. **MUST NOT** wrap the login hook in sudo because this JSON exists.
+**Dest-honest vs dns-cli:** sibling dest uses the same `kind` enum. This dest’s login hook is **as-login** `/usr/local/bin/nginx-cli-hook approve` (**no** `sudo`, **no** `sudo -n`). The `login-hook-elev` JSON is **Family 1** (password `sudo nginx-cli <verb>` after dest approve). **MUST NOT** copy dns-cli `args: ["interactive"]` or `NOPASSWD` on this kind. **MUST NOT** wrap the login hook in sudo because this JSON exists.
 
 This file does **not** own:
 

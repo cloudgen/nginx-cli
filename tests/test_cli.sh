@@ -86,12 +86,13 @@ run_test_cli() {
     assert_not_contains "TP-CLI-06 no CHECKSUM" "$_out" "CHECKSUM"
     assert_not_contains "TP-CLI-06 no SCRIPT_URL" "$_out" "SCRIPT_URL"
 
-    # TP-CLI-07 empty argv = Type N help (not install)
+    # TP-CLI-07 off-TTY empty argv = Type N help (not install; not the numbered list)
     _out=$(sh "${SCRIPT}" 2>/dev/null)
     _ec=$?
     assert_eq "TP-CLI-07 empty argv exit 0" 0 "$_ec"
     assert_contains "TP-CLI-07 empty argv is help" "$_out" "Usage:"
     assert_contains "TP-CLI-07 empty argv mentions Type N or help" "$_out" "help"
+    assert_not_contains "TP-CLI-07 empty argv off-tty is not numbered list" "$_out" "99. Exit"
 
     # TP-CLI-08 unknown command fail-closed
     _err=$(sh "${SCRIPT}" no-such-command 2>&1 >/dev/null)
@@ -164,8 +165,8 @@ run_test_cli() {
     assert_not_contains "TP-CLI-17 menu off-tty no numbered remove-lpu row" "$_out" "1. remove-lpu:"
 
     _out=$(sh "${SCRIPT}" 2>/dev/null)
-    assert_contains "TP-CLI-17 empty argv still help" "$_out" "Usage:"
-    assert_not_contains "TP-CLI-17 empty argv is not the numbered list" "$_out" "99. Exit"
+    assert_contains "TP-CLI-17 empty argv off-tty is help" "$_out" "Usage:"
+    assert_not_contains "TP-CLI-17 empty argv off-tty is not the numbered list" "$_out" "99. Exit"
 
     _out=$(sh "${SCRIPT}" --quiet menu 2>/dev/null)
     _ec=$?
@@ -220,8 +221,24 @@ run_test_cli() {
 ' python3 "${_pty_py}" sh "${SCRIPT}" --json menu 2>/dev/null)
         assert_contains "TP-CLI-22 TTY menu --json still numbered list" "${_pty_json}" "99. Exit"
         assert_not_contains "TP-CLI-22 TTY menu --json is not JSON help" "${_pty_json}" '"type":"success"'
+        assert_contains "TP-CLI-24 TTY menu header has VERSION" "${_pty_out}" "${PRODUCT_VERSION}"
+        assert_contains "TP-CLI-24 TTY menu gray-italic explain" "${_pty_out}" "[3;37m"
+        _pty_empty=$(MENU_INPUT='99
+' python3 "${_pty_py}" sh "${SCRIPT}" 2>/dev/null)
+        assert_contains "TP-CLI-25 TTY empty argv has Exit 99" "${_pty_empty}" "99. Exit"
+        assert_contains "TP-CLI-25 TTY empty argv row 1 remove-lpu" "${_pty_empty}" "1. remove-lpu:"
+        assert_not_contains "TP-CLI-25 TTY empty argv is not Usage help" "${_pty_empty}" "Usage:"
     else
         t_skip "TP-CLI-21 TTY menu numbered list (no PTY)"
         t_skip "TP-CLI-22 TTY menu --json still list (no PTY)"
+        t_skip "TP-CLI-24 TTY menu default style (no PTY)"
+        t_skip "TP-CLI-25 TTY empty argv numbered list (no PTY)"
     fi
+
+    _ship=$(cat "${SCRIPT}")
+    assert_contains "TP-CLI-23 prompt_ask sets PROMPT_ASK_VALUE" "${_ship}" "PROMPT_ASK_VALUE"
+    assert_contains "TP-CLI-23 menu reads PROMPT_ASK_VALUE" "${_ship}" '_mm_choice="${PROMPT_ASK_VALUE}"'
+    assert_not_contains "TP-CLI-23 no captured prompt_ask call" "${_ship}" '_mm_choice=$(prompt_ask'
+    assert_contains "TP-CLI-24 util_app_ident present" "${_ship}" "util_app_ident()"
+    assert_contains "TP-CLI-24 out_menu_choice present" "${_ship}" "out_menu_choice()"
 }

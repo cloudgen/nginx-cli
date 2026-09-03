@@ -141,8 +141,11 @@ run_test_domain() {
     _hits=$(grep -c "interactive approval (managed)" "${_home}/.bashrc" || true)
     assert_eq "TP-NGX-10 hook inserted once (two marker lines)" 2 "${_hits}"
     assert_contains "TP-NGX-14 hook calls approve" "$(cat "${_home}/.bashrc")" "approve"
-    assert_contains "TP-NGX-14 hook is as-login global binary" "$(cat "${_home}/.bashrc")" "/usr/local/bin/nginx-cli approve"
+    assert_contains "TP-NGX-14 hook is as-login hook symlink" "$(cat "${_home}/.bashrc")" "/usr/local/bin/nginx-cli-hook approve"
+    assert_not_contains "TP-NGX-14 hook not product binary without -hook" "$(cat "${_home}/.bashrc")" "/usr/local/bin/nginx-cli approve"
     assert_not_contains "TP-NGX-14 hook not sudo" "$(cat "${_home}/.bashrc")" "sudo"
+    assert_file_exists "TP-HOOK-02 profile created" "${_home}/.profile"
+    assert_contains "TP-HOOK-02 profile sources bashrc" "$(cat "${_home}/.profile")" '.bashrc'
 
     # TP-NGX-50 replace a stale sudo-shaped managed block
     {
@@ -156,10 +159,31 @@ run_test_domain() {
     _hits=$(grep -c "interactive approval (managed)" "${_home}/.bashrc" || true)
     assert_eq "TP-NGX-50 still one managed pair" 2 "${_hits}"
     assert_contains "TP-NGX-50 reports replaced" "${_out}" "Replaced"
-    assert_contains "TP-NGX-50 hook calls approve" "$(cat "${_home}/.bashrc")" "/usr/local/bin/nginx-cli approve"
+    assert_contains "TP-NGX-50 hook calls approve via -hook" "$(cat "${_home}/.bashrc")" "/usr/local/bin/nginx-cli-hook approve"
     assert_not_contains "TP-NGX-50 hook not sudo" "$(cat "${_home}/.bashrc")" "sudo"
+    assert_not_contains "TP-NGX-50 old product-binary line gone" "$(cat "${_home}/.bashrc")" "/usr/local/bin/nginx-cli approve"
     _out=$(ngx_fx enable-login-approval 2>&1)
     assert_contains "TP-NGX-50 second run already present" "${_out}" "already present"
+
+    printf '%s\n' "# keep-me-profile" > "${_home}/.profile"
+    ngx_fx enable-login-approval >/dev/null 2>&1
+    assert_contains "TP-HOOK-03 existing profile kept" "$(cat "${_home}/.profile")" "keep-me-profile"
+    assert_not_contains "TP-HOOK-03 existing profile not rewritten" "$(cat "${_home}/.profile")" "BEGIN nginx-cli profile"
+
+    {
+        printf '%s\n' "# >>> nginx-cli interactive approval (managed) >>>"
+        printf 'if [ -n "${PS1-}" ]; then\n'
+        printf '    /usr/local/bin/nginx-cli approve\n'
+        printf 'fi\n'
+        printf '%s\n' "# <<< nginx-cli interactive approval (managed) <<<"
+    } > "${_home}/.bashrc"
+    _out=$(ngx_fx enable-login-approval 2>&1)
+    assert_contains "TP-HOOK-08 reports replaced" "${_out}" "Replaced"
+    assert_contains "TP-HOOK-08 new hook path" "$(cat "${_home}/.bashrc")" "/usr/local/bin/nginx-cli-hook approve"
+    assert_not_contains "TP-HOOK-08 old binary path gone" "$(cat "${_home}/.bashrc")" "/usr/local/bin/nginx-cli approve"
+    _setup_fn=$(sed -n '/^ngx_setup() {/,/^}/p' "${SCRIPT}")
+    assert_contains "TP-HOOK-08 setup copies global binary" "${_setup_fn}" "inst_local_install"
+    assert_contains "TP-HOOK-08 setup ensures hook symlink" "${_setup_fn}" "ngx_ensure_login_hook_symlink"
 
     # TP-NGX-11 approve without basename non-tty fail-closed
     _err=$(ngx_fx approve 2>&1 >/dev/null)
