@@ -8,6 +8,29 @@
 
 Define **project folder structure** and path ownership for the nginx-cli CLI: source layout, install locations, and scratch/cache. This product has **no** durable host backup deposit.
 
+### 1.1 Human-facing
+
+**In one sentence:** The program people install lives at `src/nginx-cli`; the frozen starter copy stays at `src/cli-template` and must not be overwritten.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | Edit and install the product | `src/nginx-cli` |
+| Origin A | Frozen starter | `src/cli-template` |
+| Not this file | Waiting nginx JSON | `/var/nginx-cli` |
+
+| Includes | Excludes |
+|----------|----------|
+| `src/`, install bins, scratch | Durable `/var/backup` deposit |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/nginx-cli` | ship unit | product |
+| `~/.local/bin/nginx-cli` | local install | this login |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Install from checkout | Copy `src/nginx-cli`, not the frozen origin | `sh src/nginx-cli install` |
+
 ---
 
 ## 2. Core Rules (Mandatory)

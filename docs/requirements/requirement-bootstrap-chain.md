@@ -12,6 +12,29 @@ Declare the **bootstrap chain** for this product: **A = cli-template** (frozen a
 
 **Direction is sacred:** ancestor → descendant only. Never reverse-copy this product onto frozen origin A (`src/cli-template`).
 
+### 1.1 Human-facing
+
+**In one sentence:** This product grew from a frozen starter (`cli-template`). Fixes go into `src/nginx-cli`, never back onto that starter.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| This product (B) | `src/nginx-cli` | edit here |
+| Origin (A) | `src/cli-template` | read-only reference |
+| Not this file | Domain verbs | `requirement-domain-nginx-cli` |
+
+| Includes | Excludes |
+|----------|----------|
+| A → B only; no online/archive verbs from parent | Reverse-copy; treating folder-backup as origin |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/cli-template` | frozen origin | compare architecture |
+| `src/nginx-cli` | this product | ship |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Share a fix | Copy from origin into this product if needed; **never** the reverse | (edit `src/nginx-cli`) |
+
 ---
 
 ## 2. Core Rules (Mandatory)
@@ -79,7 +102,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | Concern | Value |
 |---------|---------|
 | `APP_NAME` | `nginx-cli` |
-| `VERSION` | `1.7.0` (product version SSOT in ship unit) |
+| `VERSION` | `1.8.1` (product version SSOT in ship unit) |
 | Primary install story | Local copy from running ship unit → `${USER_BIN}` (default `~/.local/bin`) |
 | README one-liner | **No** `curl \| sh` channel claim |
 

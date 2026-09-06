@@ -156,7 +156,7 @@ run_test_cli() {
     assert_eq "TP-CLI-14 nginx-ctl exit 1" 1 "$_ec"
     assert_contains "TP-CLI-14 nginx-ctl unknown" "$_err" "Unknown command"
 
-    # TP-CLI-17 menu off-TTY is human help (not the numbered list; empty argv stays help)
+    # TP-CLI-17 menu off-TTY is human help (not the numbered list; off-TTY empty argv stays help)
     _out=$(sh "${SCRIPT}" menu 2>/dev/null)
     _ec=$?
     assert_eq "TP-CLI-17 menu off-tty exit 0" 0 "$_ec"

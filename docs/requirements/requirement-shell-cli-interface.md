@@ -8,7 +8,34 @@
 
 This requirement is the **project Single Source of Truth** for the **POSIX shell CLI interface** of nginx-cli: command surface, privilege typing, global flags, dispatcher behavior, help/about contracts, and mode rules.
 
-Type 0 lifecycle verbs live here. **Domain verbs** (`setup`, `request`, `approve`, …) are owned by `requirement-domain-nginx-cli.md`. Full lifecycle rules live in `requirement-shell-local-self-management.md`.
+Lifecycle verbs (`install`, `help`, `version`) live here. **Domain verbs** (`setup`, `request`, `approve`, …) are owned by `requirement-domain-nginx-cli.md`. Full lifecycle rules live in `requirement-shell-local-self-management.md`.
+
+### 1.1 Human-facing
+
+**In one sentence:** This file lists the commands `nginx-cli` understands and which login may run each one.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | Help, install for yourself, convert, submit a request | `nginx-cli help` |
+| Host admin / nginx-adm | Create nginx-adm; publish or reject a waiting file | `sudo nginx-cli setup` |
+| Not this file | How a waiting JSON is shaped | `requirement-domain-nginx-cli` |
+
+| Includes | Excludes |
+|----------|----------|
+| Command table, flags, dispatcher, help/about | JSON body samples; sudoers fragment lines |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/nginx-cli` | ship unit | live dispatcher |
+| `nginx-cli help` | command | listed verbs |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| See what exists | Help lists work commands and testers apart | `nginx-cli help` |
+
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, only **this login** may run: help, version, about, local install, convert, testers, numbered list. **Admin privilege** (`setup` / `remove-lpu`) and **dedicated system user privilege** stay unused. POSIX Linux with a root login is **not** that class.
 
 ---
 
@@ -23,7 +50,7 @@ Every command **MUST** map to exactly one privilege type. Unclassified commands 
 | **Type 0 – CLI lifecycle + diagnostics** | Invoking user | `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` |
 | **Type 0 – Sibling compose** | Invoking user | `submit-sudoer-request` (see domain + three-layer) |
 | **Type 0 – Convert dual** | Invoking user | `conf-to-json`, `json-to-conf` (see domain SSOT) |
-| **Type 0 – Numbered list** | Invoking user | `menu` (alias `main`) — TTY list of live work commands; empty argv stays help (see `requirement-shell-cli-default-interaction`) |
+| **Type 0 – Numbered list** | Invoking user | `menu` (alias `main`) — TTY list of live work commands; TTY empty argv is the same list; off-TTY empty argv stays help (see `requirement-shell-cli-default-interaction` and `requirement-shell-cli-zero-arguments`) |
 | **Type 0 – Test-purpose (unit test; local test folder)** | Invoking user | `test-json-format`, `fence-test` (see dest Fence REQ). **MUST NOT** queue or dest-write. Help lists these **apart** from operational verbs. Type 0 does **not** mean unit test |
 | **Type 1 – Narrow elevated host ops** | Controlled sudo / root | **Domain** — `setup`, `remove-lpu` (see domain SSOT) |
 | **Gated domain** | root / nginx-adm / submit sudoers | **Domain** — request, list, approve, reject, map-* (see domain SSOT) |
@@ -81,7 +108,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | **Primary executable** | `src/nginx-cli` (POSIX `/bin/sh`, single-file ship unit) |
 | **Dispatcher** | `app_main` |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION="1.7.0"` hard-assign in ship unit |
+| **Version SSOT** | `VERSION="1.8.1"` hard-assign in ship unit |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Primary install story** | User bin: `~/.local/bin/nginx-cli` |
 | **Online channel env** | **Not product UX** (trimmed) |

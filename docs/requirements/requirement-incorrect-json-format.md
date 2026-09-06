@@ -42,6 +42,10 @@ Dest closed schema is dest-owned. An unknown key is a key **not** on that allowl
 | Test a dest JSON | Check the file against this Fence without becoming nginx-adm and without putting it in the waiting folder | `nginx-cli test-json-format --file ./20260821-alice-example.com-1.json` |
 | Stamp `submit_app` as another product | Dest format **MUST** accept it | (sibling submitter) |
 
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, testers (`test-json-format` / `fence-test`) against a **local file** remain allowed. Dest `approve` host mutate is unused on that class.
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)

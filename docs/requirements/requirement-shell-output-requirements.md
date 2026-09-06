@@ -10,6 +10,28 @@ This requirement is the **project Single Source of Truth** for **all CLI output*
 
 This product keeps the inherited `out_*` family. Domain verbs emit through the same SSOT; domain wording is owned by `requirement-domain-nginx-cli.md`.
 
+### 1.1 Human-facing
+
+**In one sentence:** Every message people or scripts see goes through one output family (`out_*`), so quiet and JSON modes stay consistent.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | Human lines on a terminal | `nginx-cli version` |
+| A script | JSON objects | `nginx-cli --json about` |
+| Not this file | What a fatal **says** for a domain fail | `requirement-domain-nginx-cli` |
+
+| Includes | Excludes |
+|----------|----------|
+| stdout/stderr split; quiet; JSON; debug | Domain verb meaning |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/nginx-cli` | `out_*` helpers | all product print |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Parse in CI | `--json` is structured; errors still have a next step in human mode | `nginx-cli --json about` |
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)

@@ -17,6 +17,33 @@ The **closed catalog** of what the product blocks — and what it **must not** b
 
 **print-sudoers / print-sudoers-install-script / remove-project-sudoers are intentionally absent.** Type 1 `setup` writes the host F6 / shared-allowlist fragments. Type 0 `submit-sudoer-request` queues a **per-user** grant via the sibling; it does **not** write `/etc`.
 
+### 1.1 Human-facing
+
+**In one sentence:** Your login can submit a request; only root or nginx-adm can change the computer (create nginx-adm, publish a site). This program does not switch into nginx-adm to write files.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | Submit, convert, ask sudoer-cli for a grant | `nginx-cli request example.com ./site.conf` |
+| Host admin / nginx-adm | Create nginx-adm; publish or reject | `sudo nginx-cli setup` |
+| Not this file | Waiting JSON shape | `requirement-domain-nginx-cli` |
+
+| Includes | Excludes |
+|----------|----------|
+| Who may run what; sudoers families; `submit-sudoer-request` | Dest Fence match; nginx-conf samples |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/nginx-cli` | ship unit | `setup` / `submit-sudoer-request` |
+| `/etc/nginx-adm/sudoers` | unit-tools fragment | nginx start/stop/reload without a password |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| First-time host | Needs a root login. Does not write `/etc/sudoers.d`. | `sudo nginx-cli setup` |
+
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, **admin privilege** and **dedicated system user privilege** **MUST** stay unused: no `setup` / `remove-lpu`, no `useradd`, no in-tool `sudo`, no `/etc` dest. POSIX Linux with a root login is **not** that class.
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)

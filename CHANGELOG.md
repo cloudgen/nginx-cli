@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-09-06
+
+### Fixed
+
+- Dest JSON fence compared `username` to the path-safe basename user. A login with a hyphen (`id -un`) stamped JSON as the real login and then failed “JSON username does not match the submitter.” Dest now compares via path-safe encoding: JSON username stays the invoker; basename still uses underscore.
+
+### Changed
+
+- Product README Description uses people-and-folders voice (who submits, who approves, local install). Catalog codes are no longer the lead.
+- Requirements: every registered file now has **§1.1 Human-facing**. Related shell/privilege/domain files have a section **Under command line for normal user only**.
+- Law/maps catch-up: TTY empty argv is the numbered list; off-TTY empty argv stays help. `reviews/test-plan.md` records **TP-CLI-23..25**.
+
+### Tests
+
+- TP-NGX-54 **have** (JSON username = invoker; basename user = path-safe).
+
 ## [1.8.0] - 2026-09-03
 
 ### Added

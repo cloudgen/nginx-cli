@@ -53,6 +53,10 @@ Queued **basename** allocation remains sibling-owned. This requirement owns **co
 |---------|---------------|---------------|
 | First-time host | Create nginx-adm; if sudoer-cli is already set up, a Family 1 grant waits for sudoer-adm. Login hook still runs `nginx-cli approve` with no sudo. | `sudo nginx-cli setup` then, as sudoer-adm, review inbound |
 
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, Type 1 auto-queue of Family 1 JSON **MUST** stay unused (`setup` unused). Type 0 `submit-sudoer-request` **MAY** still queue a submitter grant when sibling inbound already exists; it **MUST NOT** `mkdir` that inbound.
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)

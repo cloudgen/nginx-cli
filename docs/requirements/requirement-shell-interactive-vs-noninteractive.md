@@ -8,6 +8,33 @@
 
 This requirement is the **project Single Source of Truth** for how nginx-cli behaves in **interactive** (human + TTY) versus **non-interactive** (automation, CI/CD, pipes, `--json` / often `--quiet`) environments.
 
+### 1.1 Human-facing
+
+**In one sentence:** On a real terminal the program may ask yes/no; in a script it must not hang waiting for an answer.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | Confirm uninstall; walk approve | `nginx-cli approve` |
+| CI / pipe | Fail closed or help; never wait | `nginx-cli uninstall` without `--force` |
+| Not this file | What the numbered list contains | `requirement-shell-cli-default-interaction` |
+
+| Includes | Excludes |
+|----------|----------|
+| TTY measured once outside functions; helpers consume `TTY`; confirm policy | Live `[ -t` inside `prompt_*` as policy |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/nginx-cli` | main process | `TTY` flag |
+| `prompt_yes_no` / `prompt_ask` | helpers | read `TTY` |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Uninstall from a script | Needs `--force` or it fails closed | `nginx-cli uninstall --force` |
+
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, interactive confirm still applies to **this login**. Host `setup` password prompts are unused on that class because **admin privilege** is unused.
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)

@@ -34,7 +34,7 @@
 # Single-file ship unit under src/; install to ~/.local/bin (user) or /usr/local/bin (root/--global).
 #
 # APP NAME: hard-assign APP_NAME="nginx-cli"
-# VERSION: hard-assign VERSION="1.8.0"
+# VERSION: hard-assign VERSION="1.8.1"
 #
 # =============================================================================
 
@@ -51,7 +51,7 @@ APP_NAME="nginx-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, interactive approval, submit-sudoer-request, test-json-format, fence-test, and a TTY numbered list (empty argv or menu/main).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.8.0"
+VERSION="1.8.1"
 : "${VERSION:=1.0.0}"
 # Repository identity SSOT (git host owner/repo for project-repository alignment).
 # Install remains local-only: SCRIPT_URL stays empty (no online curl|sh channel).
@@ -2559,7 +2559,10 @@ ngx_dest_json_fence() {
         NGX_FENCE_MSG="Dest JSON is missing username. Dest did not ask yes or no. Next: add username and ${APP_NAME} request it again."
         return 1
     fi
-    if [ -n "${_exp_user}" ] && [ "${_user}" != "${_exp_user}" ]; then
+    # JSON username is the invoker (id -un). Basename user is path-safe (hyphen → underscore).
+    _user_safe=$(ngx_path_safe_user "${_user}")
+    _exp_safe=$(ngx_path_safe_user "${_exp_user}")
+    if [ -n "${_exp_user}" ] && [ "${_user_safe}" != "${_exp_safe}" ]; then
         NGX_FENCE_MSG="JSON username does not match the submitter. Dest did not ask yes or no. Next: fix username and ${APP_NAME} request it again."
         return 1
     fi
@@ -2595,7 +2598,7 @@ ngx_dest_json_fence() {
                         NGX_FENCE_MSG="Basename domain does not match JSON domain. Dest did not ask yes or no. Next: rename or fix domain."
                         return 1
                     fi
-                    if [ -n "${NGX_PARSE_USER}" ] && [ "${_user}" != "${NGX_PARSE_USER}" ]; then
+                    if [ -n "${NGX_PARSE_USER}" ] && [ "${_user_safe}" != "${NGX_PARSE_USER}" ]; then
                         NGX_FENCE_MSG="Basename user does not match JSON username. Dest did not ask yes or no. Next: rename or fix username."
                         return 1
                     fi

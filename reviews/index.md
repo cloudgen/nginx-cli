@@ -12,5 +12,6 @@
 | 2026-08-23 | `reviews/cli-routed-verb-table.md` | live command list + human-readable labels | full scan (26 live; `menu`/`main` implemented) | see `tests/run.sh` |
 | 2026-08-23 | `reviews/reports/2026-08-23-sibling-setup-dns-cli-sudoer-cli.md` | Type 1 `setup` vs dns-cli + sudoer-cli | Pass (2026-08-25) — L-COLLIDE-01 closed; do not copy 3773 / NOPASSWD whole CLI / `sudo -n` hook | see `tests/run.sh` |
 | 2026-08-25 | `reviews/reports/2026-08-25-requirement-review.md` | registry requirement review + collision / menu close | Approve with follow-ups — 19 REQs; TP-NGX-51 have; §1.1 residual on older REQs | see `tests/run.sh` |
+| 2026-09-06 | `reviews/reports/2026-09-06-human-readability-coverage.md` | README human-readability + REQ/checklist/test coverage | Approve with follow-ups — §1.1 on all 19 REQs; TP-CLI-23..25 mapped; hyphenated-login fence **1.8.1**; Termux detect still Gap | see `tests/run.sh` |
 
 Related products **selfmanaged** and **folder-backup** keep their own reviews. They are **not** this product’s law, origin, or evidence. Origin A **cli-template** is a frozen reference at `src/cli-template`.

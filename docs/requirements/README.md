@@ -2,14 +2,14 @@
 
 Authoritative specialized product law for **nginx-cli** lives here.
 
-**Current state (2026-08-23):** Specialized **software-development** product. Left genesis. **This product is B** (`nginx-cli`). **Origin A** is `cli-template` (frozen at `src/cli-template`). Do not reverse-copy B onto A. Registry is populated — see `index.md`. Type 0 `menu`/`main` is case 3 (empty argv stays help).
+**Current state (2026-09-06):** Specialized **software-development** product. Left genesis. **This product is B** (`nginx-cli`). **Origin A** is `cli-template` (frozen at `src/cli-template`). Do not reverse-copy B onto A. Registry is populated — see `index.md`. Numbered list: TTY empty argv and `menu`/`main`; off-TTY empty argv stays help.
 
 ## Product identity (summary)
 
 | Field | Value |
 |-------|--------|
 | Product / `APP_NAME` | `nginx-cli` |
-| Version SSOT | `1.7.0` (ship unit hard-assign) |
+| Version SSOT | `1.8.1` (ship unit hard-assign) |
 | Ship unit | `src/nginx-cli` |
 | Origin A (frozen) | `src/cli-template` |
 | Default install | `~/.local/bin/nginx-cli` |

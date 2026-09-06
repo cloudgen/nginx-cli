@@ -13,6 +13,33 @@ The Type 0 / Type 1 / Type 2 map and elev Tables A / B / C stay on `requirement-
 
 A wall that is not a §2.2 row is **not** product law.
 
+### 1.1 Human-facing
+
+**In one sentence:** This file lists every wall this product raises, and what it must leave open after an admin has already elevated.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | A listed wall stops you | cannot `mkdir` the waiting folder |
+| Host admin | After elev, unit tools still work | `systemctl reload nginx` |
+| Not this file | Who may run which verb | `requirement-three-layer-privilege-model` |
+
+| Includes | Excludes |
+|----------|----------|
+| Closed block catalog; must-remain-open catalog | Invented extra walls |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| This file §2.2 | catalog | what is stopped |
+| This file §2.3 | catalog | what must stay open |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Add a new deny | It is **not** law until it is a §2.2 row in the same change | (edit this file first) |
+
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, walls that assume root (`useradd`, `/etc/sudoers.d`, live sites) **MUST** stay unused because **admin privilege** is unused on that class. Do **not** invent extra walls for that class.
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)

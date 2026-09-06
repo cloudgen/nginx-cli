@@ -10,6 +10,32 @@ This requirement is the **project Single Source of Truth** for **idempotency (re
 
 **Informal formula:** for ensure-style operation *f* and system state *x*, **f(f(x)) ≈ f(x)** for the **desired outcome** (logs and timestamps may differ).
 
+### 1.1 Human-facing
+
+**In one sentence:** Running `install` or `uninstall` again must not break a machine that is already in the desired state.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | Re-run install | `sh src/nginx-cli install` |
+| Host admin | Re-run setup when nginx-adm already exists | `sudo nginx-cli setup` |
+| Not this file | Confirm prompts | `requirement-shell-interactive-vs-noninteractive` |
+
+| Includes | Excludes |
+|----------|----------|
+| Re-run safety for ensure operations | Treating “already exists” as a hard fail |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/nginx-cli` | ship unit | `install` / `uninstall` / `setup` |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Install twice | Second run succeeds (refresh with `--force` when you mean replace) | `sh src/nginx-cli install` |
+
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, re-run safety still applies to **this login’s** local install. Host `setup` is unused on that class.
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)

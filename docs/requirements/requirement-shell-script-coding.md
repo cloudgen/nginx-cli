@@ -36,6 +36,10 @@ This file is **not** a second copy of output, prefix, TTY, or dest JSON fence ta
 |---------|---------------|---------------|
 | Change a helper | Follow this file and the peers it points at. Do not import a portable lesson that this product did not adopt. | (edit `src/nginx-cli`) |
 
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, helpers **MUST NOT** wrap `sudo`, `useradd`, or `/etc` dest. **MUST NOT** skip `sudo nginx-cli setup` on POSIX Linux because “the operator is not a sudoer” — that class is not Termux.
+
 ---
 
 ## Design-time verification

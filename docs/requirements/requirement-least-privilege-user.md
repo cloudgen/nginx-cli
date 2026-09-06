@@ -32,6 +32,10 @@ This requirement is the **project Single Source of Truth** for the dedicated **l
 |---------|---------------|---------------|
 | First-time host setup | Creates nginx-adm. If UID 1999 is already another login, it **must not** steal it. | `sudo nginx-cli setup` then `getent passwd 1999` if setup dies |
 
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, **admin privilege** is unused: **MUST NOT** run `setup` / `remove-lpu` / `useradd`. nginx-adm as a dedicated account is a Linux-with-root job. This class stays at **this login**.
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)

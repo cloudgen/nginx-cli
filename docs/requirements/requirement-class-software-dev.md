@@ -108,7 +108,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | **Architectures supported** | any arch with POSIX sh and the external tools the script invokes |
 | **Git surface** | used when product is published |
 | **Ship unit / install** | yes — `src/nginx-cli` → `${USER_BIN}/nginx-cli` (default `~/.local/bin/nginx-cli`); **local-only** install (no online channel) |
-| **Product version SSOT** | `VERSION="1.7.0"` hard-assign in `src/nginx-cli` |
+| **Product version SSOT** | `VERSION="1.8.1"` hard-assign in `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) — this product is B. No live parent hop. |
 
 **Residual ownership table:**
@@ -121,8 +121,8 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Bootstrap lineage / keep-trim | `requirement-bootstrap-chain` | A = cli-template (frozen); this product is B |
 | Project layout / ship path | `requirement-project-folder` | `src/` + bin targets |
 | Type 0 CLI surface / flags / dispatch | `requirement-shell-cli-interface` | Do not duplicate |
-| Empty argv Type N help | `requirement-shell-cli-zero-arguments` | Local-only |
-| Numbered TTY list (`menu`/`main`) | `requirement-shell-cli-default-interaction` | Case 3; empty argv stays help |
+| Empty argv Type N | `requirement-shell-cli-zero-arguments` | TTY numbered list; off-TTY help; never install |
+| Numbered TTY list (`menu`/`main`) | `requirement-shell-cli-default-interaction` | Same list as TTY empty argv |
 | Local self-managed lifecycle | `requirement-shell-local-self-management` | install / uninstall / where-is-me |
 | Output SSOT (`out_*`) | `requirement-shell-output-requirements` | Do not duplicate |
 | Scratch/cache storage resolve | `requirement-shell-cli-storage` | Do not duplicate |

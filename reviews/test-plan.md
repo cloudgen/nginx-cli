@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/nginx-cli`  
-**Product VERSION:** 1.7.0  
-**Last plan update:** 2026-08-25  
-**Last suite run:** PASS=293 FAIL=0 SKIP=0 (2026-08-25)
+**Product VERSION:** 1.8.1  
+**Last plan update:** 2026-09-06  
+**Last suite run:** PASS=318 FAIL=0 SKIP=0 (2026-09-06)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -17,8 +17,8 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 |------|--------|----------|
 | Syntax `sh -n` | have | TP-CLI-01 |
 | version / help / about human + JSON | have | TP-CLI-02..06 |
-| Type N empty argv = help | have | TP-CLI-07 |
-| `menu`/`main` off-TTY help; TTY numbered list | have | TP-CLI-17..22 |
+| Type N off-TTY empty argv = help; TTY empty argv = numbered list | have | TP-CLI-07, TP-CLI-25 |
+| `menu`/`main` off-TTY help; TTY numbered list; default style; no `$()` of `prompt_ask` | have | TP-CLI-17..24 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
 | No online verbs / no SCRIPT_URL UX | have | TP-CLI-04, TP-CLI-10 |
@@ -47,7 +47,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-CLI-04 | help Type 0 + domain verbs + submit-sudoer-request; no online/archive verbs | test_cli | requirement-shell-cli-interface · domain | **have** |
 | TP-CLI-05 | help JSON short | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-06 | about JSON storage + nginx-adm + sudoer-cli fields | test_cli | requirement-shell-cli-storage · domain | **have** |
-| TP-CLI-07 | empty argv Type N help | test_cli | requirement-shell-cli-zero-arguments | **have** |
+| TP-CLI-07 | off-TTY empty argv Type N help (not install; not the list) | test_cli | requirement-shell-cli-zero-arguments | **have** |
 | TP-CLI-08 | unknown fail-closed | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-09 | quiet suppresses version | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-10 | online verbs rejected | test_cli | requirement-bootstrap-chain | **have** |
@@ -57,12 +57,15 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-CLI-14 | `nginx-ctl` unknown; help does not list it | test_cli | prevention · three-layer · interface | **have** |
 | TP-CLI-15 | Help lists `fence-test` / `test-json-format` under Unit test heading | test_cli | interface · dest Fence | **have** |
 | TP-CLI-16 | Help documents `--dir` / `--expect-match` tester flags | test_cli | interface · dest Fence | **have** |
-| TP-CLI-17 | `menu` off-TTY human help; not numbered list; empty argv still help | test_cli | default-interaction · zero-arguments | **have** |
+| TP-CLI-17 | `menu` off-TTY human help; not numbered list; off-TTY empty argv still help | test_cli | default-interaction · zero-arguments | **have** |
 | TP-CLI-18 | `menu --json` off-TTY JSON help | test_cli | default-interaction | **have** |
 | TP-CLI-19 | `main` off-TTY human help | test_cli | default-interaction | **have** |
 | TP-CLI-20 | Help lists `menu` / `main` | test_cli | interface · default-interaction | **have** |
 | TP-CLI-21 | TTY `menu` numbered list N=14 Exit 99; exclusions | test_cli | default-interaction | **have** (skip if no PTY) |
 | TP-CLI-22 | TTY `menu --json` still the list | test_cli | default-interaction | **have** (skip if no PTY) |
+| TP-CLI-23 | Menu choice reads `PROMPT_ASK_VALUE` (no `$()` of `prompt_ask`) | test_cli | default-interaction | **have** |
+| TP-CLI-24 | TTY menu header has VERSION; gray-italic explain | test_cli | default-interaction | **have** (skip if no PTY) |
+| TP-CLI-25 | TTY empty argv numbered list (not Usage help) | test_cli | zero-arguments · default-interaction | **have** (skip if no PTY) |
 
 ### TP-LC (local lifecycle)
 
@@ -123,6 +126,7 @@ Unchanged **have** TP-LC-01..10 against `src/nginx-cli`.
 | TP-NGX-51 | setup fail-closed when `nginx-adm` or UID/GID 1999 is a foreign identity | test_domain | LPU Collision · L-COLLIDE-01 | **have** |
 | TP-NGX-52 | `setup` auto-queues `login-hook-elev` JSON when sibling inbound exists; skip when missing | test_domain | three-layer §2.5.0 · sudoer-json-file | **have** |
 | TP-NGX-53 | `setup` does not write `/etc/sudoers.d/nginx-adm` or `nginx-cli-submit` | test_domain | PREV-SUDOERS-MAIN · LPU 1.3.0 | **have** |
+| TP-NGX-54 | JSON username is invoker; basename user is path-safe (hyphen → underscore) | test_domain | domain submit verify | **have** |
 
 ---
 

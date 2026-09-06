@@ -10,6 +10,31 @@ This requirement is the **project Single Source of Truth** for **shell CLI stora
 
 Used for **install staging** (`mktemp` under the isolated root). Not a durable backup deposit.
 
+### 1.1 Human-facing
+
+**In one sentence:** Scratch files live under an isolated per-user directory, not in a shared world-writable folder.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | Your cache/scratch | `nginx-cli --json about` → `effective_storage` |
+| Not this file | Waiting nginx JSON | `/var/nginx-cli/config-request` |
+
+| Includes | Excludes |
+|----------|----------|
+| Resolver, isolation, about field | Durable backup deposit |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/nginx-cli` | `util_resolve_storage` | scratch root |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Check where scratch is | about reports the isolated directory | `nginx-cli --json about` |
+
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, storage **MUST** still isolate to **this login**. **MUST NOT** write host `/var` waiting folders from Type 0 just because that class has no root.
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)

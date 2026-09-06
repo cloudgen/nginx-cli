@@ -4,7 +4,10 @@ Durable failure modes. **Always re-check on product review.**
 
 | ID | Mode | Prevention | Status |
 |----|------|------------|--------|
-| L-TYPE-N-01 | Empty argv becomes install-ensure (parent Type O leak) | `requirement-shell-cli-zero-arguments` Type N; TP-CLI-07 | open watch |
+| L-TYPE-N-01 | Empty argv becomes install-ensure (parent Type O leak) | `requirement-shell-cli-zero-arguments` Type N; TP-CLI-07 (off-TTY help) · TP-CLI-25 (TTY list) | open watch |
+| L-HYPHEN-USER-01 | Dest fence compared JSON `username` (`id -un`) to path-safe basename user; hyphenated logins failed submit | Compare via path-safe encoding; TP-NGX-54 | open watch |
+| L-HUMAN-01 | Product README / REQ Purpose leads with Type 0 / Type 1 / euid as the only words | §1.1 Human-facing on every REQ; README Description uses people-and-folders voice | open watch |
+| L-MAP-STALE-01 | `reviews/test-plan.md` / what-to-review stay on a prior VERSION while ship unit moved (empty argv = help after TTY list shipped) | Same-change maps when dispatcher empty-argv changes; TP-CLI-23..25 | open watch |
 | L-ONLINE-01 | Online verbs reintroduced (self-update / SCRIPT_URL UX) | bootstrap-trim + TP-CLI-04/10 | open watch |
 | L-UNIN-01 | Non-interactive uninstall succeeds without force | TP-LC-05 confirm fail-closed | open watch |
 | L-INST-MODE-01 | Install leaves `0711`/`0700` (chmod +x after mktemp) so non-owners cannot run shell ship unit | absolute `chmod 0755` + heal on reinstall; TP-LC-09/10; local-self-management §2.3.1 | open watch |
@@ -32,4 +35,4 @@ Durable failure modes. **Always re-check on product review.**
 
 **Related-product only (do not re-apply as this product’s law):** L-DEPOSIT-01, L-SUDOERS-01..05, L-OVERWRITE-01 stay on folder-backup. Type O empty-argv / online-channel lessons stay on products that own those surfaces. Origin A is `cli-template` (frozen); this product is B.
 
-**This product’s kept Type 0 surfaces:** output SSOT, no basename gate on entry, storage isolation, Type N empty argv. Domain surfaces live in `requirement-domain-nginx-cli.md`.
+**This product’s kept Type 0 surfaces:** output SSOT, no basename gate on entry, storage isolation, Type N empty argv (TTY numbered list / off-TTY help). Domain surfaces live in `requirement-domain-nginx-cli.md`.

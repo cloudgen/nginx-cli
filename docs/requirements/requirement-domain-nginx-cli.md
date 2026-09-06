@@ -18,6 +18,35 @@ This dest **specializes** **`LM-FILE-BASED-JSON-APPROVAL`** (JSON inbound) and *
 
 Privilege types and F6 / submit-fragment **Cmnds** plus the **`submit-sudoer-request` workflow** are owned by `requirement-three-layer-privilege-model.md`. The **JSON sudoer file body** is owned by `requirement-sudoer-json-file.md`. LPU identity (F1–F7) is owned by `requirement-least-privilege-user.md`. What Type 0 / Type 1 **block** vs what must stay open after elev is owned by `requirement-privilege-prevention-set.md`. Type 0 binary lifecycle remains owned by the shell-family requirements. **Do not** add a second Active domain SSOT. **Do not** add `requirement-shell-prompt` or `requirement-shell-temp-file-system` — prompt bodies stay on the interactive REQ; temp **roots** stay on the storage REQ; approve snapshots stay here.
 
+### 1.1 Human-facing
+
+**In one sentence:** You drop a site request (JSON, or nginx text that this program converts) into the waiting folder; nginx-adm reviews it and either publishes the site or rejects it.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / listed login | Submit a request for a mapped domain | `nginx-cli request example.com ./site.conf` |
+| nginx-adm | Approve or reject waiting files | `nginx-cli approve` |
+| Not this file | How nginx-adm is created | `requirement-least-privilege-user` |
+
+| Includes | Excludes |
+|----------|----------|
+| Waiting folders, basename, JSON body, convert, approve/reject, login hook | Sudoers fragment lines; dest Fence match rules |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `/var/nginx-cli/config-request` | waiting folder | drop a JSON file |
+| `nginx-cli request` | command | submit |
+| `nginx-cli approve` | command | publish or walk the queue |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Ask for a site | The waiting file is dest JSON. nginx text is converted first. You cannot publish it yourself unless you are root or nginx-adm. | `nginx-cli request example.com ./site.conf` |
+| Review as nginx-adm | On a real terminal, one file at a time: yes publishes, no/Enter rejects. | `nginx-cli approve` |
+
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, domain **host mutate** (`setup`, `remove-lpu`, publish into `/etc/nginx`) **MUST** stay unused. Convert and testers against a **local file** remain allowed. POSIX Linux with a root login is **not** that class.
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)
@@ -66,7 +95,7 @@ OS identities (not machine roles). Every domain verb **MUST** match this table. 
 1. Actor is root, or nginx-adm, or (listed via shared allowlist **or** per-user `/etc/sudoers.d/nginx-cli-<login>` **and** in group `nginx-cli-submit`).  
 2. Public inbound **already exists** (Type 1 `setup` created it).  
 3. Domain is path-safe; non-root/non-adm submitters have that domain in `user-domain-map`.  
-4. Body is dest request **JSON** (or nginx-conf **text** that `request` converts first). JSON `username` **MUST** equal the invoker. JSON `domain` **MUST** equal the operand domain.
+4. Body is dest request **JSON** (or nginx-conf **text** that `request` converts first). JSON `username` **MUST** equal the invoker (`id -un`). JSON `domain` **MUST** equal the operand domain. Basename **user** is path-safe of that login (hyphen → underscore). Dest **MUST** compare them via that encoding — **MUST NOT** fail a hyphenated login because JSON kept the real hyphen.
 
 **Submit is not allowed when:** unlisted login; inbound missing; domain not mapped (for listed humans); world-wx inbound design; Type 0 `mkdir` to invent the trio.
 
@@ -78,7 +107,7 @@ OS identities (not machine roles). Every domain verb **MUST** match this table. 
 | Regular file, not symlink | exclusive-create dest | snapshot source |
 | Basename grammar | allocator owns `yyyyMMdd-user-domain-n.json` | parse date/user/domain/n (suffix `.json`) |
 | Closed JSON schema | required (convert text first if needed) | re-validate snapshot JSON |
-| Self-scope | JSON `username` = invoker | owner / username still match |
+| Self-scope | JSON `username` = invoker; basename user = path-safe(invoker) | same encoding match |
 | Domain / map | JSON `domain` = operand; map gate for listed humans | domain from basename + JSON for publish dest |
 | Syntax gate | n/a (text dual at approve) | `json-to-conf` then `nginx -t` on **rendered text** (never raw JSON) |
 | Inbound last component not symlink | fail closed | fail closed |
@@ -404,7 +433,7 @@ Type 0 diagnostics (install, storage, repo) **MUST** remain.
 | **Ship unit** | `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) |
 | **Domain prefix** | `ngx_` |
-| **VERSION** | `1.7.0` (domain law 1.14.0) |
+| **VERSION** | `1.8.1` (domain law 1.14.0) |
 | **Dest Fence** | `requirement-incorrect-json-format` |
 | **Testers** | `fence-test` / `test-json-format` |
 | **Convert verbs** | `conf-to-json` → `ngx_conf_to_json`; `json-to-conf` → `ngx_json_to_conf` |
@@ -478,6 +507,7 @@ Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli
 | **TP-NGX-21..24** | same | have | conf-to-json / json-to-conf dual; xor; refuse dest write |
 | **TP-NGX-25..33** | same | have | dest JSON request; inbound body; mismatch; published text; convert --out inbound; grant allowlist |
 | **TP-NGX-35..49** | same | have | dest Fence testers; xor / expect-match / JSON / no-queue / stdin; `submit_app` / `submit_version` |
+| **TP-NGX-54** | same | have | JSON username = invoker; basename user = path-safe (hyphen → underscore) |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`

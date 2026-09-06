@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-default-interaction.md  
-**Status**: Active (Version 1.1.0)  
+**Status**: Active (Version 1.1.1)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-default-interaction`  
 **id**: RQ-SHELL-CLI-DEFAULT-INTERACTION  
@@ -11,28 +11,32 @@ This requirement is the **project Single Source of Truth** for nginx-cli’s opt
 
 ### 1.1 Human-facing
 
-**In one sentence:** On a real terminal, type `nginx-cli` (or `nginx-cli menu` / `main`) to get a numbered list of live work commands; a script still gets help.
+**In one sentence:** On a real terminal, type `nginx-cli` with no arguments (or `nginx-cli menu` / `main`) to get a numbered list of live work commands; a script still gets help.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
-| You / this login | Open the numbered list, pick a number or a command name | `nginx-cli menu` then `6` or `approve` |
-| Automation / pipes | The list does not appear; you get help (JSON help with `--json`) | `nginx-cli menu </dev/null` |
-| Not this file | What bare `nginx-cli` does | `requirement-shell-cli-zero-arguments` — help |
+| You / this login | Open the numbered list, pick a number or a command name | `nginx-cli` then `6` or `approve` |
+| Automation / pipes | The list does not appear; you get help (JSON help with `--json` on `menu`) | `nginx-cli </dev/null` |
+| Not this file | Off-TTY empty argv stays help and never installs | `requirement-shell-cli-zero-arguments` |
 
 | Includes | Excludes |
 |----------|----------|
-| Numbered 1…N live work commands; last extra row Exit **99**; `menu` / `main` as the opener | `help` as a row; install / uninstall / where-is-me / setup / version / about; testers; `menu`/`main` as a choice; hanging in CI |
+| Numbered 1…N live work commands; last extra row Exit **99**; TTY empty argv; `menu` / `main` as the same handler | `help` as a row; install / uninstall / where-is-me / setup / version / about; testers; `menu`/`main` as a choice; hanging in CI |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
-| `src/nginx-cli` | ship unit | live `menu` / `main` |
-| `nginx-cli menu` | command | numbered list on a real terminal |
-| `nginx-cli` (no args) | command | help — unchanged |
+| `src/nginx-cli` | ship unit | live numbered list |
+| `nginx-cli` (no args, real terminal) | command | numbered list |
+| `nginx-cli` (no args, script) | command | help |
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
-| Want the numbered list | Empty argv is already help. The list is a separate command. On a real terminal `--json` does not hide the list. In a script you get help so the process does not wait. | `nginx-cli menu` |
+| Want the numbered list | On a real terminal, empty argv **is** the list. `menu` / `main` are the same handler. `--json` does not hide the list on a TTY. In a script you get help so the process does not wait. | `nginx-cli` |
 | Leave the list | Exit is **99** (fourteen command rows). Unused numbers 15–98 are omitted. | `99` |
+
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, the numbered list **MUST** still omit install/setup and testers. Host mutate chosen from the list (`remove-lpu`, `setup` is already omitted) **MUST** fail closed if the class cannot elevate. Convert and request against local files remain list rows.
 
 ---
 
@@ -78,8 +82,8 @@ Measure interactive capability **once in the main process, outside functions**. 
 
 ### 2.4 Why This Requirement Exists (Direct CIAO Alignment)
 
-- **CIAO Principle 1 – Caution**: Scripts never hang on the list; empty argv stays help.  
-- **CIAO Principle 2 – Intentional**: Case 3 is explicit; `menu` / `main` is the named opener.  
+- **CIAO Principle 1 – Caution**: Scripts never hang on the list; off-TTY empty argv stays help.  
+- **CIAO Principle 2 – Intentional**: Case 3 plus TTY empty argv assigned here; `menu` / `main` is the named opener.  
 - **CIAO Principle 6 – Single Point of Entry**: Dispatcher routes `menu` / `main`; handlers stay `app_*`.  
 - **CIAO Principle 16 – Interactive vs Non-Interactive**: TTY list; off-TTY help; interactive ignores `--json`.  
 - **CIAO Principle 17 – Help**: Non-interactive `menu` reuses `app_help`.  
@@ -92,7 +96,7 @@ Measure interactive capability **once in the main process, outside functions**. 
 
 - **Caution**: No menu in pipes or CI.  
 - **Intentional**: Case 3; labels from the kept command list / help one-liners.  
-- **Anti-fragile**: Empty argv law unchanged if this file is later dropped.  
+- **Anti-fragile**: Off-TTY empty argv stays help if this file is later dropped; TTY empty argv is owned with the zero-argument requirement.  
 - **Over-protect**: Exclusions (install/setup, testers, `help`, `menu` itself) and Exit **99** are sacred.
 
 ---
@@ -104,10 +108,10 @@ Measure interactive capability **once in the main process, outside functions**. 
 | **Product / binary** | `nginx-cli` |
 | **Claimed** | yes |
 | **Case** | **3** |
-| **Empty-argv owner** | `requirement-shell-cli-zero-arguments` (help) |
-| **Menu verbs** | `menu` (primary); `main` (alias) |
+| **Empty-argv owner** | `requirement-shell-cli-zero-arguments` (TTY = this list; off-TTY = help) |
+| **Menu verbs** | `menu` (primary); `main` (alias); TTY empty argv uses the same handler |
 | **Handler** | `app_main_menu` (`app_*`) |
-| **Ship-unit status** | **Implemented** — dispatcher accepts `menu` / `main` |
+| **Ship-unit status** | **Implemented** — TTY empty argv and `menu` / `main` |
 | **N** | **14** |
 | **Exit** | **99** |
 | **Prompt helper** | `prompt_ask` (consume `TTY`; `INTERACTIVE=1` for the menu walk) |
@@ -121,7 +125,7 @@ nginx-cli menu --json
 nginx-cli --json menu
 ```
 
-On a real terminal those four show the numbered list. In a pipe / CI, `nginx-cli menu` shows human help; `nginx-cli --json menu` shows JSON help.
+On a real terminal those four **and** empty argv show the numbered list. In a pipe / CI, empty argv and `nginx-cli menu` show human help; `nginx-cli --json menu` shows JSON help.
 
 **Normative numbered list (labels = human-readable):**
 
@@ -210,13 +214,16 @@ Other listed verbs run with no extra operands (`approve` with no basename stays 
 
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
-| **TP-CLI-07** | `tests/test_cli.sh` | have | empty argv still help |
+| **TP-CLI-07** | `tests/test_cli.sh` | have | off-TTY empty argv still help |
 | **TP-CLI-17** | `tests/test_cli.sh` | have | `menu` off-TTY human help; not the numbered list |
 | **TP-CLI-18** | `tests/test_cli.sh` | have | `menu --json` off-TTY JSON help |
 | **TP-CLI-19** | `tests/test_cli.sh` | have | `main` off-TTY human help |
 | **TP-CLI-20** | `tests/test_cli.sh` | have | help lists `menu` / `main` |
 | **TP-CLI-21** | `tests/test_cli.sh` | have | TTY `menu` numbered list, Exit 99, exclusions (skip if no PTY) |
 | **TP-CLI-22** | `tests/test_cli.sh` | have | TTY `menu --json` still the list (skip if no PTY) |
+| **TP-CLI-23** | `tests/test_cli.sh` | have | `PROMPT_ASK_VALUE`; no `$()` of `prompt_ask` |
+| **TP-CLI-24** | `tests/test_cli.sh` | have | TTY header VERSION + gray-italic explain (skip if no PTY) |
+| **TP-CLI-25** | `tests/test_cli.sh` | have | TTY empty argv numbered list (skip if no PTY) |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
@@ -226,9 +233,11 @@ Other listed verbs run with no extra operands (`approve` with no basename stays 
 | Date | Status | Note |
 |------|--------|------|
 | 2026-08-23 | Active 1.0.0 | Case 3; `menu`/`main`; N=14; Exit 99 |
+| 2026-09-03 | Active 1.1.0 | TTY empty argv uses this list |
+| 2026-09-06 | Active 1.1.1 | Human-facing + DTV match TTY empty argv; TP-CLI-23..25 |
 
 ---
 
-**Last Updated**: 2026-08-23  
+**Last Updated**: 2026-09-06  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

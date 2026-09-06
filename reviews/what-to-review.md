@@ -5,8 +5,8 @@
 **Origin A:** `cli-template` (frozen at `src/cli-template`) — do not reverse-copy.  
 **Always load first:** `reviews/lessons.md`
 
-**Last plan update:** 2026-08-25  
-**Ship unit VERSION:** 1.7.0  
+**Last plan update:** 2026-09-06  
+**Ship unit VERSION:** 1.8.1  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -16,7 +16,7 @@
 | # | Check | Notes |
 |---|--------|--------|
 | P1 | Read `docs/requirements/index.md` | Class + architecture + shell + one domain SSOT |
-| P2 | Confirm ship unit `src/nginx-cli` | `APP_NAME` / `VERSION` hard-assign (**1.7.0**) |
+| P2 | Confirm ship unit `src/nginx-cli` | `APP_NAME` / `VERSION` hard-assign (**1.8.1**) |
 | P3 | Confirm origin A remains `src/cli-template` | Frozen; no reverse-copy from B |
 | P4 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P5 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
@@ -32,7 +32,7 @@
 | P11 | Type 1 TTY traps | approve no-TTY fail-closed; hook as-login (no sudo, not `sudo -n`); setup no hang |
 | P12 | Prevention catalog vs invented walls | no unpublished denylist; OPEN-UNIT-TOOLS / OPEN-PASSWD-CLI |
 | P17 | Type 0 **test-purpose** `fence-test` / `test-json-format` | local test folder; no sudo; does not queue; help **Unit test** heading; xor `--file`/`--dir`; `--expect-match` only with `--dir` |
-| P18 | Type 0 **`menu` / `main`** | Case 3 numbered list; empty argv stays help; off-TTY is help; TTY ignores `--json`; N=14 Exit 99; no testers/install/help on the list |
+| P18 | **`menu` / `main`** + TTY empty argv | Numbered list on a real terminal (empty argv **and** `menu`/`main`); off-TTY empty argv is help; TTY ignores `--json`; N=14 Exit 99; no testers/install/help on the list; header **nginx-cli**(*version*) |
 | P19 | Sibling `setup` dest-honesty | sudoer-cli / dns-cli are **not** this F6/inbound/hook; collision identity **have** (L-COLLIDE-01 closed); report `2026-08-23-sibling-setup-dns-cli-sudoer-cli` |
 
 ---
@@ -45,8 +45,8 @@
 | Bootstrap chain | `requirement-bootstrap-chain.md` | A = cli-template frozen; B = this product |
 | Project folder | `requirement-project-folder.md` | `src/nginx-cli`, bins; frozen A; no `/var/backup` |
 | CLI interface | `requirement-shell-cli-interface.md` | Type 0 commands, flags, dispatch; domain pointer |
-| Empty argv Type N | `requirement-shell-cli-zero-arguments.md` | Empty = help |
-| Numbered list | `requirement-shell-cli-default-interaction.md` | `menu`/`main`; case 3 |
+| Empty argv Type N | `requirement-shell-cli-zero-arguments.md` | TTY = numbered list; off-TTY = help; never install |
+| Numbered list | `requirement-shell-cli-default-interaction.md` | TTY empty argv + `menu`/`main` |
 | Local self-management | `requirement-shell-local-self-management.md` | install/uninstall; mode 0755 |
 | Output SSOT | `requirement-shell-output-requirements.md` | `out_*`; JSON errors |
 | Modular design | `requirement-shell-modular-function-design.md` | Type 0 prefixes + `ngx_` |

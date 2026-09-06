@@ -89,6 +89,25 @@ run_test_domain() {
         t_fail "TP-NGX-04 expected inbox file ${_day}-*-example.com-1.json"
     fi
 
+    # TP-NGX-54 JSON username is the invoker; basename user is path-safe (hyphen → underscore)
+    _login=$(id -un 2>/dev/null || echo "unknown")
+    _safeu=$(printf '%s' "${_login}" | tr '-' '_' | tr -cd 'A-Za-z0-9._')
+    if [ -n "${_base}" ] && [ -f "${_q}/config-request/${_base}" ]; then
+        _uj=$(sed -n 's/.*"username"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${_q}/config-request/${_base}" | head -n1)
+        assert_eq "TP-NGX-54 JSON username is invoker" "${_login}" "${_uj}"
+        assert_contains "TP-NGX-54 basename uses path-safe user" "${_base}" "-${_safeu}-"
+        case "${_login}" in
+            *-*)
+                assert_not_contains "TP-NGX-54 hyphen login not raw in basename" "${_base}" "-${_login}-"
+                ;;
+            *)
+                t_pass "TP-NGX-54 hyphen login N/A (login has no hyphen)"
+                ;;
+        esac
+    else
+        t_fail "TP-NGX-54 missing inbound for username/basename check"
+    fi
+
     # TP-NGX-05 list-requests shows pending
     _out=$(ngx_fx list-requests 2>&1)
     assert_eq "TP-NGX-05 list-requests exit 0" 0 "$?"

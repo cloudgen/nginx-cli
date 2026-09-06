@@ -10,6 +10,33 @@ This requirement is the **project Single Source of Truth** for **local self-mana
 
 **Install mode:** **local-only**. Online channel install, remote version-check, self-update, and self-uninstall are **out of scope** (intentionally absent).
 
+### 1.1 Human-facing
+
+**In one sentence:** Copy this program into `~/.local/bin` (or `/usr/local/bin` as root), and remove that copy later. There is no online installer.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | Install for yourself | `sh src/nginx-cli install` |
+| Root | Global install | `sudo sh src/nginx-cli install` |
+| Not this file | Create nginx-adm | `requirement-least-privilege-user` (`setup`) |
+
+| Includes | Excludes |
+|----------|----------|
+| `install` / `uninstall` / `where-is-me`; mode **0755** | `curl \| sh`; `self-update`; `self-uninstall` |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/nginx-cli` | ship unit | running copy |
+| `~/.local/bin/nginx-cli` | local dest | this login |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Put it on PATH | Copies the running file. Re-run with `--force` after you edit source. | `sh src/nginx-cli install` |
+
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, **local** `install` / `uninstall` / `where-is-me` for **this login** remain allowed. **MUST NOT** grow an online `curl | sh` path or in-tool `sudo` on that class.
+
 ---
 
 ## 2. Core Rules (Mandatory)

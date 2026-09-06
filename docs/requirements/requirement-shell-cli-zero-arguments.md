@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-zero-arguments.md  
-**Status**: Active (Version 1.2.0)  
+**Status**: Active (Version 1.2.1)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-zero-arguments`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -13,9 +13,37 @@ This requirement is the **project Single Source of Truth** for **zero-argument (
 | Field | Value for nginx-cli |
 |-------|-------------------------|
 | **Empty-argv type** | **Type N — Non-online-install** |
-| **Rationale** | Product is **local-only**; no `curl \| sh` channel; empty argv shows **help**, not install-ensure |
+| **Rationale** | Product is **local-only**; no `curl \| sh` channel. Empty argv **never** install-ensures. On a real terminal it opens the numbered list; in a script it shows **help**. |
 
 Type O (online-install empty-argv = install-ensure) does **not** apply.
+
+### 1.1 Human-facing
+
+**In one sentence:** On a real terminal, `nginx-cli` with no arguments opens the numbered list; in a script it shows help. It never installs.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | Empty line on a real terminal | `nginx-cli` |
+| A script / pipe | Empty line shows help | `nginx-cli </dev/null` |
+| Not this file | What the numbered list contains | `requirement-shell-cli-default-interaction` |
+
+| Includes | Excludes |
+|----------|----------|
+| TTY empty argv → numbered list; off-TTY empty argv → help | Empty-line install; empty-line approve |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/nginx-cli` | ship unit | dispatcher |
+| `nginx-cli` (no args) | command | list or help by TTY |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Open the list | You are at a real terminal. A script must not hang waiting for a number. | `nginx-cli` |
+| Read usage in CI | Off-TTY empty argv is help. | `nginx-cli` |
+
+## Under command line for normal user only
+
+On Termux, Git Bash, or Windows cmd, empty argv **MUST** still follow this split (TTY list / off-TTY help) and **MUST NOT** become install-ensure or host mutate. **Admin privilege** (`setup` / `remove-lpu`) stays unused on that class.
 
 ---
 
@@ -82,7 +110,7 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 
 | ID | Criterion |
 |----|-----------|
-| AC-1 | Empty argv shows help and does not install |
+| AC-1 | Off-TTY empty argv shows help and does not install; TTY empty argv is the numbered list |
 | AC-2 | Type N is the declared empty-argv type |
 | AC-3 | `install` remains an explicit command |
 
@@ -93,7 +121,7 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 | Key | Relationship |
 |-----|--------------|
 | `requirement-shell-cli-interface` | Dispatcher command table |
-| `requirement-shell-cli-default-interaction` | Numbered list is `menu`/`main`; this file keeps empty argv |
+| `requirement-shell-cli-default-interaction` | Numbered list is TTY empty argv and `menu`/`main`; this file owns the TTY vs off-TTY split |
 | `requirement-shell-local-self-management` | Explicit install |
 | `requirement-bootstrap-chain` | Trim of Type O from parent |
 | `docs/requirements/index.md` | Registry |
@@ -104,7 +132,8 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
-| **TP-CLI-07** | `tests/test_cli.sh` | have |
+| **TP-CLI-07** | `tests/test_cli.sh` | have (off-TTY empty argv = help) |
+| **TP-CLI-25** | `tests/test_cli.sh` | have (TTY empty argv = numbered list; skip if no PTY) |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
@@ -116,9 +145,11 @@ Type O (online-install empty-argv = install-ensure) does **not** apply.
 | 2026-08-03 | Active | Type N for local-only folder-backup |
 | 2026-08-15 | Active 1.1.0 | Notes/examples name this product nginx-cli |
 | 2026-08-23 | Active 1.1.1 | Empty argv stays help when `menu`/`main` is added |
+| 2026-09-03 | Active 1.2.0 | TTY empty argv = numbered list; off-TTY help |
+| 2026-09-06 | Active 1.2.1 | Human-facing + AC-1 match TTY split; TP-CLI-25 |
 
 ---
 
-**Last Updated**: 2026-08-23  
+**Last Updated**: 2026-09-06  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

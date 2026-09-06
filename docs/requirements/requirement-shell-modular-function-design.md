@@ -12,6 +12,28 @@ This requirement is the **project Single Source of Truth** for **modular functio
 
 Ship unit remains a **single executable** at `src/nginx-cli`. Origin reference remains `src/cli-template`.
 
+### 1.1 Human-facing
+
+**In one sentence:** One file is the program; helpers are grouped by prefixes (`out_`, `inst_`, `app_`, `ngx_`), not split into many shipped files.
+
+| Box | Meaning | Example |
+|-----|---------|---------|
+| You / this login | One program file | `src/nginx-cli` |
+| Domain helpers | `ngx_*` | request/approve |
+| Not this file | What those helpers **must** do | `requirement-domain-nginx-cli` |
+
+| Includes | Excludes |
+|----------|----------|
+| Prefix table; single executable | Multi-file install payload |
+
+| Surface | What you open | What for |
+|---------|---------------|----------|
+| `src/nginx-cli` | ship unit | all prefixes |
+
+| You do… | What it means | What you type |
+|---------|---------------|---------------|
+| Add a helper | Pick the prefix; do not ship a second binary | (edit `src/nginx-cli`) |
+
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)
