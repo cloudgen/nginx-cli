@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Independent **`requirement-login-interactive-review-hook`**. Domain SSOT **points**. New hook is the labeled soft link **`/usr/local/bin/nginx-cli-hook` → `/usr/local/bin/nginx-cli`**. Type 1 `setup` **reviews** the nginx-adm login hook and **replaces** an old `/usr/local/bin/nginx-cli approve` (or `sudo … approve`) managed block with the new hook. Already-new is left alone.
+- **`requirement-shell-path-and-shell-support`**: this-login PATH + `.profile` ensure, sibling unify, scoped `uninstall` stickers, heal on every user-bin `install`, `BASHRC` env, dual-mention **`rc-test`** (**ship Gap** until routed). Login-hook stays a peer.
+
+### Law
+
+- Domain **1.16.0** · login-hook **1.0.0** · LPU **1.4.0** · class **1.8.3** · CLI-interface **2.8.0** · local-self-management **1.5.0** · path-and-shell-support **1.0.0** · three-layer **1.5.1** · prevention **1.6.1**.
+
+### Tests
+
+- **TP-HOOK-09** **have** (`setup` calls `ngx_enable_login_approval`; already-new not rewritten).
+- **TP-LC-11..14**, **TP-LC-20..22** **have** (PATH create / profile / no-dup / keep-body / `BASHRC` fixture create-modify-noop).
+
+### Changed
+
+- User-bin `install` heals PATH/profile even when the binary is already placed. `path_add_bashrc` honors `BASHRC`, creates the file if missing, and matches the exact `export PATH=` line. Ship unit **`VERSION="1.10.0"`**.
+
+## [1.9.0] - 2026-09-06
+
+### Changed
+
+- Dest **`approve`** with no basename (login hook included) shows the waiting body as **YAML** (`key: value` lines; nested `site` indented). The inbound file stays JSON. Dest **MUST NOT** dump the waiting file as a JSON object for that review. Domain **1.15.0**. **TP-NGX-55**. Ship unit **`VERSION="1.9.0"`**.
+
 ## [1.8.1] - 2026-09-06
 
 ### Fixed

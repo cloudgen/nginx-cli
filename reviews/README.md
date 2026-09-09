@@ -12,7 +12,7 @@ Public product review surface (peer of `tests/`).
 | `index.md` | Report index |
 | `reports/` | Dated review run reports |
 
-**Ship unit:** `src/nginx-cli` (**VERSION 1.8.1**)  
+**Ship unit:** `src/nginx-cli` (**VERSION 1.10.0**)  
 **Origin A (frozen):** `src/cli-template` — do not reverse-copy  
 **Suite:** `./tests/run.sh`  
 **Last suite baseline:** see `test-plan.md`

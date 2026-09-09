@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-domain-nginx-cli.md  
-**Status**: Active (Version 1.14.0)  
+**Status**: Active (Version 1.16.0)  
 **Area**: domain  
 **Key**: `requirement-domain-nginx-cli`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -12,11 +12,11 @@ This requirement is the **single Active domain SSOT** for **nginx-cli**. This sh
 2. The Type 0 **submitter** for that same dest (`request`).  
 3. A Type 0 compose **submitter** to sibling sudoer-cli (`submit-sudoer-request`) — a **different** machine (sudoer JSON, not nginx-conf JSON).
 
-Specialized verbs, basename/samples, submit-when / verify, convert dual, list / approve / reject / publish, and the **login approval hook** live here. `setup` creates the host system.
+Specialized verbs, basename/samples, submit-when / verify, convert dual, list / approve / reject / publish live here. `setup` creates the host system. The **login approval hook** (labeled symlink + snippet + setup review of an old hook) is owned by `requirement-login-interactive-review-hook.md` — this file **points**.
 
 This dest **specializes** **`LM-FILE-BASED-JSON-APPROVAL`** (JSON inbound) and **`LM-NGINX-CONF-STRUCTURE`** (artifact kinds + JSON dual). **Do not** invent a second nginx submitter ship unit. **Do not** collapse dest inbound JSON (nginx-conf) with compose sudoer JSON.
 
-Privilege types and F6 / submit-fragment **Cmnds** plus the **`submit-sudoer-request` workflow** are owned by `requirement-three-layer-privilege-model.md`. The **JSON sudoer file body** is owned by `requirement-sudoer-json-file.md`. LPU identity (F1–F7) is owned by `requirement-least-privilege-user.md`. What Type 0 / Type 1 **block** vs what must stay open after elev is owned by `requirement-privilege-prevention-set.md`. Type 0 binary lifecycle remains owned by the shell-family requirements. **Do not** add a second Active domain SSOT. **Do not** add `requirement-shell-prompt` or `requirement-shell-temp-file-system` — prompt bodies stay on the interactive REQ; temp **roots** stay on the storage REQ; approve snapshots stay here.
+Privilege types and F6 / submit-fragment **Cmnds** plus the **`submit-sudoer-request` workflow** are owned by `requirement-three-layer-privilege-model.md`. The **JSON sudoer file body** is owned by `requirement-sudoer-json-file.md`. LPU identity (F1–F7) is owned by `requirement-least-privilege-user.md`. Login-hook snippet + labeled symlink is owned by `requirement-login-interactive-review-hook.md`. What Type 0 / Type 1 **block** vs what must stay open after elev is owned by `requirement-privilege-prevention-set.md`. Type 0 binary lifecycle remains owned by the shell-family requirements. **Do not** add a second Active domain SSOT. **Do not** add `requirement-shell-prompt` or `requirement-shell-temp-file-system` — prompt bodies stay on the interactive REQ; temp **roots** stay on the storage REQ; approve snapshots stay here.
 
 ### 1.1 Human-facing
 
@@ -30,7 +30,7 @@ Privilege types and F6 / submit-fragment **Cmnds** plus the **`submit-sudoer-req
 
 | Includes | Excludes |
 |----------|----------|
-| Waiting folders, basename, JSON body, convert, approve/reject, login hook | Sudoers fragment lines; dest Fence match rules |
+| Waiting folders, basename, JSON body, convert, approve/reject | Sudoers fragment lines; dest Fence match rules; login-hook snippet (peer REQ) |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
@@ -41,7 +41,7 @@ Privilege types and F6 / submit-fragment **Cmnds** plus the **`submit-sudoer-req
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
 | Ask for a site | The waiting file is dest JSON. nginx text is converted first. You cannot publish it yourself unless you are root or nginx-adm. | `nginx-cli request example.com ./site.conf` |
-| Review as nginx-adm | On a real terminal, one file at a time: yes publishes, no/Enter rejects. | `nginx-cli approve` |
+| Review as nginx-adm | On a real terminal, one file at a time: YAML body, then approve / reject / skip / quit. | `nginx-cli approve` |
 
 ## Under command line for normal user only
 
@@ -157,7 +157,7 @@ Every domain verb **MUST** map to exactly one privilege class. Domain functions 
 
 | Command | Type | Who | Handler | Behavior |
 |---------|------|-----|---------|----------|
-| `setup` | Type 1 | root (internal `sudo` re-exec if needed) | `ngx_setup` | Idempotent create of nginx-adm, submit group, public trio, F4 views, map, ownership, sites symlinks, Family 2 `/etc/nginx-adm/sudoers`, as-login hook, password-ensure. **MUST** auto-queue Family 1 JSON (`login-hook-elev`) into sibling inbound when dest exists. **MUST NOT** write `/etc/sudoers.d` |
+| `setup` | Type 1 | root (internal `sudo` re-exec if needed) | `ngx_setup` | Idempotent create of nginx-adm, submit group, public trio, F4 views, map, ownership, sites symlinks, Family 2 `/etc/nginx-adm/sudoers`, password-ensure. Login hook: **point** `requirement-login-interactive-review-hook` (ensure `/usr/local/bin/nginx-cli-hook` → `/usr/local/bin/nginx-cli`; **review** LPU rc and replace an old hook). **MUST** auto-queue Family 1 JSON (`login-hook-elev`) into sibling inbound when dest exists. **MUST NOT** write `/etc/sudoers.d` |
 | `remove-lpu` | Type 1 | root | `ngx_remove_lpu` | Reverse sudoers → backup+remove public queue root → reverse affected ownership (content kept) → `userdel -r` (+ groupdel of nginx-adm and submit group). Confirm unless `--force` |
 | `remove-nginx-adm` | Type 1 | root | `ngx_remove_lpu` | Alias of `remove-lpu` |
 | `request <domain> [file]` | gated submit | root **or** nginx-adm **or** listed submitter | `ngx_request_submit` | Exclusive-create dest request **JSON** into inbound (accept JSON or convert text dual). stdin if file is `-` or omitted and stdin is not a TTY |
@@ -166,7 +166,7 @@ Every domain verb **MUST** map to exactly one privilege class. Domain functions 
 | `list-rejected` | gated list | same | `ngx_list_queue rejected` | Rejected archive list |
 | `approve [basename]` | approver | root or nginx-adm | `ngx_approve_interactive` or `ngx_approve_one` | No operand + TTY → one-by-one; operand → single file. Non-TTY without operand **MUST** fail closed |
 | `reject <basename>` | approver | root or nginx-adm | `ngx_reject_one` | Snapshot inbound, install snapshot into rejected archive, unlink inbound; no publish |
-| `enable-login-approval` | approver | root or nginx-adm | `ngx_enable_login_approval` | Idempotent marked block in nginx-adm `.bashrc`; replace inner command when it differs |
+| `enable-login-approval` | approver | root or nginx-adm | `ngx_enable_login_approval` | Dual mention: topic owner `requirement-login-interactive-review-hook` (plant/heal labeled hook; replace old product-binary hook) |
 | `map-set <user> <domain>` | approver | root or nginx-adm | `ngx_map_set` | Add domain line; **chown back** to nginx-adm |
 | `map-unset <user> <domain>` | approver | root or nginx-adm | `ngx_map_unset` | Remove domain line; chown back |
 | `map-list [user]` | gated list | root, nginx-adm, or submitter | `ngx_map_list` | Show map file(s) |
@@ -182,14 +182,14 @@ Every domain verb **MUST** map to exactly one privilege class. Domain functions 
 
 #### 2.2.1 nginx-adm create (setup)
 
-`setup` **MUST** create the LPU, submit group, public trio, F4 views, home map, Family 2 unit-tools file, and optional login hook **as specified** in `requirement-least-privilege-user.md` (F1–F7) and `requirement-three-layer-privilege-model.md` (auto-queue + Family 2 sample). This section owns only **machine** facts that those files point back to:
+`setup` **MUST** create the LPU, submit group, public trio, F4 views, home map, and Family 2 unit-tools file **as specified** in `requirement-least-privilege-user.md` (F1–F7) and `requirement-three-layer-privilege-model.md` (auto-queue + Family 2 sample). Login hook plant/heal **MUST** follow `requirement-login-interactive-review-hook.md` (labeled symlink + review/replace old hook). This section owns only **machine** facts that those files point back to:
 
 1. Public inbound last component **MUST NOT** be a symlink. Type 0 **MUST NOT** `mkdir` production inbound or archives; missing inbound **MUST** fail closed.  
 2. `user-domain-map` **MUST** stay under LPU home (never on the public queue root).  
 3. If setup finds a **real** (non-symlink) home queue dir from a prior revision, it **MUST** migrate files into the public trio, then replace the home dir with the F4 view.  
 4. Re-run **MUST NOT** destroy existing site conf. If the account already exists with the expected identity, repair layout/ownership/sudoers only.  
 5. Family 1 **MUST** be sibling JSON (`requirement-sudoer-json-file` `login-hook-elev`). **MUST NOT** copy `/etc/sudoers.d/nginx-adm`. Missing sibling → skip (setup succeeds).  
-6. `setup` **MUST** leave Family 1 authenticatable: TTY `passwd nginx-adm` (operator types; never recorded) or a non-TTY warn with that command. **MUST NOT** `chpasswd` or script a secret. A locked nginx-adm password makes Family 1 `sudo nginx-cli` fail with `sudo: a password is required`. The login hook **MUST NOT** depend on that password.
+6. `setup` **MUST** leave Family 1 authenticatable: TTY `passwd nginx-adm` (operator types; never recorded) or a non-TTY warn with that command. **MUST NOT** `chpasswd` or script a secret. A locked nginx-adm password makes Family 1 `sudo nginx-cli` fail with `sudo: a password is required`. The login hook **MUST NOT** depend on that password (hook law: `requirement-login-interactive-review-hook`).
 
 #### 2.2.2 remove-lpu
 
@@ -269,31 +269,12 @@ Paired **text duals** (what `json-to-conf` renders; also legal `request` input) 
 - **Approve / reject I/O:** **MUST NOT** `mv` the live inbound name after validate. Copy the inbound inode to a private snapshot; require a regular non-symlink file; **re-validate** the snapshot; publish from the snapshot (approve only); install the snapshot into the `0700` archive; **unlink** the inbound name.  
 - **Approve dest:** re-validate snapshot **JSON**; `action` `remove` **MUST** delete `${NGINX_CONF_ROOT}/sites-available/<domain>.conf` and the enable-dir symlink (no install). Otherwise **render** the text dual (`json-to-conf`) to a private temp, then copy that **text** to `${NGINX_CONF_ROOT}/sites-available/<domain>.conf`; `ln -sfn` into `sites-enabled/<domain>.conf`. Run `nginx -t` on the **rendered** dest (never raw JSON) when the binary exists (warn, do not leave a half-published file if test fails — roll back dest copy + symlink). Archive the **JSON** snapshot.  
 - **Reject:** archive snapshot + unlink inbound. No dest write.  
-- Interactive: consume `TTY` / `JSON` / `QUIET` (those flags are measured in the main process; helpers **MUST NOT** invent a second `[ -t` policy). No operand + TTY → one-by-one; operand → one file. `--json` / `--quiet` / non-TTY without basename **MUST** fail closed (no prompt). `--force` **MUST NOT** auto-accept. Actions: approve / reject / skip / quit via `prompt_*`. Empty inbound → success exit 0. Re-snapshot at decide time.  
+- Interactive: consume `TTY` / `JSON` / `QUIET` (those flags are measured in the main process; helpers **MUST NOT** invent a second `[ -t` policy). No operand + TTY → one-by-one; operand → one file. `--json` / `--quiet` / non-TTY without basename **MUST** fail closed (no prompt). `--force` **MUST NOT** auto-accept. Actions: approve / reject / skip / quit via `prompt_*`. Empty inbound → success exit 0. Re-snapshot at decide time. After a dest Fence is clear, dest **MUST** show the waiting body as **YAML** (`key: value` lines, nested maps/lists indented). The inbound file **MUST** stay JSON. Dest **MUST NOT** dump the waiting file as a JSON object for that review. Login-hook `approve` uses the same display.  
 - **List:** root and nginx-adm see all names. Other allowed submitters **MUST** see only files whose basename user equals their login.
 
 #### 2.2.6 Login hook
 
-Idempotent markers in `/etc/nginx-adm/.bashrc` (and `.profile` create-if-absent). Type 1 `setup` **MUST** copy the ship unit to `/usr/local/bin/nginx-cli` then create `/usr/local/bin/nginx-cli-hook` as a symlink when that name is missing (**MUST NOT** overwrite; fixture **MUST NOT** write live `/usr/local/bin`). Interactive login **MUST** run **`/usr/local/bin/nginx-cli-hook approve`** as login `nginx-adm` (**no** `sudo`; `OPEN-ADM-NOSUDO`). **MUST NOT** wrap the hook in `sudo` or `sudo -n`. Re-run **MUST** rewrite a prior `/usr/local/bin/nginx-cli approve` or `sudo … approve` managed block to the hook name. Empty argv of this CLI is the numbered list on a TTY and help off-TTY — the hook still calls `approve`.
-
-Complete snippet (setup **MUST** write this shape):
-
-```sh
-# >>> nginx-cli interactive approval (managed) >>>
-if [ -z "${NGINX_CLI_HOOK_RAN:-}" ] \
-    && [ -n "${PS1:-}" ] \
-    && [ -t 0 ] && [ -t 1 ] \
-    && case "$-" in *i*) true ;; *) false ;; esac \
-    && [ "$(id -un)" = "nginx-adm" ] \
-    && [ -z "${SSH_ORIGINAL_COMMAND:-}" ]; then
-    NGINX_CLI_HOOK_RAN=1
-    export NGINX_CLI_HOOK_RAN
-    if ! /usr/local/bin/nginx-cli-hook approve; then
-        printf '%s\n' "nginx-cli: login review hook skipped (approve failed)" >&2
-    fi
-fi
-# <<< nginx-cli interactive approval (managed) <<<
-```
+**Point:** `requirement-login-interactive-review-hook.md` owns the labeled soft link **`/usr/local/bin/nginx-cli-hook` → `/usr/local/bin/nginx-cli`**, the complete snippet, `.profile` create-if-absent, and Type 1 `setup` **review** of the LPU login hook (replace an old `/usr/local/bin/nginx-cli approve` or `sudo … approve` managed block with the new hook). Dest `approve` walk (YAML, snapshot, publish) stays here. Dual mention of `enable-login-approval` is CLI-interface + that peer. **MUST NOT** keep a second complete snippet in this file.
 
 #### 2.2.7 User-domain-map ownership
 
@@ -433,7 +414,7 @@ Type 0 diagnostics (install, storage, repo) **MUST** remain.
 | **Ship unit** | `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) |
 | **Domain prefix** | `ngx_` |
-| **VERSION** | `1.8.1` (domain law 1.14.0) |
+| **VERSION** | `1.10.0` (domain law 1.16.0) |
 | **Dest Fence** | `requirement-incorrect-json-format` |
 | **Testers** | `fence-test` / `test-json-format` |
 | **Convert verbs** | `conf-to-json` → `ngx_conf_to_json`; `json-to-conf` → `ngx_json_to_conf` |
@@ -448,7 +429,7 @@ Type 0 diagnostics (install, storage, repo) **MUST** remain.
 | **Inbound mode** | `2770` (group dropbox; not world-wx) |
 | **NGINX_CONF_ROOT** | `/etc/nginx` |
 | **Submit fragment** | `/etc/sudoers.d/nginx-cli-submit` (software allowlist; not required for `sudo -u` deposit) |
-| **LPU / F6 / prevention** | Peers: `requirement-least-privilege-user` · `requirement-three-layer-privilege-model` · `requirement-privilege-prevention-set` |
+| **LPU / F6 / prevention / hook** | Peers: `requirement-least-privilege-user` · `requirement-three-layer-privilege-model` · `requirement-privilege-prevention-set` · `requirement-login-interactive-review-hook` |
 | **Install mode** | Local-only (`install` / `uninstall`); not dual-mode |
 
 ### 2.6 Why This Requirement Exists (Direct CIAO Alignment)
@@ -480,16 +461,17 @@ Type 0 diagnostics (install, storage, repo) **MUST** remain.
 3. Publish on reject.  
 4. Skip chown-back on user-domain-map writes.  
 5. Hang `approve` under `--json`, `--quiet`, or non-TTY with no basename.  
-6. Write the login hook into a random human home instead of nginx-adm home.  
+6. Write the login hook into a random human home instead of nginx-adm home (hook plant is `requirement-login-interactive-review-hook`).  
 7. Add a second Active domain-requirements file.  
 8. `mv` the live inbound path after validate (must snapshot + unlink).  
 9. `chown` a submitted request to nginx-adm (owner stays the submitter).  
 10. Write `/var/nginx-cli` from fixture mode.  
-11. Duplicate F1–F7, Table A/B/C, or the prevention catalog in this file (those have peer owners).  
+11. Duplicate F1–F7, Table A/B/C, the prevention catalog, or the login-hook snippet in this file (those have peer owners).  
 12. Add `requirement-shell-prompt` or `requirement-shell-temp-file-system` for this dest — interactive and storage already own those surfaces.  
 13. Invent a second nginx submitter ship unit (this product **is** the dest submitter).  
 14. Queue nginx-conf **text** as dest inbound, or treat compose sudoer JSON as dest inbound.  
-15. Wrap the nginx-adm login hook in `sudo` or `sudo -n` (as-login `approve` is the hook argv; Family 1 password sudo stays for explicit sudo).
+15. Wrap the nginx-adm login hook in `sudo` or `sudo -n`, or keep a second complete snippet here (as-login labeled hook is `requirement-login-interactive-review-hook`; Family 1 password sudo stays for explicit sudo).  
+16. Dump the waiting file as a JSON object during interactive / login-hook review (show YAML; inbound stays JSON).
 
 Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli`, world-wx inbound, Type 0 mkdir inbound, F7 vs uninstall, nologin shell) are **owned** by `requirement-privilege-prevention-set.md` and **MUST NOT** be re-opened here as a second list.
 
@@ -501,13 +483,14 @@ Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli
 
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
-| **TP-NGX-01..15** | `tests/test_domain.sh` | have | fixture request/approve/reject/hook; hook as-login (no sudo); inbound 2770 / F6 static |
-| **TP-NGX-50** | same | have | replace stale `sudo … approve` managed block |
+| **TP-NGX-01..15** | `tests/test_domain.sh` | have | fixture request/approve/reject; inbound 2770 / F6 static (hook rows: peer login-hook REQ) |
+| **TP-NGX-50** | same | have | replace stale `sudo … approve` (peer: `requirement-login-interactive-review-hook`) |
 | **TP-NGX-16..20** | same | have | submit-sudoer-request compose (peer: three-layer + sudoer-json-file) |
 | **TP-NGX-21..24** | same | have | conf-to-json / json-to-conf dual; xor; refuse dest write |
 | **TP-NGX-25..33** | same | have | dest JSON request; inbound body; mismatch; published text; convert --out inbound; grant allowlist |
 | **TP-NGX-35..49** | same | have | dest Fence testers; xor / expect-match / JSON / no-queue / stdin; `submit_app` / `submit_version` |
 | **TP-NGX-54** | same | have | JSON username = invoker; basename user = path-safe (hyphen → underscore) |
+| **TP-NGX-55** | same | have | interactive / login-hook review shows YAML (not a JSON object dump) |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
@@ -521,12 +504,13 @@ Privilege walls that used to live only here (`nginx-ctl`, NOPASSWD on `nginx-cli
 | `docs/requirements/requirement-three-layer-privilege-model.md` | Type map + Tables A/B/C + fragment samples + submit workflow |
 | `docs/requirements/requirement-sudoer-json-file.md` | JSON grant body for `submit-sudoer-request` |
 | `docs/requirements/requirement-privilege-prevention-set.md` | Closed block / must-remain-open catalog |
+| `docs/requirements/requirement-login-interactive-review-hook.md` | Labeled symlink + snippet; setup reviews/replaces old hook |
 | `docs/requirements/requirement-shell-cli-interface.md` | Type 0 catalog; dual mention of testers |
 | `docs/requirements/requirement-incorrect-json-format.md` | Dest Fence meaning |
 | `docs/requirements/requirement-bootstrap-chain.md` | Origin = cli-template; this product is B |
 | `docs/requirements/requirement-shell-modular-function-design.md` | `ngx_` prefix |
 | `./src/nginx-cli` | Implementation |
 
-**Last Updated**: 2026-08-23 (1.14.0 — setup auto-queues Family 1 JSON; MUST NOT write `/etc/sudoers.d`)  
+**Last Updated**: 2026-09-08 (1.16.0 — login-hook snippet extracted to `requirement-login-interactive-review-hook`; dest `approve` walk stays here)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

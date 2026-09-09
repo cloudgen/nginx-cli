@@ -1,6 +1,6 @@
 # nginx-cli - Nginx least-privilege admin CLI
 
-![Version](https://img.shields.io/badge/Version-1.8.1-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.10.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/nginx-cli?style=flat-square)](https://github.com/cloudgen/nginx-cli)
@@ -32,7 +32,7 @@ On Termux, Git Bash, or Windows cmd, only **this login** is in play: help, local
 - **Request names**: `yyyyMMdd-user-domain-n.json`; the waiting file is dest request JSON (`request` also accepts nginx-conf text and converts first)
 - **Approve**: snapshot the waiting file, publish to `sites-available` / enable-dir symlink, then unlink the waiting file (do not `mv`)
 - **Reject**: snapshot into the rejected archive, unlink the waiting file (no publish)
-- **Review on login**: nginx-adm `.bashrc` runs `/usr/local/bin/nginx-cli-hook approve` (as that login, no sudo)
+- **Review on login**: nginx-adm `.bashrc` runs `/usr/local/bin/nginx-cli-hook approve` (as that login, no sudo). Each waiting file is shown as YAML (the file on disk stays JSON)
 - **CIAO / CIAO-Lite** defensive design (one output family for messages)
 
 ## Quick Installation
@@ -61,7 +61,7 @@ sudo sh src/nginx-cli install
 sudo nginx-cli setup
 ```
 
-`setup` copies the program to `/usr/local/bin/nginx-cli` and, when missing, creates `/usr/local/bin/nginx-cli-hook` as a symlink.
+`setup` copies the program to `/usr/local/bin/nginx-cli` and, when missing, creates `/usr/local/bin/nginx-cli-hook` as a soft link to `/usr/local/bin/nginx-cli`. It also reviews nginx-adm’s login hook and replaces an old `/usr/local/bin/nginx-cli approve` (or `sudo … approve`) managed block with `/usr/local/bin/nginx-cli-hook approve`.
 
 This product is **local-only** for its install channel (no default `SCRIPT_URL` online install). Bootstrap origin: [cloudgen/cli-template](https://github.com/cloudgen/cli-template).
 
@@ -69,7 +69,7 @@ After install, on a terminal:
 
 ```text
 $ nginx-cli
-[INFO] **nginx-cli**(*1.8.1*) — numbered list of live work commands
+[INFO] **nginx-cli**(*1.10.0*) — numbered list of live work commands
 1. remove-lpu: Remove nginx-adm (confirm or --force)
 2. request: Submit dest JSON (or nginx-conf text dual)
 3. list-requests: Approving / pending list
@@ -169,4 +169,4 @@ MIT License — see [`LICENSE.md`](./LICENSE.md).
 
 ## Last Update
 
-2026-09-06 — version **1.8.1** (plain-language Description; hyphenated-login request fence; TTY empty-argv numbered list).
+2026-09-09 — version **1.10.0** (this-login PATH / `.profile` ensure; `requirement-shell-path-and-shell-support`).

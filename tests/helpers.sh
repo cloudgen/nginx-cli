@@ -86,6 +86,7 @@ _trunc() {
 # GLOBAL_BIN is redirected so a host /usr/local/bin install cannot pollute
 # uninstall target selection.
 # Sets CI_HOME, CI_USER_BIN, CI_GLOBAL_BIN.
+# Clears BASHRC so a prior case cannot leak a redirected rc path.
 ci_isolated_env() {
     CI_HOME=$(mktemp -d "${TMPDIR:-/tmp}/hm-home.XXXXXX")
     CI_USER_BIN="${CI_HOME}/.local/bin"
@@ -97,9 +98,35 @@ ci_isolated_env() {
     # Local-only product: ensure no channel env is required
     unset SCRIPT_URL 2>/dev/null || true
     unset CHECKSUM 2>/dev/null || true
+    unset BASHRC 2>/dev/null || true
+    CI_BASHRC=
+    CI_BASHRC_DIR=
+}
+
+# Redirect BASHRC to a file in a random temp folder (not ${HOME}/.bashrc).
+# Sets CI_BASHRC_DIR, CI_BASHRC and exports BASHRC.
+ci_isolated_bashrc() {
+    CI_BASHRC_DIR=$(mktemp -d "${TMPDIR:-/tmp}/hm-bashrc.XXXXXX")
+    CI_BASHRC="${CI_BASHRC_DIR}/.bashrc"
+    export BASHRC="${CI_BASHRC}"
+}
+
+ci_cleanup_bashrc() {
+    if [ -n "${CI_BASHRC_DIR:-}" ] && [ -d "${CI_BASHRC_DIR}" ]; then
+        rm -rf "${CI_BASHRC_DIR}"
+    fi
+    CI_BASHRC_DIR=
+    CI_BASHRC=
+    unset BASHRC 2>/dev/null || true
+}
+
+# Exact installer PATH export line written into bashrc.
+ci_bashrc_path_line() {
+    printf 'export PATH="%s:$PATH"' "${CI_USER_BIN}"
 }
 
 ci_cleanup_env() {
+    ci_cleanup_bashrc
     if [ -n "${CI_HOME:-}" ] && [ -d "${CI_HOME}" ]; then
         rm -rf "${CI_HOME}"
         CI_HOME=

@@ -10,6 +10,8 @@ This requirement is the **project Single Source of Truth** for **shell CLI stora
 
 Used for **install staging** (`mktemp` under the isolated root). Not a durable backup deposit.
 
+**Out of scope (cited, not re-owned):** Binary install paths (`USER_BIN` / `GLOBAL_BIN`); PATH shell-rc (`requirement-shell-path-and-shell-support`).
+
 ### 1.1 Human-facing
 
 **In one sentence:** Scratch files live under an isolated per-user directory, not in a shared world-writable folder.
@@ -21,7 +23,7 @@ Used for **install staging** (`mktemp` under the isolated root). Not a durable b
 
 | Includes | Excludes |
 |----------|----------|
-| Resolver, isolation, about field | Durable backup deposit |
+| Resolver, isolation, about field | Durable backup deposit; PATH shell-rc |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|

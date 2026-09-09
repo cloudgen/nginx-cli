@@ -203,6 +203,9 @@ run_test_domain() {
     _setup_fn=$(sed -n '/^ngx_setup() {/,/^}/p' "${SCRIPT}")
     assert_contains "TP-HOOK-08 setup copies global binary" "${_setup_fn}" "inst_local_install"
     assert_contains "TP-HOOK-08 setup ensures hook symlink" "${_setup_fn}" "ngx_ensure_login_hook_symlink"
+    assert_contains "TP-HOOK-09 setup reviews LPU login hook" "${_setup_fn}" "ngx_enable_login_approval"
+    _out=$(ngx_fx enable-login-approval 2>&1)
+    assert_contains "TP-HOOK-09 already-new not rewritten" "${_out}" "already present"
 
     # TP-NGX-11 approve without basename non-tty fail-closed
     _err=$(ngx_fx approve 2>&1 >/dev/null)
@@ -548,6 +551,40 @@ STUB
     _out=$(sh "${SCRIPT}" fence-test < "${_pass}/20260821-alice-example.com-1.json" 2>&1)
     assert_eq "TP-NGX-49 stdin fence-test exit 0" 0 "$?"
     assert_contains "TP-NGX-49 stdin no dest fence" "${_out}" "No dest fence matched"
+
+    # TP-NGX-55 interactive / login-hook review shows YAML (inbound stays JSON)
+    require_cmd python3
+    _show=$(sed -n '/^ngx_show_request_header()/,/^}/p' "${SCRIPT}")
+    _ymlfn=$(sed -n '/^ngx_json_to_yaml()/,/^}/p' "${SCRIPT}")
+    _intfn=$(sed -n '/^ngx_approve_interactive()/,/^}/p' "${SCRIPT}")
+    assert_contains "TP-NGX-55 interactive calls show header" "${_intfn}" "ngx_show_request_header"
+    assert_contains "TP-NGX-55 show renders YAML" "${_show}" "ngx_json_to_yaml"
+    assert_not_contains "TP-NGX-55 show no field dump purpose line" "${_show}" 'out_plain "purpose:'
+    assert_contains "TP-NGX-55 yaml helper python3" "${_ymlfn}" "python3"
+    assert_contains "TP-NGX-55 yaml helper key colon value" "${_ymlfn}" 'print("%s%s: %s"'
+    assert_not_contains "TP-NGX-55 yaml helper no PyYAML" "${_ymlfn}" "import yaml"
+    _ysrc="${_pass}/20260821-alice-example.com-1.json"
+    _yrender=$(
+        eval "$(sed -n '/^ngx_json_to_yaml()/,/^}/p' "${SCRIPT}")"
+        ngx_json_to_yaml "${_ysrc}"
+    )
+    assert_eq "TP-NGX-55 yaml helper exit 0" 0 "$?"
+    assert_contains "TP-NGX-55 yaml helper schema_version" "${_yrender}" "schema_version: 1"
+    assert_contains "TP-NGX-55 yaml helper purpose" "${_yrender}" "purpose: Add HTTPS vhost redirect for example.com"
+    assert_contains "TP-NGX-55 yaml helper nested site" "${_yrender}" "site:"
+    assert_contains "TP-NGX-55 yaml helper nested listen" "${_yrender}" "listen:"
+    assert_not_contains "TP-NGX-55 yaml helper not JSON dump" "${_yrender}" '"schema_version":'
+    _ybase="20260906-alice-example.com-1.json"
+    rm -f "${_q}/config-request/"*
+    cp "${_ysrc}" "${_q}/config-request/${_ybase}"
+    _yerr=$(printf 'q\n' | TTY=1 ngx_fx approve 2>&1)
+    assert_eq "TP-NGX-55 live YAML review exit 0" 0 "$?"
+    assert_contains "TP-NGX-55 live YAML schema_version" "${_yerr}" "schema_version: 1"
+    assert_contains "TP-NGX-55 live YAML action" "${_yerr}" "action: add"
+    assert_contains "TP-NGX-55 live YAML domain" "${_yerr}" "domain: example.com"
+    assert_contains "TP-NGX-55 live YAML nested site" "${_yerr}" "site:"
+    assert_not_contains "TP-NGX-55 live no JSON object dump" "${_yerr}" '"schema_version":'
+    assert_file_exists "TP-NGX-55 live quit left inbound" "${_q}/config-request/${_ybase}"
 
     rm -rf "${_fx}"
 }

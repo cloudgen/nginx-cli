@@ -15,12 +15,14 @@
 # - requirement-shell-cli-zero-arguments.md  (Type N: off-TTY empty argv = help; TTY empty argv = numbered list)
 # - requirement-shell-cli-default-interaction.md  (TTY numbered list on empty argv and menu/main)
 # - requirement-shell-local-self-management.md
+# - requirement-shell-path-and-shell-support.md
 # - requirement-shell-cli-storage.md
 # - requirement-shell-idempotency.md
 # - requirement-shell-modular-function-design.md
 # - requirement-shell-output-requirements.md
 # - requirement-shell-interactive-vs-noninteractive.md
 # - requirement-domain-nginx-cli.md
+# - requirement-login-interactive-review-hook.md
 # - requirement-incorrect-json-format.md
 # - requirement-shell-script-coding.md
 # - requirement-three-layer-privilege-model.md
@@ -28,13 +30,14 @@
 # - requirement-sudoer-json-file.md
 # Plus CIAO Protection Zones and "DO NOT MODIFY" rules.
 #
-# Domain: setup/remove-lpu, request/approve/reject, login hook, fence-test (requirement-domain-nginx-cli.md).
+# Domain: setup/remove-lpu, request/approve/reject, fence-test (requirement-domain-nginx-cli.md).
+# Login hook: labeled symlink + setup review/replace (requirement-login-interactive-review-hook.md).
 #
 # Philosophy: CIAO (Caution • Intentional • Anti-fragile • Over-engineered)
 # Single-file ship unit under src/; install to ~/.local/bin (user) or /usr/local/bin (root/--global).
 #
 # APP NAME: hard-assign APP_NAME="nginx-cli"
-# VERSION: hard-assign VERSION="1.8.1"
+# VERSION: hard-assign VERSION="1.10.0"
 #
 # =============================================================================
 
@@ -51,7 +54,7 @@ APP_NAME="nginx-cli"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
 : "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, interactive approval, submit-sudoer-request, test-json-format, fence-test, and a TTY numbered list (empty argv or menu/main).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.8.1"
+VERSION="1.10.0"
 : "${VERSION:=1.0.0}"
 # Repository identity SSOT (git host owner/repo for project-repository alignment).
 # Install remains local-only: SCRIPT_URL stays empty (no online curl|sh channel).
@@ -98,6 +101,10 @@ if [ -z "${HOME-}" ]; then
 fi
 : "${HOME:=/tmp}"
 : "${USER_BIN:=${HOME}/.local/bin}"
+: "${BASHRC:=${HOME}/.bashrc}"
+: "${ZSHRC:=${HOME}/.zshrc}"
+: "${FISH_CONFIG:=${HOME}/.config/fish/config.fish}"
+: "${PROFILE:=${HOME}/.profile}"
 : "${INSTALL_PATH:=}"
 : "${FORCE_USER:=0}"
 : "${FORCE_GLOBAL:=0}"
@@ -606,19 +613,45 @@ inst_get_version() {
 path_add_bashrc() {
     : "${HOME:=/tmp}"
     : "${USER_BIN:=${HOME}/.local/bin}"
-    local bashrc="${HOME}/.bashrc"
+    : "${BASHRC:=${HOME}/.bashrc}"
+    : "${APP_NAME:=nginx-cli}"
+    : "${VERSION:=0}"
+    : "${JSON:=0}"
+    local bashrc="${BASHRC}"
     local path_line
+    local created=0
     path_line=$(printf 'export PATH="%s:$PATH"' "${USER_BIN}")
+
     if [ ! -f "$bashrc" ]; then
-        return 1
+        if ! printf '# Interactive rc created by %s installer (%s)\n' "$APP_NAME" "$VERSION" > "$bashrc"; then
+            if [ "${JSON}" -eq 0 ]; then
+                out_warn "Could not create ${bashrc}. Next: create that file as this login, then re-run ${APP_NAME} install."
+            fi
+            return 1
+        fi
+        chmod 0644 "$bashrc" 2>/dev/null || true
+        created=1
+        if [ "${JSON}" -eq 0 ]; then
+            out_plain "→ Created ${bashrc}"
+        fi
     fi
 
-    if ! grep -qF "${USER_BIN}" "$bashrc" 2>/dev/null; then
+    if ! grep -qF "${path_line}" "$bashrc" 2>/dev/null; then
         printf "\n# Added by %s installer (%s)\n" "$APP_NAME" "$VERSION" >> "$bashrc"
         printf '%s\n' "${path_line}" >> "$bashrc"
         if [ "${JSON}" -eq 0 ]; then
             out_plain "→ Added ${USER_BIN} to PATH for bash"
         fi
+        return 0
+    fi
+    if ! grep -qF "# Added by ${APP_NAME} installer" "$bashrc" 2>/dev/null; then
+        printf "\n# Added by %s installer (%s)\n" "$APP_NAME" "$VERSION" >> "$bashrc"
+        if [ "${JSON}" -eq 0 ]; then
+            out_plain "→ Noted ${APP_NAME} installer on existing PATH line (bash)"
+        fi
+        return 0
+    fi
+    if [ "$created" -eq 1 ]; then
         return 0
     fi
     return 1  # already present
@@ -638,25 +671,34 @@ path_add_bashrc() {
 # stdout/stderr. User-visible “→ Added …” lines use out_plain.
 # See requirement-shell-output-requirements.md §2.1.1.
 #
-# Last reviewed: 2026-07-12
+# Last reviewed: 2026-09-09
+# ALIGNMENT: requirement-shell-path-and-shell-support.md
 # =============================================================================
 
 path_add_zshrc() {
     : "${HOME:=/tmp}"
     : "${USER_BIN:=${HOME}/.local/bin}"
-    local zshrc="${HOME}/.zshrc"
+    : "${ZSHRC:=${HOME}/.zshrc}"
+    : "${APP_NAME:=nginx-cli}"
+    : "${VERSION:=0}"
+    : "${JSON:=0}"
+    local zshrc="${ZSHRC}"
     local path_line
     path_line=$(printf 'export PATH="%s:$PATH"' "${USER_BIN}")
     if [ ! -f "$zshrc" ]; then
         return 1
     fi
 
-    if ! grep -qF "${USER_BIN}" "$zshrc" 2>/dev/null; then
+    if ! grep -qF "${path_line}" "$zshrc" 2>/dev/null; then
         printf "\n# Added by %s installer (%s)\n" "$APP_NAME" "$VERSION" >> "$zshrc"
         printf '%s\n' "${path_line}" >> "$zshrc"
         if [ "${JSON}" -eq 0 ]; then
             out_plain "→ Added ${USER_BIN} to PATH for zsh"
         fi
+        return 0
+    fi
+    if ! grep -qF "# Added by ${APP_NAME} installer" "$zshrc" 2>/dev/null; then
+        printf "\n# Added by %s installer (%s)\n" "$APP_NAME" "$VERSION" >> "$zshrc"
         return 0
     fi
     return 1  # already present
@@ -677,23 +719,33 @@ path_add_zshrc() {
 # product stdout/stderr. User-visible “→ Added …” lines use out_plain.
 # See requirement-shell-output-requirements.md §2.1.1.
 #
-# Last reviewed: 2026-07-12
+# Last reviewed: 2026-09-09
+# ALIGNMENT: requirement-shell-path-and-shell-support.md
 # =============================================================================
 
 path_add_fish() {
     : "${HOME:=/tmp}"
     : "${USER_BIN:=${HOME}/.local/bin}"
-    local fish_config="${HOME}/.config/fish/config.fish"
+    : "${FISH_CONFIG:=${HOME}/.config/fish/config.fish}"
+    : "${APP_NAME:=nginx-cli}"
+    : "${VERSION:=0}"
+    : "${JSON:=0}"
+    local fish_config="${FISH_CONFIG}"
+    local fish_dir
     local path_line
     path_line=$(printf 'set -gx PATH %s $PATH' "${USER_BIN}")
+    fish_dir=$(dirname -- "$fish_config")
 
-    # Ensure directory exists
-    if [ ! -d "${HOME}/.config/fish" ] && ! mkdir -p "${HOME}/.config/fish" 2>/dev/null; then
+    if [ ! -d "$fish_dir" ] && ! mkdir -p "$fish_dir" 2>/dev/null; then
         return 1
     fi
 
-    if [ -f "$fish_config" ] && grep -qF "${USER_BIN}" "$fish_config" 2>/dev/null; then
-        return 1  # already present
+    if [ -f "$fish_config" ] && grep -qF "${path_line}" "$fish_config" 2>/dev/null; then
+        if grep -qF "# Added by ${APP_NAME} installer" "$fish_config" 2>/dev/null; then
+            return 1  # already present
+        fi
+        printf "\n# Added by %s installer (%s)\n" "$APP_NAME" "$VERSION" >> "$fish_config"
+        return 0
     fi
 
     printf "\n# Added by %s installer (%s)\n" "$APP_NAME" "$VERSION" >> "$fish_config"
@@ -711,46 +763,113 @@ path_add_fish() {
 #
 # GENERAL PURPOSE:
 # Adds ${USER_BIN} (default ${HOME}/.local/bin) to bash, zsh, and fish
-# configuration files if not already present. Thin orchestrator for path_add_*.
+# configuration files if not already present. Creates BASHRC (default
+# ~/.bashrc) when missing. Creates PROFILE (default ~/.profile) when missing
+# so a login shell sources ~/.bashrc. Thin orchestrator for path_add_* /
+# path_ensure_profile.
+#
+# ALIGNMENT: requirement-shell-path-and-shell-support.md
 #
 # Respects --json mode (silent in JSON).
 #
-# Last reviewed: 29 April 2026
+# Last reviewed: 2026-09-09
 # =============================================================================
 
 path_add_shell() {
     local added=0
     local shell_config="N/A"
+    : "${HOME:=/tmp}"
+    : "${BASHRC:=${HOME}/.bashrc}"
+    : "${ZSHRC:=${HOME}/.zshrc}"
+    : "${FISH_CONFIG:=${HOME}/.config/fish/config.fish}"
+    : "${PROFILE:=${HOME}/.profile}"
 
-    # Bash
     if path_add_bashrc; then
         added=1
-        shell_config="${HOME}/.bashrc"
+        shell_config="${BASHRC}"
     fi
 
-    # Zsh
     if path_add_zshrc; then
         added=1
         if [ "$shell_config" = "N/A" ]; then
-            shell_config="${HOME}/.zshrc"
+            shell_config="${ZSHRC}"
         else
-            shell_config="${shell_config} ${HOME}/.zshrc"
+            shell_config="${shell_config} ${ZSHRC}"
         fi
     fi
 
-    # Fish
     if path_add_fish; then
         added=1
         if [ "$shell_config" = "N/A" ]; then
-            shell_config="${HOME}/.config/fish/config.fish"
+            shell_config="${FISH_CONFIG}"
         else
-            shell_config="${shell_config} ${HOME}/.config/fish/config.fish"
+            shell_config="${shell_config} ${FISH_CONFIG}"
+        fi
+    fi
+
+    if path_ensure_profile; then
+        added=1
+        if [ "$shell_config" = "N/A" ]; then
+            shell_config="${PROFILE}"
         fi
     fi
 
     if [ "$added" -eq 1 ] && [ "${JSON}" -eq 0 ]; then
         out_plain "→ Restart your terminal or run: source ${shell_config}"
     fi
+}
+
+# =============================================================================
+# path_ensure_profile() - Create PROFILE if absent (never overwrite)
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# A login shell (SSH) reads ~/.profile, not ~/.bashrc. If .profile is missing,
+# PATH and interactive rc never run after SSH. Create a short file that sources
+# ~/.bashrc. If the file already exists, leave the body unchanged.
+#
+# ALIGNMENT: requirement-shell-path-and-shell-support.md
+#
+# Returns 0 if created, 1 if already present or create failed.
+#
+# PRINTF EXCEPTION (class C – file I/O redirect):
+# printf … > "$profile" writes shell config content to a file, not product
+# stdout/stderr. User-visible “→ Created …” lines use out_plain.
+#
+# Last reviewed: 2026-09-09
+# =============================================================================
+
+path_ensure_profile() {
+    : "${HOME:=/tmp}"
+    : "${PROFILE:=${HOME}/.profile}"
+    : "${APP_NAME:=nginx-cli}"
+    : "${JSON:=0}"
+    local profile="${PROFILE}"
+
+    if [ -f "$profile" ]; then
+        return 1
+    fi
+
+    if ! {
+        printf '# BEGIN %s profile source-bashrc\n' "$APP_NAME"
+        printf '# Created so a bash login shell sources interactive rc.\n'
+        printf 'if [ -n "${BASH_VERSION:-}" ]; then\n'
+        printf '    if [ -f "${HOME}/.bashrc" ]; then\n'
+        printf '        . "${HOME}/.bashrc"\n'
+        printf '    fi\n'
+        printf 'fi\n'
+        printf '# END %s profile source-bashrc\n' "$APP_NAME"
+    } > "$profile"; then
+        if [ "${JSON}" -eq 0 ]; then
+            out_warn "Could not create ${profile}. Next: create that file as this login so SSH login reads ~/.bashrc, then re-run ${APP_NAME} install."
+        fi
+        return 1
+    fi
+    chmod 0644 "$profile" 2>/dev/null || true
+    if [ "${JSON}" -eq 0 ]; then
+        out_plain "→ Created ${profile} (login shell sources ~/.bashrc)"
+    fi
+    return 0
 }
 
 # =============================================================================
@@ -1227,6 +1346,7 @@ util_resolve_running_path() {
 # ALIGNMENT:
 # - requirement-shell-local-self-management.md
 # - requirement-shell-idempotency.md
+# - requirement-shell-path-and-shell-support.md (user-bin PATH/profile companion)
 #
 # Mode SSOT for managed binary (shell ship unit needs world-read for non-owners).
 # Do NOT use chmod +x alone after mktemp (0600|0111 → 0711 breaks multi-user exec).
@@ -1261,6 +1381,13 @@ inst_local_install() {
     fi
     _target="${_target_dir}/${APP_NAME}"
     INSTALL_PATH="${_target}"
+
+    # PATH / profile companion runs even when the CLI binary is already installed
+    # so a second user-bin `install` still heals missing rc. Not for GLOBAL_BIN.
+    # ALIGNMENT: requirement-shell-path-and-shell-support.md
+    if [ "${_target_dir}" = "${USER_BIN}" ]; then
+        path_add_shell
+    fi
 
     if [ -x "${_target}" ] || [ -f "${_target}" ]; then
         if [ "${FORCE}" -eq 0 ] && [ "${FORCE_REINSTALL}" -eq 0 ]; then
@@ -1326,12 +1453,8 @@ inst_local_install() {
     fi
 
     out_success "Installed ${APP_NAME} to ${_target}"
-    if [ "${_target_dir}" = "${USER_BIN}" ]; then
-        # Best-effort PATH integration for user bin (function, not external)
-        path_add_shell 2>/dev/null || true
-        if [ "${JSON}" -eq 0 ]; then
-            out_info "Local install is user-rewritable. Multi-user hosts may prefer: sudo ${APP_NAME} install"
-        fi
+    if [ "${_target_dir}" = "${USER_BIN}" ] && [ "${JSON}" -eq 0 ]; then
+        out_info "Local install is user-rewritable. Multi-user hosts may prefer: sudo ${APP_NAME} install"
     fi
     if [ "${JSON}" -eq 1 ]; then
         out_json "install" "installed" \
@@ -1355,6 +1478,7 @@ inst_local_install() {
 # ALIGNMENT:
 # - requirement-shell-local-self-management.md
 # - requirement-shell-interactive-vs-noninteractive.md
+# - requirement-shell-path-and-shell-support.md (scoped rc sticker cleanup)
 #
 # Last reviewed: 2026-08-03
 # =============================================================================
@@ -1394,12 +1518,91 @@ inst_local_uninstall() {
     if ! rm -f "${_target}"; then
         out_die "Failed to remove ${_target}"
     fi
+    if [ "${_target}" = "${USER_BIN}/${APP_NAME}" ]; then
+        inst_local_uninstall_cleanup_path
+    fi
     out_success "Removed ${APP_NAME} from ${_target}"
     if [ "${JSON}" -eq 1 ]; then
         out_json "uninstall" "removed" \
             "app" "${APP_NAME}" \
             "path" "${_target}" \
             "status" "uninstalled"
+    fi
+    return 0
+}
+
+# =============================================================================
+# inst_local_uninstall_cleanup_path() - Scoped this-login rc sticker cleanup
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# After user-bin uninstall, remove only this product's installer comments.
+# Strip the shared PATH line only when USER_BIN is empty or missing.
+# Never delete .profile. Never match other apps' "# Added by .* installer".
+#
+# ALIGNMENT: requirement-shell-path-and-shell-support.md
+#
+# Last reviewed: 2026-09-09
+# =============================================================================
+inst_local_uninstall_cleanup_path() {
+    if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ]; then
+        return 0
+    fi
+
+    : "${HOME:=/tmp}"
+    : "${USER_BIN:=${HOME}/.local/bin}"
+    : "${BASHRC:=${HOME}/.bashrc}"
+    : "${ZSHRC:=${HOME}/.zshrc}"
+    : "${FISH_CONFIG:=${HOME}/.config/fish/config.fish}"
+    : "${APP_NAME:=nginx-cli}"
+    : "${JSON:=0}"
+    local bin_dir="${USER_BIN}"
+    local should_clean_path=1
+    local path_line
+    local fish_line
+    local escaped_line
+    local escaped_fish
+    local cleaned=0
+    local config
+
+    if [ -d "$bin_dir" ]; then
+        if [ -n "$(ls -A "$bin_dir" 2>/dev/null)" ]; then
+            should_clean_path=0
+            if [ "${JSON}" -eq 0 ]; then
+                out_warn "Keeping ${bin_dir} in PATH because it still contains files."
+            fi
+        fi
+    fi
+
+    path_line=$(printf 'export PATH="%s:$PATH"' "${bin_dir}")
+    fish_line=$(printf 'set -gx PATH %s $PATH' "${bin_dir}")
+    escaped_line=$(printf '%s' "${path_line}" | sed 's/[\\/&|]/\\&/g')
+    escaped_fish=$(printf '%s' "${fish_line}" | sed 's/[\\/&|]/\\&/g')
+
+    for config in "${BASHRC}" "${ZSHRC}" "${FISH_CONFIG}"; do
+        if [ -f "$config" ]; then
+            if [ "$should_clean_path" -eq 0 ]; then
+                if sed -i.bak \
+                    -e "/# Added by ${APP_NAME} installer/d" \
+                    "$config" 2>/dev/null; then
+                    cleaned=1
+                fi
+            else
+                if sed -i.bak \
+                    -e "/# Added by ${APP_NAME} installer/d" \
+                    -e "/# Interactive rc created by ${APP_NAME} installer/d" \
+                    -e "\|^${escaped_line}\$|d" \
+                    -e "\|^${escaped_fish}\$|d" \
+                    "$config" 2>/dev/null; then
+                    cleaned=1
+                fi
+            fi
+            rm -f "${config}.bak" 2>/dev/null || true
+        fi
+    done
+
+    if [ "$cleaned" -eq 1 ] && [ "${JSON}" -eq 0 ]; then
+        out_plain "→ Cleaned ${APP_NAME} PATH stickers from shell config files"
     fi
     return 0
 }
@@ -2372,19 +2575,109 @@ ngx_list_queue() {
     fi
 }
 
+# Human-facing YAML of one inbound JSON object (login-hook / interactive review).
+# Inbound file stays JSON. No PyYAML: python3 stdlib only. Nested maps/lists
+# indent so the site body is readable (not a JSON object dump).
+# ALIGNMENT: requirement-domain-nginx-cli.md
+ngx_json_to_yaml() {
+    _jf="$1"
+    if [ -z "${_jf}" ] || [ ! -f "${_jf}" ] || [ -L "${_jf}" ]; then
+        return 1
+    fi
+    if ! command -v python3 >/dev/null 2>&1; then
+        return 1
+    fi
+    python3 -c '
+import json, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+if not isinstance(data, dict):
+    raise SystemExit(2)
+
+def ystr(s):
+    s = str(s)
+    if not s or s.strip() != s:
+        return json.dumps(s, ensure_ascii=False)
+    if s.lower() in ("true", "false", "null", "yes", "no", "on", "off"):
+        return json.dumps(s, ensure_ascii=False)
+    if any(c in s for c in "\n\t:#{}[]&*!|>%@`"):
+        return json.dumps(s, ensure_ascii=False)
+    if chr(34) in s or chr(39) in s or chr(92) in s:
+        return json.dumps(s, ensure_ascii=False)
+    return s
+
+def scalar(v):
+    if v is None:
+        return "null"
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return str(v)
+    return ystr(v)
+
+def dump_value(v, indent):
+    sp = "  " * indent
+    if isinstance(v, dict):
+        for k, val in v.items():
+            dump_kv(k, val, indent)
+        return
+    if isinstance(v, list):
+        for item in v:
+            if isinstance(item, dict):
+                if not item:
+                    print("%s- {}" % sp)
+                    continue
+                keys = list(item.keys())
+                dump_kv_prefixed("%s- " % sp, keys[0], item[keys[0]], indent + 1)
+                for k in keys[1:]:
+                    dump_kv(k, item[k], indent + 1)
+            elif isinstance(item, list):
+                print("%s-" % sp)
+                dump_value(item, indent + 1)
+            else:
+                print("%s- %s" % (sp, scalar(item)))
+
+def dump_kv(k, v, indent):
+    dump_kv_prefixed("  " * indent, k, v, indent + 1)
+
+def dump_kv_prefixed(prefix, k, v, child_indent):
+    if isinstance(v, dict):
+        if not v:
+            print("%s%s: {}" % (prefix, k))
+        else:
+            print("%s%s:" % (prefix, k))
+            dump_value(v, child_indent)
+    elif isinstance(v, list):
+        if not v:
+            print("%s%s: []" % (prefix, k))
+        else:
+            print("%s%s:" % (prefix, k))
+            dump_value(v, child_indent)
+    else:
+        print("%s%s: %s" % (prefix, k, scalar(v)))
+
+dump_value(data, 0)
+' "${_jf}"
+}
+
 ngx_show_request_header() {
     _file="${1:-}"
     [ -f "${_file}" ] || return 1
     if ngx_looks_like_json "${_file}"; then
         _raw=$(cat "${_file}")
-        out_plain "purpose: $(ngx_json_get_str "${_raw}" "purpose")"
-        out_plain "action: $(ngx_json_get_str "${_raw}" "action")"
-        out_plain "domain: $(ngx_json_get_str "${_raw}" "domain")"
         _sapp=$(ngx_json_get_str "${_raw}" "submit_app")
         _sver=$(ngx_json_get_str "${_raw}" "submit_version")
         if [ -n "${_sapp}" ] && [ -n "${_sver}" ]; then
             out_plain "queued by ${_sapp} ${_sver}"
         fi
+        if ! _yml=$(ngx_json_to_yaml "${_file}"); then
+            out_die "Cannot render request as YAML: ${_file}"
+        fi
+        if [ -z "${_yml}" ]; then
+            out_die "Cannot render request as YAML: ${_file}"
+        fi
+        out_plain "${_yml}"
         return 0
     fi
     while IFS= read -r _line || [ -n "${_line}" ]; do
@@ -2989,6 +3282,7 @@ ngx_approve_interactive() {
             ngx_reject_one "${_base}"
             continue
         fi
+        # Fence-clear: YAML body (inbound stays JSON). Not a JSON object dump.
         ngx_show_request_header "${_f}"
         _choice=$(prompt_approve_choice)
         case "${_choice}" in
@@ -3016,7 +3310,7 @@ ngx_approve_interactive() {
 #
 # As-login approve (OPEN-ADM-NOSUDO). MUST NOT wrap sudo or sudo -n.
 # Binary is /usr/local/bin/nginx-cli-hook (not $GLOBAL_BIN).
-# ALIGNMENT: requirement-domain-nginx-cli.md
+# ALIGNMENT: requirement-login-interactive-review-hook.md
 ngx_login_hook_block() {
     ngx_defaults
     : "${NGINX_ADM_USER:=nginx-adm}"
@@ -3050,6 +3344,10 @@ ngx_profile_block() {
 }
 
 # ngx_ensure_login_hook_symlink() - Create nginx-cli-hook when missing
+#
+# New hook: /usr/local/bin/nginx-cli-hook -> /usr/local/bin/nginx-cli
+# MUST NOT overwrite an existing hook name. Fixture MUST NOT write live /usr/local/bin.
+# ALIGNMENT: requirement-login-interactive-review-hook.md
 ngx_ensure_login_hook_symlink() {
     ngx_defaults
     : "${APP_NAME:=nginx-cli}"
@@ -3393,6 +3691,7 @@ ngx_setup() {
     export FORCE_GLOBAL
     inst_local_install
     JSON="${_setup_json}"
+    # New hook: labeled symlink /usr/local/bin/nginx-cli-hook -> /usr/local/bin/nginx-cli
     ngx_ensure_login_hook_symlink
     ngx_create_adm_user
     ngx_ensure_home_layout
@@ -3400,6 +3699,9 @@ ngx_setup() {
     ngx_setup_ownership
     ngx_setup_symlinks
     ngx_write_adm_sudoers
+    # Review LPU login hook: replace old /usr/local/bin/nginx-cli approve
+    # (or sudo … approve) with /usr/local/bin/nginx-cli-hook approve.
+    # ALIGNMENT: requirement-login-interactive-review-hook.md
     ngx_enable_login_approval
     ngx_ensure_adm_password
     ngx_submit_login_hook_sudoer_request
@@ -4730,6 +5032,7 @@ app_help() {
     out_empty_line
     out_info "Environment:"
     out_plain "  USER_BIN / GLOBAL_BIN     install destinations"
+    out_plain "  BASHRC                    interactive rc write path (default ~/.bashrc)"
     out_plain "  NGINX_ADM_HOME            override LPU home"
     out_plain "  NGINX_QUEUE_ROOT          public queue root (default /var/nginx-cli)"
     out_plain "  NGINX_CONF_ROOT           default /etc/nginx"

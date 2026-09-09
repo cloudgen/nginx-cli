@@ -2,20 +2,21 @@
 
 Authoritative specialized product law for **nginx-cli** lives here.
 
-**Current state (2026-09-06):** Specialized **software-development** product. Left genesis. **This product is B** (`nginx-cli`). **Origin A** is `cli-template` (frozen at `src/cli-template`). Do not reverse-copy B onto A. Registry is populated — see `index.md`. Numbered list: TTY empty argv and `menu`/`main`; off-TTY empty argv stays help.
+**Current state (2026-09-09):** Specialized **software-development** product. Left genesis. **This product is B** (`nginx-cli`). **Origin A** is `cli-template` (frozen at `src/cli-template`). Do not reverse-copy B onto A. Registry is populated — see `index.md`. Numbered list: TTY empty argv and `menu`/`main`; off-TTY empty argv stays help. Login hook is an independent REQ (`requirement-login-interactive-review-hook`). Shell-rc PATH / this-login profile: `requirement-shell-path-and-shell-support`.
 
 ## Product identity (summary)
 
 | Field | Value |
 |-------|--------|
 | Product / `APP_NAME` | `nginx-cli` |
-| Version SSOT | `1.8.1` (ship unit hard-assign) |
+| Version SSOT | `1.10.0` (ship unit hard-assign) |
 | Ship unit | `src/nginx-cli` |
 | Origin A (frozen) | `src/cli-template` |
 | Default install | `~/.local/bin/nginx-cli` |
 | Install mode | **Local-only** |
 | Domain surface | **Active** — `requirement-domain-nginx-cli.md` (file-based JSON dest **and** same-product submitter) |
-| Privilege peers | `requirement-least-privilege-user` · `requirement-three-layer-privilege-model` · `requirement-privilege-prevention-set` · `requirement-sudoer-json-file` |
+| Privilege peers | `requirement-least-privilege-user` · `requirement-three-layer-privilege-model` · `requirement-privilege-prevention-set` · `requirement-sudoer-json-file` · `requirement-login-interactive-review-hook` |
+| Shell-rc PATH | `requirement-shell-path-and-shell-support` |
 | Prompt / temp REQs | **Not added** — interactive + storage already own those surfaces |
 
 ## Class requirement gate

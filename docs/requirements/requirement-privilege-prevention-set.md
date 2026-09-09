@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-privilege-prevention-set.md  
-**Status**: Active (Version 1.6.0)  
+**Status**: Active (Version 1.6.1)  
 **Area**: architecture  
 **Key**: `requirement-privilege-prevention-set`  
 **id**: RQ-PRIVILEGE-PREVENTION-SET  
@@ -9,7 +9,7 @@
 
 This requirement is the **project Single Source of Truth** for **what this product blocks, stops, or prevents**, and for **what it must not block** after the operator has already elevated.
 
-The Type 0 / Type 1 / Type 2 map and elev Tables A / B / C stay on `requirement-three-layer-privilege-model.md`. Least-privilege-approver identity (F1–F7) stays on `requirement-least-privilege-user.md`. nginx-conf request/approve verbs, basename, samples, queues, hook, and dest transform stay on `requirement-domain-nginx-cli.md`. This file **does not** replace those tables. It owns the **closed prevention catalog** and the **must-remain-open catalog**.
+The Type 0 / Type 1 / Type 2 map and elev Tables A / B / C stay on `requirement-three-layer-privilege-model.md`. Least-privilege-approver identity (F1–F7) stays on `requirement-least-privilege-user.md`. nginx-conf request/approve verbs, basename, samples, queues, and dest transform stay on `requirement-domain-nginx-cli.md`. Login-hook snippet + labeled symlink stay on `requirement-login-interactive-review-hook.md`. This file **does not** replace those tables. It owns the **closed prevention catalog** and the **must-remain-open catalog**.
 
 A wall that is not a §2.2 row is **not** product law.
 
@@ -98,8 +98,8 @@ On Termux, Git Bash, or Windows cmd, walls that assume root (`useradd`, `/etc/su
 | **PREV-COLLIDE** | `setup` when UID, GID, or LPU name exists and is **not** this identity | Type 1 bootstrap | Exit non-zero; no partial create | LPU |
 | **PREV-UNINST-F7** | Type 0 `uninstall` treated as LPU teardown | Type 0 | `uninstall` removes the **managed binary only** | LPU · local-self-management |
 | **PREV-USERDEL-QUEUES** | Rely on `userdel -r` to remove `/var/nginx-cli` | F7 | F7 **MUST** backup+remove the public root first | LPU |
-| **PREV-SUDO-N-CLI** | Bootstrap, login hook, or day-to-day `nginx-cli` documented or implemented as `sudo -n` | Type 1 / hook | Password `sudo` (Family 1 / bootstrap) or a root login; login hook is as-login (no sudo). Unit tools stay NOPASSWD | three-layer · domain |
-| **PREV-HOOK-SUDO** | Login hook documented or implemented as `sudo … nginx-cli approve` (password or `-n`) | Type 1 / hook | As-login `${GLOBAL_BIN}/nginx-cli approve`. Family 1 stays password sudo for explicit sudo | domain · three-layer |
+| **PREV-SUDO-N-CLI** | Bootstrap, login hook, or day-to-day `nginx-cli` documented or implemented as `sudo -n` | Type 1 / hook | Password `sudo` (Family 1 / bootstrap) or a root login; login hook is as-login (no sudo). Unit tools stay NOPASSWD | three-layer · login-hook |
+| **PREV-HOOK-SUDO** | Login hook documented or implemented as `sudo … nginx-cli approve` (password or `-n`) | Type 1 / hook | As-login `/usr/local/bin/nginx-cli-hook approve` (soft link to `/usr/local/bin/nginx-cli`). Family 1 stays password sudo for explicit sudo | login-hook · three-layer |
 | **PREV-T2** | A Type 2 execution euid for dest writes (`su` / `runuser` to the LPU) | design / code | Type 2 remains **Not used** | three-layer |
 | **PREV-MAP-PUBLIC** | Put `user-domain-map` on the public queue root | setup / design | Map stays under LPU home | LPU · domain |
 | **PREV-FIXTURE-VAR** | Write `/var/nginx-cli` from fixture mode | tests | Fixture queues stay under `/tmp` | domain |
@@ -173,7 +173,7 @@ These steps are **hard to undo**. They stay **allowed** after elev. The extra ga
 | **Family 1 dest** | `/etc/sudoers.d/nginx-cli-nginx-adm` after sibling approve (JSON auto-queue) |
 | **Listed-submitter dest** | `/etc/sudoers.d/nginx-cli-<login>` after sibling approve |
 | **Usual bootstrap** | `sudo src/nginx-cli setup` or `sudo nginx-cli setup` (password `sudo` OK) |
-| **Login hook** | `/usr/local/bin/nginx-cli-hook approve` as-login (**no** `sudo`; **PREV-HOOK-SUDO**) |
+| **Login hook** | `/usr/local/bin/nginx-cli-hook` → `/usr/local/bin/nginx-cli`; snippet as-login `…-hook approve` (**no** `sudo`; **PREV-HOOK-SUDO**; owner `requirement-login-interactive-review-hook`) |
 | **Fixture** | `NGINX_CLI_FIXTURE=1` + homes/queues under `/tmp` |
 | **Absent verbs** | `print-sudoers`, `nginx-ctl`, online self-update |
 | **Present compose** | `submit-sudoer-request` (Type 0; no `/etc` write) |
@@ -210,7 +210,7 @@ These steps are **hard to undo**. They stay **allowed** after elev. The extra ga
 6. Use `--force` to skip Type 1 authz or to auto-approve.  
 7. Document bootstrap or the login hook as `sudo -n nginx-cli`.  
 8. Copy sudoer-cli prevention rows (3773 inbound, JSON schema, NOPASSWD whole CLI) as if they were this dest.  
-9. Wrap the nginx-adm login hook in password `sudo` or leave a stale `sudo … approve` managed block on re-run (`PREV-HOOK-SUDO`).
+9. Wrap the nginx-adm login hook in password `sudo` or leave a stale `sudo … approve` / old product-binary managed block on re-run (`PREV-HOOK-SUDO`; healer is `requirement-login-interactive-review-hook`).
 
 **Violating this rule is a critical privilege / invented-wall regression.**
 
@@ -236,9 +236,10 @@ These steps are **hard to undo**. They stay **allowed** after elev. The extra ga
 | `docs/requirements/requirement-three-layer-privilege-model.md` | Type map + Tables A/B/C |
 | `docs/requirements/requirement-least-privilege-user.md` | F1–F7 identity |
 | `docs/requirements/requirement-domain-nginx-cli.md` | nginx-conf request/approve |
+| `docs/requirements/requirement-login-interactive-review-hook.md` | Labeled symlink + as-login snippet; setup replaces old hook |
 | `docs/requirements/requirement-shell-cli-interface.md` | Dispatcher / Type 0 catalog |
 | `./src/nginx-cli` | Ship unit |
 
-**Last Updated**: 2026-08-23 (1.6.0 — setup MUST NOT write `/etc/sudoers.d`; Family 1 via sibling JSON)  
+**Last Updated**: 2026-09-08 (1.6.1 — PREV-HOOK-SUDO points at labeled `/usr/local/bin/nginx-cli-hook`; owner `requirement-login-interactive-review-hook`)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

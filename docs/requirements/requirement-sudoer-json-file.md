@@ -16,7 +16,7 @@ This requirement is the **product Single Source of Truth** for the **JSON-type s
 
 Both grants **MUST** name only the project command **`nginx-cli`**. They **MUST NOT** allowlist other shell or OS tools. They **MUST NOT** grant `setup` / `remove-lpu` / `install` / `uninstall`. Extra tools increase design complexity and weaken security.
 
-**Dest-honest vs dns-cli:** sibling dest uses the same `kind` enum. This dest’s login hook is **as-login** `/usr/local/bin/nginx-cli-hook approve` (**no** `sudo`, **no** `sudo -n`). The `login-hook-elev` JSON is **Family 1** (password `sudo nginx-cli <verb>` after dest approve). **MUST NOT** copy dns-cli `args: ["interactive"]` or `NOPASSWD` on this kind. **MUST NOT** wrap the login hook in sudo because this JSON exists.
+**Dest-honest vs dns-cli:** sibling dest uses the same `kind` enum. This dest’s login hook is **as-login** `/usr/local/bin/nginx-cli-hook approve` (**no** `sudo`, **no** `sudo -n`; labeled symlink `/usr/local/bin/nginx-cli-hook` → `/usr/local/bin/nginx-cli`; owner `requirement-login-interactive-review-hook`). The `login-hook-elev` JSON is **Family 1** (password `sudo nginx-cli <verb>` after dest approve). **MUST NOT** copy dns-cli `args: ["interactive"]` or `NOPASSWD` on this kind. **MUST NOT** wrap the login hook in sudo because this JSON exists. `commands[].path` stays `/usr/local/bin/nginx-cli` (product binary), not the `-hook` name.
 
 This file does **not** own:
 
@@ -24,6 +24,7 @@ This file does **not** own:
 |---------|--------|
 | Type 0/1/2 map, Table A/B/C, setup auto-queue **workflow** (detect / no inbound `mkdir` / no `/etc/sudoers.d` write) | `requirement-three-layer-privilege-model` |
 | Domain verb catalog / help / about / nginx-conf request body | `requirement-domain-nginx-cli` |
+| Login-hook snippet + labeled symlink + setup review/replace | `requirement-login-interactive-review-hook` |
 | Closed prevention catalog | `requirement-privilege-prevention-set` |
 
 Queued **basename** allocation remains sibling-owned. This requirement owns **command identity, `kind`, and JSON body shape**.
@@ -362,6 +363,7 @@ OS-tool complexity is a security defect. dns-cli `interactive` + `NOPASSWD` is *
 |-----|--------------|
 | `requirement-three-layer-privilege-model` | Privilege layers; submit workflow; trust tiers; F6 is **not** this grant |
 | `requirement-domain-nginx-cli` | `submit-sudoer-request` surface; defers JSON **body** here |
+| `requirement-login-interactive-review-hook` | As-login labeled hook; this JSON does **not** wrap that hook in sudo |
 | `requirement-privilege-prevention-set` | Closed walls; must not block Type 0 compose submit |
 | `requirement-shell-cli-interface` | Verb routing |
 | `requirement-project-folder` | Global bin / ship unit |

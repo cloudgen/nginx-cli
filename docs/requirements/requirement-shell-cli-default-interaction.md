@@ -137,7 +137,7 @@ On a real terminal those four **and** empty argv show the numbered list. In a pi
 5. list-rejected: Rejected archive
 6. approve: Interactive one-by-one, or approve one file
 7. reject: Reject one pending request
-8. enable-login-approval: Add or refresh as-login approve in nginx-adm ~/.bashrc (no sudo)
+8. enable-login-approval: Add or refresh as-login /usr/local/bin/nginx-cli-hook approve (no sudo)
 9. map-set: Add user-domain-map entry (chown nginx-adm)
 10. map-unset: Remove map entry
 11. map-list: Show user-domain-map
@@ -206,6 +206,7 @@ Other listed verbs run with no extra operands (`approve` with no basename stays 
 | `requirement-shell-output-requirements` | `out_*` |
 | `requirement-shell-modular-function-design` | `app_main_menu` prefix |
 | `requirement-domain-nginx-cli` | Domain verbs the list may run |
+| `requirement-login-interactive-review-hook` | Topic owner of `enable-login-approval` (row 8) |
 | `docs/requirements/index.md` | Registry |
 
 ---

@@ -1,12 +1,12 @@
 **file**: docs/requirements/requirement-shell-idempotency.md  
-**Status**: Active (Version 1.2.0)  
+**Status**: Active (Version 1.3.0)  
 **Area**: shell  
 **Key**: `requirement-shell-idempotency`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for **idempotency (re-run safety)** of state-changing operations in the nginx-cli POSIX shell CLI.
+This requirement is the **project Single Source of Truth** for **idempotency (re-run safety)** of state-changing operations in the nginx-cli POSIX shell CLI. PATH / profile **bodies** live on `requirement-shell-path-and-shell-support`; this file keeps the re-run matrix.
 
 **Informal formula:** for ensure-style operation *f* and system state *x*, **f(f(x)) ≈ f(x)** for the **desired outcome** (logs and timestamps may differ).
 
@@ -68,8 +68,10 @@ Force policy (`--force` / `FORCE=1`) **MAY** re-apply ensure steps that would ot
 
 | Command / path | Desired state | Re-run when already good | Force / special |
 |----------------|---------------|--------------------------|-----------------|
-| `install` | Managed binary present at privilege-correct path | Success no-op (mode heal still runs) | `--force` replaces from running ship unit |
-| `uninstall` | Managed binary absent | Success no-op | `--force` skips confirm |
+| `install` | Managed binary present at privilege-correct path; user-bin PATH/profile ensured | Success no-op (mode heal still runs; PATH companion still runs) | `--force` replaces from running ship unit |
+| `uninstall` | Managed binary absent; this product’s rc stickers scoped | Success no-op | `--force` skips confirm |
+| User PATH integration | `path_add_*` / `path_add_shell` — **bodies:** `requirement-shell-path-and-shell-support` | No second exact `export PATH=` | Named cases **TP-LC-20** / **TP-LC-21** / **TP-LC-22** |
+| This-login `.profile` | `path_ensure_profile` — **bodies:** `requirement-shell-path-and-shell-support` | Existing `.profile` body left | Create only if absent |
 | `where-is-me` / `version` / `about` / `help` | Read-only | Always safe | N/A |
 | `submit-sudoer-request` | Queue a **new** JSON request (sibling allocates next `n`) | Each success is a new `request_id`; not a no-op | Does not write `/etc`; does not `mkdir` inbound; missing inbound fails closed |
 
@@ -115,6 +117,7 @@ Force policy (`--force` / `FORCE=1`) **MAY** re-apply ensure steps that would ot
 |-----|--------------|
 | `requirement-shell-local-self-management` | Install/uninstall ensure |
 | `requirement-shell-cli-interface` | Force flag wiring |
+| `requirement-shell-path-and-shell-support` | PATH / profile bodies; sibling unify; fixture TP-IDs |
 | `docs/requirements/index.md` | Registry |
 
 ---
@@ -124,6 +127,8 @@ Force policy (`--force` / `FORCE=1`) **MAY** re-apply ensure steps that would ot
 | TP family / ID | Suite | Status |
 |----------------|-------|--------|
 | **TP-LC-03,07** | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-13** no duplicate PATH | `tests/test_local_lifecycle.sh` | have — primary owner `requirement-shell-path-and-shell-support` |
+| **TP-LC-20..22** `BASHRC` create / modify / no-op | `tests/test_local_lifecycle.sh` | have — primary owner `requirement-shell-path-and-shell-support` |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
@@ -135,9 +140,10 @@ Force policy (`--force` / `FORCE=1`) **MAY** re-apply ensure steps that would ot
 | 2026-08-03 | Active 1.0.0 | folder-backup lifecycle + archive numbering |
 | 2026-08-13 | Active 1.1.0 | cli-template: lifecycle only |
 | 2026-08-15 | Active 1.2.0 | Purpose names this product nginx-cli; Type 0 matrix unchanged |
+| 2026-09-09 | Active 1.3.0 | PATH/profile bodies → `requirement-shell-path-and-shell-support` |
 
 ---
 
-**Last Updated**: 2026-08-15  
+**Last Updated**: 2026-09-09  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

@@ -48,6 +48,8 @@ run_test_cli() {
     assert_contains "TP-CLI-04 help submit-sudoer-request" "$_out" "submit-sudoer-request"
     assert_contains "TP-CLI-04 help conf-to-json" "$_out" "conf-to-json"
     assert_contains "TP-CLI-04 help json-to-conf" "$_out" "json-to-conf"
+    assert_contains "TP-CLI-04 help lists BASHRC" "$_out" "BASHRC"
+    assert_not_contains "TP-CLI-04 help does not list rc-test (ship Gap)" "$_out" "rc-test"
     assert_contains "TP-CLI-15 help fence-test" "$_out" "fence-test"
     assert_contains "TP-CLI-15 help test-json-format" "$_out" "test-json-format"
     assert_contains "TP-CLI-15 testers apart" "$_out" "Unit test (local test folder)"

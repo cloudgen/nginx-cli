@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/nginx-cli`  
-**Product VERSION:** 1.8.1  
-**Last plan update:** 2026-09-06  
-**Last suite run:** PASS=318 FAIL=0 SKIP=0 (2026-09-06)
+**Product VERSION:** 1.10.0  
+**Last plan update:** 2026-09-09  
+**Last suite run:** PASS=379 FAIL=0 SKIP=0 (2026-09-09)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -24,11 +24,12 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | No online verbs / no SCRIPT_URL UX | have | TP-CLI-04, TP-CLI-10 |
 | Trimmed parent archive/print-sudoers verbs fail closed | have | TP-CLI-13 |
 | Local install / idempotent / uninstall / mode 0755 | have | TP-LC-01..10 |
+| User-bin PATH / this-login `.profile` / `BASHRC` fixture | have | TP-LC-11..14 · TP-LC-20..22 |
 | Request workflow (fixture) | have | TP-NGX-01..13 |
 | Dest F6 / inbound / no nginx-ctl | have | TP-CLI-14, TP-NGX-14..15 |
 | submit-sudoer-request compose | have | TP-NGX-16..20 · TP-CLI-04/06 |
 | Type 1 approve no-TTY fail-closed | have | TP-NGX-11 |
-| Login hook as-login (not `sudo`, not `-n`) | have | TP-NGX-14, TP-NGX-50 |
+| Login hook as-login (not `sudo`, not `-n`); labeled `-hook` symlink; setup replaces old hook | have | TP-NGX-14, TP-NGX-50, TP-HOOK-08, TP-HOOK-09 |
 | Live `setup` useradd on host | skip | Requires root; negative non-root covered |
 | Live F6 visudo install | skip | Requires root; static writer covered by TP-NGX-15 |
 | Online curl / companion checksum | n/a | Local-only product |
@@ -69,7 +70,16 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 
 ### TP-LC (local lifecycle)
 
-Unchanged **have** TP-LC-01..10 against `src/nginx-cli`.
+| TP-ID | Intent | Suite | Primary requirement(s) | Status |
+|-------|--------|-------|------------------------|--------|
+| TP-LC-01..10 | install / uninstall / where-is-me / mode 0755 | test_local_lifecycle | requirement-shell-local-self-management | **have** |
+| TP-LC-11 | install creates `~/.bashrc` with USER_BIN PATH | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-12 | install creates `~/.profile` sourcing bashrc | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-13 | reinstall does not duplicate PATH | test_local_lifecycle | requirement-shell-path-and-shell-support · requirement-shell-idempotency | **have** |
+| TP-LC-14 | existing `~/.profile` body kept | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-20 | `BASHRC` env: create rc in a random temp folder when missing | test_local_lifecycle | requirement-shell-path-and-shell-support · requirement-shell-idempotency | **have** |
+| TP-LC-21 | `BASHRC` env: modify a dongle `.bashrc` in that temp folder | test_local_lifecycle | requirement-shell-path-and-shell-support | **have** |
+| TP-LC-22 | `BASHRC` env: already-correct VERSION + exact `export PATH=` is a no-op | test_local_lifecycle | requirement-shell-path-and-shell-support · requirement-shell-idempotency | **have** |
 
 ### TP-NGX (domain request workflow)
 
@@ -84,11 +94,11 @@ Unchanged **have** TP-LC-01..10 against `src/nginx-cli`.
 | TP-NGX-07 | approve publish + archive | test_domain | domain | **have** |
 | TP-NGX-08 | reject archive only | test_domain | domain | **have** |
 | TP-NGX-09 | list-approved / list-rejected | test_domain | domain | **have** |
-| TP-NGX-10 | login hook idempotent | test_domain | domain · LPU | **have** |
+| TP-NGX-10 | login hook idempotent | test_domain | login-hook · LPU | **have** |
 | TP-NGX-11 | interactive approve no-TTY fail-closed | test_domain | interactive · prevention | **have** |
 | TP-NGX-12 | JSON list-approved | test_domain | output + domain | **have** |
 | TP-NGX-13 | missing inbound fail-closed | test_domain | public queue Type 0 no-mkdir · prevention | **have** |
-| TP-NGX-14 | hook is as-login `… nginx-cli approve`, not `sudo` / `sudo -n` | test_domain | three-layer · prevention · domain | **have** |
+| TP-NGX-14 | hook is as-login `/usr/local/bin/nginx-cli-hook approve`, not product-binary, not `sudo` / `sudo -n` | test_domain | login-hook · three-layer · prevention | **have** |
 | TP-NGX-15 | ship unit inbound `2770` not `3773`; F6 has unit NOPASSWD; no NOPASSWD on `/usr/local/bin/nginx-cli`; Family 1 leading `--json`; no `--json setup` | test_domain | LPU · three-layer · prevention | **have** |
 | TP-NGX-16 | submit-sudoer-request fail-closed when sudoer-cli missing | test_domain | three-layer §2.5.3 | **have** |
 | TP-NGX-17 | submit via stub sudoer-cli into writable inbound | test_domain | three-layer §2.5.3 | **have** |
@@ -127,6 +137,11 @@ Unchanged **have** TP-LC-01..10 against `src/nginx-cli`.
 | TP-NGX-52 | `setup` auto-queues `login-hook-elev` JSON when sibling inbound exists; skip when missing | test_domain | three-layer §2.5.0 · sudoer-json-file | **have** |
 | TP-NGX-53 | `setup` does not write `/etc/sudoers.d/nginx-adm` or `nginx-cli-submit` | test_domain | PREV-SUDOERS-MAIN · LPU 1.3.0 | **have** |
 | TP-NGX-54 | JSON username is invoker; basename user is path-safe (hyphen → underscore) | test_domain | domain submit verify | **have** |
+| TP-NGX-55 | Interactive / login-hook review shows YAML (not a JSON object dump) | test_domain | domain §2.2.5 | **have** |
+| TP-HOOK-02 | missing `.profile` created and sources `.bashrc` | test_domain | login-hook | **have** |
+| TP-HOOK-03 | existing `.profile` unchanged | test_domain | login-hook | **have** |
+| TP-HOOK-08 | old `/usr/local/bin/nginx-cli approve` becomes `-hook`; setup ensure-symlink | test_domain | login-hook | **have** |
+| TP-HOOK-09 | Type 1 `setup` reviews LPU hook (`ngx_enable_login_approval`); already-new not rewritten | test_domain | login-hook | **have** |
 
 ---
 

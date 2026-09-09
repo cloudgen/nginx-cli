@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-least-privilege-user.md  
-**Status**: Active (Version 1.3.0)  
+**Status**: Active (Version 1.4.0)  
 **Area**: architecture  
 **Key**: `requirement-least-privilege-user`  
 **id**: RQ-LEAST-PRIVILEGE-USER  
@@ -100,12 +100,12 @@ F7 order **MUST** be: backup+remove `/etc/nginx-adm/sudoers` → backup+remove t
 | Listed-submitter dest | After sibling approve: `/etc/sudoers.d/nginx-cli-<login>` | sibling dest |
 | Related group | `nginx-cli-submit` (inbound write); listing in submit sudoers **and** group membership are both required | — |
 | Approval subject | nginx-conf (`#` comments + nginx `server` block) | LPA leaf |
-| Login hook | `${F3}/.bashrc` (and `.profile` create-if-absent); command `/usr/local/bin/nginx-cli-hook approve` (as-login; **not** `sudo`; **not** `sudo -n`) | F5 rc / domain SSOT |
+| Login hook | `${F3}/.bashrc` (and `.profile` create-if-absent); command `/usr/local/bin/nginx-cli-hook approve` (as-login; **not** `sudo`; **not** `sudo -n`). Snippet + labeled symlink + setup review/replace: `requirement-login-interactive-review-hook` | F5 rc / hook REQ |
 | Remove | `sudo nginx-cli remove-lpu` (or `remove-nginx-adm`) — any host admin already euid 0 | F7 |
 
 **Routing status:** `setup` / `remove-lpu` **are live** (useradd / queues / hook / password-ensure / userdel / Family 2 file / Family 1 JSON auto-queue). Family 1 dest `/etc/sudoers.d/nginx-cli-nginx-adm` is sibling-approved, not copied by `setup`. Bootstrap is **any** host admin already root (`sudo nginx-cli setup`); **not** `sudo -n`. Re-run **MUST** still ensure a usable nginx-adm password. Missing sibling dest → skip JSON queue (setup still succeeds).
 
-Snippet text, request/approve verbs, and the review walk are owned by `requirement-domain-nginx-cli.md`. This file owns **where** the hook is installed (this LPU’s `.bashrc` only) and **F1–F7**.
+Snippet text, labeled symlink `/usr/local/bin/nginx-cli-hook` → `/usr/local/bin/nginx-cli`, and setup review of an old hook are owned by `requirement-login-interactive-review-hook.md`. Request/approve verbs and the dest review walk are owned by `requirement-domain-nginx-cli.md`. This file owns **where** the hook is installed (this LPU’s `.bashrc` only) and **F1–F7**.
 
 **Collision:** if `getent passwd 1999` or `getent group 1999` or `getent passwd nginx-adm` exists and is **not** this identity, setup **MUST** exit non-zero.
 
@@ -146,7 +146,7 @@ Snippet text, request/approve verbs, and the review walk are owned by `requireme
 14. Copy sudoer-cli F1–F7 (UID 1776, inbound 3773, NOPASSWD whole CLI, `sudo -n` hook) onto this leaf.  
 15. Claim Family 1 works after `setup` when nginx-adm has no usable password.  
 16. Feed a password to `chpasswd`, `passwd --stdin`, or any command line / file / log.  
-17. Wrap the login hook in `sudo` or `sudo -n`, or leave a stale `sudo … approve` managed block in place on re-run.  
+17. Wrap the login hook in `sudo` or `sudo -n`, or leave a stale `sudo … approve` / old product-binary managed block in place on re-run (heal owner: `requirement-login-interactive-review-hook`).  
 18. Write `/etc/sudoers.d/nginx-adm` or `/etc/sudoers.d/nginx-cli-submit` from `setup`.
 
 **Violating this rule is a critical least-privilege documentation / identity regression.**
@@ -157,7 +157,7 @@ Snippet text, request/approve verbs, and the review walk are owned by `requireme
 
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
-| **TP-NGX-10,13,14,15,34,50** | `tests/test_domain.sh` | have | hook home; as-login (no sudo); replace stale sudo block; 2770 not 3773; setup passwd-ensure (no chpasswd) |
+| **TP-NGX-10,13,14,15,34,50** | `tests/test_domain.sh` | have | hook home; as-login (no sudo); replace stale sudo block; 2770 not 3773; setup passwd-ensure (no chpasswd). Hook snippet: `requirement-login-interactive-review-hook` |
 | **TP-NGX-51** | `tests/test_domain.sh` | have | collision identity: foreign UID/GID/name/home fail-closed; `/usr/sbin` host-bin |
 | **TP-NGX-52,53** | `tests/test_domain.sh` | have | Family 1 JSON auto-queue; Family 2 dest not under `/etc/sudoers.d` |
 | **TP-CLI-13** | `tests/test_cli.sh` | have | print-sudoers / backup / restore unknown |
@@ -173,9 +173,10 @@ Snippet text, request/approve verbs, and the review walk are owned by `requireme
 | `docs/requirements/requirement-three-layer-privilege-model.md` | Elev Tables A/B/C + both fragments |
 | `docs/requirements/requirement-privilege-prevention-set.md` | Closed catalog of what create/teardown blocks vs must stay open |
 | `docs/requirements/requirement-domain-nginx-cli.md` | nginx-conf request/approve machine |
+| `docs/requirements/requirement-login-interactive-review-hook.md` | Labeled symlink + snippet; setup reviews/replaces old hook on this home |
 | `docs/requirements/requirement-shell-cli-interface.md` | Type map on the dispatcher |
 | `./src/nginx-cli` | Ship unit |
 
-**Last Updated**: 2026-08-25 (1.3.0 — collision identity implemented; dest inbound is dest request JSON)  
+**Last Updated**: 2026-09-08 (1.4.0 — login-hook snippet owner is `requirement-login-interactive-review-hook`; this file still owns which home)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

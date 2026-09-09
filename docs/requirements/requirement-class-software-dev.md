@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-class-software-dev.md  
-**Status**: Active (Version 1.8.1 – dest Fence + fence-test + coding-style + menu pointer)  
+**Status**: Active (Version 1.8.3 – dest Fence + fence-test + coding-style + menu + login-hook pointer + PATH/shell-rc pointer)  
 **Area**: class  
 **Key**: `requirement-class-software-dev`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -108,7 +108,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | **Architectures supported** | any arch with POSIX sh and the external tools the script invokes |
 | **Git surface** | used when product is published |
 | **Ship unit / install** | yes — `src/nginx-cli` → `${USER_BIN}/nginx-cli` (default `~/.local/bin/nginx-cli`); **local-only** install (no online channel) |
-| **Product version SSOT** | `VERSION="1.8.1"` hard-assign in `src/nginx-cli` |
+| **Product version SSOT** | `VERSION="1.10.0"` hard-assign in `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) — this product is B. No live parent hop. |
 
 **Residual ownership table:**
@@ -123,7 +123,8 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Type 0 CLI surface / flags / dispatch | `requirement-shell-cli-interface` | Do not duplicate |
 | Empty argv Type N | `requirement-shell-cli-zero-arguments` | TTY numbered list; off-TTY help; never install |
 | Numbered TTY list (`menu`/`main`) | `requirement-shell-cli-default-interaction` | Same list as TTY empty argv |
-| Local self-managed lifecycle | `requirement-shell-local-self-management` | install / uninstall / where-is-me |
+| Local self-managed lifecycle | `requirement-shell-local-self-management` | install / uninstall / where-is-me; PATH companion **call site** |
+| PATH / this-login profile / shell-rc sibling unify | `requirement-shell-path-and-shell-support` | Do not duplicate; login-hook stays a peer |
 | Output SSOT (`out_*`) | `requirement-shell-output-requirements` | Do not duplicate |
 | Scratch/cache storage resolve | `requirement-shell-cli-storage` | Do not duplicate |
 | Idempotency / re-run safety | `requirement-shell-idempotency` | Do not duplicate |
@@ -135,6 +136,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Prevention catalog | `requirement-privilege-prevention-set` | closed block / must-remain-open |
 | Folder archive backup / restore / retention | **intentionally absent** | Not this product’s domain (sibling folder-backup) |
 | Domain surface (`requirement-domain-*`) | `requirement-domain-nginx-cli` | file-based JSON dest **and** same-product submitter (`request`); compose to sudoer-cli |
+| Login-hook snippet + labeled symlink | `requirement-login-interactive-review-hook` | `/usr/local/bin/nginx-cli-hook` → `/usr/local/bin/nginx-cli`; setup replaces old hook; domain **points** |
 | Dest Fence: incorrect JSON format | `requirement-incorrect-json-format` | Independent Fence REQ; dest table still prints; Type 0 `test-json-format`; list tester `fence-test` |
 | Coding-style related REQ | `requirement-shell-script-coding` | Specialize-in home; remaining mold rules apply (**PP-A-21**) |
 | Prompt helper bodies / temp leaves | **intentionally absent as extra REQs** | interactive + storage |
@@ -198,6 +200,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 |-----|--------------|
 | `requirement-bootstrap-chain` | Origin A = cli-template; this product is B |
 | `requirement-domain-nginx-cli` | Domain SSOT (nginx-conf request/approve) |
+| `requirement-login-interactive-review-hook` | Labeled symlink + snippet; setup reviews/replaces old hook |
 | `requirement-incorrect-json-format` | Dest Fence |
 | `requirement-shell-script-coding` | Coding-style related REQ |
 | `requirement-least-privilege-user` | nginx-adm F1–F7 |
@@ -209,6 +212,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | `requirement-shell-cli-zero-arguments` | Type N empty argv |
 | `requirement-shell-cli-default-interaction` | Numbered list on `menu`/`main` |
 | `requirement-shell-local-self-management` | Local install lifecycle |
+| `requirement-shell-path-and-shell-support` | PATH / this-login profile / sibling unify |
 | `requirement-shell-output-requirements` | `out_*` SSOT |
 | `requirement-shell-cli-storage` | Scratch/cache resolve |
 | `requirement-shell-idempotency` | Re-run safety |
@@ -232,9 +236,10 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | 2026-08-15 | Active 1.7.0 | Domain residual: JSON dest + same-product submitter |
 | 2026-08-21 | Active 1.8.0 | Dest Fence pointer; Type 0 fence-test; coding-style pointer |
 | 2026-08-23 | Active 1.8.1 | Residual pointer: `menu`/`main` on `requirement-shell-cli-default-interaction` |
+| 2026-09-08 | Active 1.8.2 | Residual pointer: login-hook snippet on `requirement-login-interactive-review-hook` |
 
 ---
 
-**Last Updated**: 2026-08-23  
+**Last Updated**: 2026-09-09 (1.8.3 — PATH/shell-rc residual pointer)  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

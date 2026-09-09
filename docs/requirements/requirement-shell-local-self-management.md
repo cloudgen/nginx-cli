@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-local-self-management.md  
-**Status**: Active (Version 1.4.0)  
+**Status**: Active (Version 1.5.0)  
 **Area**: shell  
 **Key**: `requirement-shell-local-self-management`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -9,6 +9,8 @@
 This requirement is the **project Single Source of Truth** for **local self-managed lifecycle** of the nginx-cli POSIX shell CLI: **`install`**, **`uninstall`**, and **`where-is-me`**, plus the local diagnostics package contract for **`version`**, **`about`**, and **`help`** (wiring owned with CLI interface).
 
 **Install mode:** **local-only**. Online channel install, remote version-check, self-update, and self-uninstall are **out of scope** (intentionally absent).
+
+PATH / this-login profile **bodies**, sibling unify, `BASHRC`, and `rc-test` live on `requirement-shell-path-and-shell-support`. This file owns the **call site**: user-bin `install` **MUST** run path-ensure (including already-installed no-op); `uninstall` **MUST** call scoped rc cleanup after binary remove.
 
 ### 1.1 Human-facing
 
@@ -22,7 +24,7 @@ This requirement is the **project Single Source of Truth** for **local self-mana
 
 | Includes | Excludes |
 |----------|----------|
-| `install` / `uninstall` / `where-is-me`; mode **0755** | `curl \| sh`; `self-update`; `self-uninstall` |
+| `install` / `uninstall` / `where-is-me`; mode **0755**; companion **call site** | `curl \| sh`; `self-update`; `self-uninstall`; PATH/profile **bodies** |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
@@ -67,7 +69,8 @@ On Termux, Git Bash, or Windows cmd, **local** `install` / `uninstall` / `where-
 3. Defaults: `GLOBAL_BIN=/usr/local/bin`; `USER_BIN=${HOME}/.local/bin`.  
 4. Create target bin dir when missing; fail loud if not writable.  
 5. Atomic place: stage → set mode → `mv` onto final path (or equivalent `install -m`).  
-6. Idempotent: already installed + force off → success no-op **for content**; mode **MUST** still be healed to the required mode when the installer can write the target (see §2.3.1).  
+6. Idempotent: already installed + force off → success no-op **for content**; mode **MUST** still be healed to the required mode when the installer can write the target (see §2.3.1). User-bin **MUST** still run PATH/profile companion before that no-op (`requirement-shell-path-and-shell-support`).  
+6a. User-bin `install` **MUST** call `path_add_shell` (this-login PATH + missing `.profile`). Root/global place **MUST NOT** edit this-login rc.  
 7. **MUST NOT** require network for install.  
 8. **`install --global`** (or `FORCE_GLOBAL=1`): target **`${GLOBAL_BIN}/${APP_NAME}`**; if not writable, fail with clear root/sudo guidance.  
 9. Global install **SHOULD** be used on multi-user hosts when a shared CLI is desired. Local install remains correct for Type 0 day-to-day use.
@@ -94,7 +97,8 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 2. Target **MUST** be the managed binary only.  
 3. Absent → success no-op.  
 4. Interactive confirm unless `--force`; non-interactive/json/quiet without force → **fail closed** (`confirm_required`).  
-5. **MUST NOT** delete home trees, unrelated binaries, or invent a sudoers/backup cleanup path.
+5. **MUST NOT** delete home trees, unrelated binaries, or invent a sudoers/backup cleanup path.  
+6. After user-bin binary remove, **MUST** call `inst_local_uninstall_cleanup_path`. **What** may be edited in rc is `requirement-shell-path-and-shell-support` (this product’s comments only; shared PATH only if `USER_BIN` empty; never delete `.profile`).
 
 ### 2.5 Where-is-me rules
 
@@ -109,7 +113,7 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 | Variable | Role | Default / note |
 |----------|------|----------------|
 | `APP_NAME` | Binary basename SSOT | hard-assign `nginx-cli` |
-| `VERSION` | Local version SSOT | hard-assign `1.4.0` |
+| `VERSION` | Local version SSOT | hard-assign in ship unit (`1.10.0`) |
 | `GLOBAL_BIN` | System-wide bin | `/usr/local/bin` |
 | `USER_BIN` | Per-user bin | `${HOME}/.local/bin` |
 | `FORCE` | Replace / skip confirm | `0` |
@@ -155,7 +159,9 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 3. Make empty argv install-ensure while this product remains local-only (Type N owns empty argv).  
 4. Delete user data or unrelated paths during uninstall.  
 5. Fetch remote version inside `version`.  
-6. Install the managed binary with execute-only group/other bits (`0711` / `chmod +x` after `0600` stage) — **must** keep absolute **`0755`** so global install remains multi-user runnable for a shell ship unit.
+6. Install the managed binary with execute-only group/other bits (`0711` / `chmod +x` after `0600` stage) — **must** keep absolute **`0755`** so global install remains multi-user runnable for a shell ship unit.  
+7. Re-own PATH / profile bodies here instead of `requirement-shell-path-and-shell-support`.  
+8. Skip path-ensure because the binary is already placed.
 
 **Violating this rule is a critical install-mode regression.**
 
@@ -173,6 +179,7 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 | AC-6 | Installed managed binary mode is **`0755`** (not `0711` / owner-only) after install |
 | AC-7 | Global install is executable by a non-owner account (shell script remains readable) |
 | AC-8 | Re-running `install` without `--force` heals a broken mode (`0700`/`0711` → `0755`) when writable |
+| AC-9 | User-bin `install` (including already-installed) runs PATH/profile companion; `uninstall` calls scoped rc cleanup |
 
 ---
 
@@ -184,6 +191,7 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 | `requirement-shell-cli-zero-arguments` | Type N empty argv |
 | `requirement-project-folder` | Path defaults |
 | `requirement-shell-idempotency` | Already installed / uninstalled |
+| `requirement-shell-path-and-shell-support` | PATH / profile bodies; sibling unify; `rc-test` |
 | `requirement-bootstrap-chain` | Why online package is absent |
 | `docs/requirements/index.md` | Registry |
 
@@ -196,6 +204,7 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 | **TP-LC-01..08** | `tests/test_local_lifecycle.sh` | have |
 | **TP-LC-09** mode `0755` after install | `tests/test_local_lifecycle.sh` | have |
 | **TP-LC-10** mode heal without `--force` | `tests/test_local_lifecycle.sh` | have |
+| **TP-LC-11..14**, **TP-LC-20..22** rc / `BASHRC` | `tests/test_local_lifecycle.sh` | have — **primary owner:** `requirement-shell-path-and-shell-support` |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
@@ -207,9 +216,10 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 | 2026-08-03 | Active | Local-only lifecycle for folder-backup |
 | 2026-08-09 | Active 1.2.0 | §2.3.1 mode **0755** multi-user; ban `chmod +x`→`0711` trap; AC-6..8; TP-LC-09/10 |
 | 2026-08-15 | Active 1.4.0 | Notes/`APP_NAME`/`VERSION` name this product nginx-cli 1.1.0 |
+| 2026-09-09 | Active 1.5.0 | PATH/profile companion **call site**; bodies → `requirement-shell-path-and-shell-support` |
 
 ---
 
-**Last Updated**: 2026-08-15  
+**Last Updated**: 2026-09-09  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

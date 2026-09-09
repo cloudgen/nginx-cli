@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-interface.md  
-**Status**: Active (Version 2.6.0)  
+**Status**: Active (Version 2.8.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-interface`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -8,7 +8,7 @@
 
 This requirement is the **project Single Source of Truth** for the **POSIX shell CLI interface** of nginx-cli: command surface, privilege typing, global flags, dispatcher behavior, help/about contracts, and mode rules.
 
-Lifecycle verbs (`install`, `help`, `version`) live here. **Domain verbs** (`setup`, `request`, `approve`, …) are owned by `requirement-domain-nginx-cli.md`. Full lifecycle rules live in `requirement-shell-local-self-management.md`.
+Lifecycle verbs (`install`, `help`, `version`) live here. **Domain verbs** (`setup`, `request`, `approve`, …) are owned by `requirement-domain-nginx-cli.md`. **`enable-login-approval`** is dual-mentioned here and owned by `requirement-login-interactive-review-hook.md`. Full lifecycle rules live in `requirement-shell-local-self-management.md`. PATH / this-login profile / `BASHRC` / `rc-test`: `requirement-shell-path-and-shell-support`.
 
 ### 1.1 Human-facing
 
@@ -52,8 +52,8 @@ Every command **MUST** map to exactly one privilege type. Unclassified commands 
 | **Type 0 – Convert dual** | Invoking user | `conf-to-json`, `json-to-conf` (see domain SSOT) |
 | **Type 0 – Numbered list** | Invoking user | `menu` (alias `main`) — TTY list of live work commands; TTY empty argv is the same list; off-TTY empty argv stays help (see `requirement-shell-cli-default-interaction` and `requirement-shell-cli-zero-arguments`) |
 | **Type 0 – Test-purpose (unit test; local test folder)** | Invoking user | `test-json-format`, `fence-test` (see dest Fence REQ). **MUST NOT** queue or dest-write. Help lists these **apart** from operational verbs. Type 0 does **not** mean unit test |
-| **Type 1 – Narrow elevated host ops** | Controlled sudo / root | **Domain** — `setup`, `remove-lpu` (see domain SSOT) |
-| **Gated domain** | root / nginx-adm / submit sudoers | **Domain** — request, list, approve, reject, map-* (see domain SSOT) |
+| **Type 1 – Narrow elevated host ops** | Controlled sudo / root | **Domain** — `setup`, `remove-lpu` (see domain SSOT). `setup` also reviews the LPU login hook (`requirement-login-interactive-review-hook`) |
+| **Gated domain** | root / nginx-adm / submit sudoers | **Domain** — request, list, approve, reject, map-* (see domain SSOT). **`enable-login-approval`** — `requirement-login-interactive-review-hook` |
 
 ### 2.2 Global flags (portable)
 
@@ -108,7 +108,8 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | **Primary executable** | `src/nginx-cli` (POSIX `/bin/sh`, single-file ship unit) |
 | **Dispatcher** | `app_main` |
 | **Output SSOT** | `out_text` + wrappers (`out_info`, `out_success`, `out_warn`, `out_error`, `out_die`, `out_plain`, `out_json`, …) |
-| **Version SSOT** | `VERSION="1.8.1"` hard-assign in ship unit |
+| **Version SSOT** | `VERSION="1.10.0"` hard-assign in ship unit |
+| **Interactive rc write path** | `BASHRC` default `${HOME}/.bashrc`. User-bin `install` PATH ensure creates/modifies this file. Tests/CI **MAY** set `BASHRC` to a file in a temp folder. Dual mention: `requirement-shell-path-and-shell-support`. |
 | **Install paths** | Global: `GLOBAL_BIN` default `/usr/local/bin`; User: `USER_BIN` default `${HOME}/.local/bin` |
 | **Primary install story** | User bin: `~/.local/bin/nginx-cli` |
 | **Online channel env** | **Not product UX** (trimmed) |
@@ -121,8 +122,8 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | Command | Type | Handler family | Required behavior |
 |---------|------|----------------|-------------------|
 | *(no args — empty argv)* | Type 0 | `app_main` → `app_help` | **Type N help** — not install |
-| `install` | Type 0 | `inst_local_install` | Copy running ship unit to privilege-correct bin; idempotent unless `--force` |
-| `uninstall` | Type 0 | `inst_local_uninstall` | Remove managed binary; confirm unless `--force` |
+| `install` | Type 0 | `inst_local_install` | Copy running ship unit to privilege-correct bin; user-bin **always** PATH/profile companion; idempotent unless `--force`. Dual mention: `requirement-shell-local-self-management` · `requirement-shell-path-and-shell-support` |
+| `uninstall` | Type 0 | `inst_local_uninstall` | Remove managed binary; confirm unless `--force`; user-bin scoped rc sticker cleanup. Dual mention: `requirement-shell-local-self-management` · `requirement-shell-path-and-shell-support` |
 | `where-is-me` | Type 0 | `app_where_is_me` | Running + install paths + installed flag |
 | `version` | Type 0 | `app_version` | Local `VERSION` only; no network |
 | `about` | Type 0 | `app_about` | Diagnostics: install presence, paths, user, shell, TTY, storage, nginx-adm fields, **sudoer-cli / sudoer-adm / inbound**; **no** channel one-liner; **no** backup/print-sudoers fields |
@@ -134,6 +135,8 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | `json-to-conf` | Type 0 | `ngx_json_to_conf` | dest request JSON → nginx-conf text; never queue / never dest write |
 | `test-json-format` | Type 0 **test-purpose** | `ngx_test_json_format` | dest JSON-format Fence against a local JSON file; no sudo; does not queue |
 | `fence-test` | Type 0 **test-purpose** | `ngx_fence_test` | closed dest Fence list (`--file` / `--dir`); no sudo; does not queue |
+| `enable-login-approval` | approver | `ngx_enable_login_approval` | Dual mention: plant/heal nginx-adm `.bashrc` as-login `/usr/local/bin/nginx-cli-hook approve`; replace old `/usr/local/bin/nginx-cli approve` hook. Topic owner: `requirement-login-interactive-review-hook` |
+| `rc-test` | Type 0 **test-purpose** | *Gap — not routed* | Fixture create / modify / no-op against `--root` tmp/cache. **MUST NOT** write this login’s real `{{HOME}}/.bashrc`. Help lists dest testers **apart** from operational verbs; **MUST NOT** list `rc-test` until routed. Dual mention: `requirement-shell-path-and-shell-support`. Sample: `nginx-cli rc-test --root "$tmpdir" --file bashrc --case create` |
 
 #### Global flags (normative wiring)
 
@@ -157,7 +160,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 
 1. Unknown token after flag parse → `out_die` with pointer to `nginx-cli help`.  
 2. Zero-arg → help (not install).  
-3. Command routing table in `app_main` **must** include Type 0 rows above **and** domain verbs from `requirement-domain-nginx-cli.md`.  
+3. Command routing table in `app_main` **must** include Type 0 **operational** rows above **and** domain verbs from `requirement-domain-nginx-cli.md`. **`rc-test`** is law with **ship Gap** until routed (`requirement-shell-path-and-shell-support`).  
 4. Help text **must** stay aligned with both catalogs.
 
 #### Explicitly out of scope
@@ -196,7 +199,9 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 2. Change empty argv from Type N help to install-ensure.  
 3. Bypass `out_*` for user-facing messages.  
 4. Advertise an online install channel in help/about.  
-5. Collapse Type 1/2 into “just run as root.”
+5. Collapse Type 1/2 into “just run as root.”  
+6. Drop `rc-test` from the dual-mention table without updating `requirement-shell-path-and-shell-support`, mix it into operational help grouping, or treat it as install.  
+7. Ignore a non-empty `BASHRC` env on user-bin `install`.
 
 **Violating this rule is a critical CLI-surface regression.**
 
@@ -214,6 +219,8 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | AC-3 | Unknown and trimmed verbs exit non-zero |
 | AC-4 | Empty argv is help |
 | AC-8 | Help lists `menu` (alias `main`); dispatcher accepts both |
+| AC-9 | Dual mention of `enable-login-approval` with `requirement-login-interactive-review-hook` |
+| AC-10 | Dual mention of `install` / `uninstall` / `rc-test` with `requirement-shell-path-and-shell-support`; help Environment lists `BASHRC`; `rc-test` not listed in help until routed |
 
 ---
 
@@ -224,9 +231,11 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | `requirement-shell-cli-zero-arguments` | Empty argv (this file does not move it to `menu`) |
 | `requirement-shell-cli-default-interaction` | Dual mention: `menu` / `main` topic owner |
 | `requirement-shell-local-self-management` | install / uninstall / where-is-me |
+| `requirement-shell-path-and-shell-support` | PATH / profile; `BASHRC`; `rc-test` |
 | `requirement-shell-output-requirements` | `out_*` |
 | `requirement-bootstrap-chain` | Trimmed surfaces |
 | `requirement-domain-nginx-cli` | Domain verbs including `submit-sudoer-request` surface |
+| `requirement-login-interactive-review-hook` | Dual mention: `enable-login-approval`; setup reviews/replaces old hook |
 | `requirement-incorrect-json-format` | Dest Fence; dual mention of testers |
 | `requirement-three-layer-privilege-model` | Type map + F6 Table A + submit workflow |
 | `requirement-sudoer-json-file` | JSON grant body |
@@ -239,7 +248,7 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
 | **TP-CLI-01..22** | `tests/test_cli.sh` | have | includes stripped-verb fail-closed; help lists testers apart; `menu`/`main` |
-| **TP-LC-*** | `tests/test_local_lifecycle.sh` | have | lifecycle |
+| **TP-LC-*** | `tests/test_local_lifecycle.sh` | have | lifecycle; PATH/profile **TP-LC-11..14**, **TP-LC-20..22** owned by `requirement-shell-path-and-shell-support` |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
@@ -258,9 +267,11 @@ In JSON mode, help **MUST NOT** dump long human text; return a short structured 
 | 2026-08-22 | Active 2.5.0 | Notes VERSION 1.5.1; DTV TP-CLI-15/16; AC-7 tester heading |
 | 2026-08-23 | Active 2.5.0 | Notes VERSION 1.5.2 |
 | 2026-08-23 | Active 2.6.0 | Type 0 `menu` / `main`; notes VERSION 1.6.0 |
+| 2026-09-08 | Active 2.7.0 | Dual mention `enable-login-approval` → `requirement-login-interactive-review-hook` |
+| 2026-09-09 | Active 2.8.0 | `BASHRC`; dual mention `install` / `uninstall` / `rc-test` → `requirement-shell-path-and-shell-support`; VERSION 1.10.0 |
 
 ---
 
-**Last Updated**: 2026-08-23  
+**Last Updated**: 2026-09-09  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).
