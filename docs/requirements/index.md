@@ -2,7 +2,7 @@
 
 **Product:** nginx-cli (POSIX `/bin/sh` CLI — Type 0 lifecycle + nginx-adm request/approve domain)  
 **Workspace state:** Specialized product law (left genesis); **software-development** class; **this product is B = nginx-cli**; **bootstrap origin A = cli-template** (frozen at `src/cli-template`). Online / Type O, backup / restore / print-sudoers **intentionally absent**. Type 0 **`submit-sudoer-request`** is **present**. Type 0 numbered list (TTY empty argv and **`menu` / `main`**; off-TTY empty argv stays help) is **present**. Login hook is **`nginx-cli-hook`** (independent REQ; soft link → `/usr/local/bin/nginx-cli`). Shell-rc PATH / this-login profile: **`requirement-shell-path-and-shell-support`**.  
-**Updated:** 2026-09-09
+**Updated:** 2026-09-13
 
 | ID / key | Title | Area | Status | Path | Updated |
 |----------|-------|------|--------|------|---------|
@@ -12,7 +12,7 @@
 | requirement-shell-cli-interface | Shell CLI interface (lifecycle + operational convert/submit + **test-purpose** `test-json-format` / `fence-test`; `menu`/`main`; setup; dual mention `enable-login-approval`; `BASHRC`; `rc-test` dual mention) | shell | Active (2.8.0) | `requirement-shell-cli-interface.md` | 2026-09-09 |
 | requirement-shell-script-coding | Specialize-in home for POSIX writing lessons. Remaining mold rules apply (**PP-A-21**). **PP-A-19** / **PP-A-20**: nginx-adm is a sudoer; inbound owner stays submitter. | shell | Active (1.2.0) | `requirement-shell-script-coding.md` | 2026-08-22 |
 | requirement-shell-cli-zero-arguments | Empty argv: TTY numbered list; off-TTY help (local-only; not install) | shell | Active (1.2.1) | `requirement-shell-cli-zero-arguments.md` | 2026-09-06 |
-| requirement-shell-cli-default-interaction | TTY numbered list (empty argv + `menu` / `main`); default style; off-TTY help | shell | Active (1.1.1) | `requirement-shell-cli-default-interaction.md` | 2026-09-06 |
+| requirement-shell-cli-default-interaction | TTY numbered list (empty argv + `menu` / `main`); default style; off-TTY help; invalid choice retries this layer | shell | Active (1.2.0) | `requirement-shell-cli-default-interaction.md` | 2026-09-13 |
 | requirement-shell-local-self-management | Local install / uninstall / where-is-me; **mode 0755** multi-user; PATH companion **call site** | shell | Active (1.5.0) | `requirement-shell-local-self-management.md` | 2026-09-09 |
 | requirement-shell-path-and-shell-support | Shell-rc PATH + this-login profile ensure (sibling unify, scoped uninstall, heal, `rc-test`) | shell | Active (1.0.0) | `requirement-shell-path-and-shell-support.md` | 2026-09-09 |
 | requirement-shell-output-requirements | Central `out_*` output SSOT | shell | Active (1.1.0) | `requirement-shell-output-requirements.md` | 2026-08-15 |

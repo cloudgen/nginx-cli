@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/nginx-cli`  
-**Product VERSION:** 1.10.0  
-**Last plan update:** 2026-09-09  
-**Last suite run:** PASS=379 FAIL=0 SKIP=0 (2026-09-09)
+**Product VERSION:** 1.10.1  
+**Last plan update:** 2026-09-13  
+**Last suite run:** PASS=391 FAIL=0 SKIP=0 (2026-09-13)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -18,7 +18,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | Syntax `sh -n` | have | TP-CLI-01 |
 | version / help / about human + JSON | have | TP-CLI-02..06 |
 | Type N off-TTY empty argv = help; TTY empty argv = numbered list | have | TP-CLI-07, TP-CLI-25 |
-| `menu`/`main` off-TTY help; TTY numbered list; default style; no `$()` of `prompt_ask` | have | TP-CLI-17..24 |
+| `menu`/`main` off-TTY help; TTY numbered list; default style; no `$()` of `prompt_ask`; invalid choice retries this layer | have | TP-CLI-17..26 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
 | No online verbs / no SCRIPT_URL UX | have | TP-CLI-04, TP-CLI-10 |
@@ -67,6 +67,7 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-CLI-23 | Menu choice reads `PROMPT_ASK_VALUE` (no `$()` of `prompt_ask`) | test_cli | default-interaction | **have** |
 | TP-CLI-24 | TTY menu header has VERSION; gray-italic explain | test_cli | default-interaction | **have** (skip if no PTY) |
 | TP-CLI-25 | TTY empty argv numbered list (not Usage help) | test_cli | zero-arguments · default-interaction | **have** (skip if no PTY) |
+| TP-CLI-26 | Invalid TTY menu choice retries this layer (`out_error` + reprint; unused 15 / unknown name; not unknown argv) | test_cli | default-interaction | **have** (skip PTY half if no PTY) |
 
 ### TP-LC (local lifecycle)
 

@@ -1,6 +1,6 @@
 # nginx-cli - Nginx least-privilege admin CLI
 
-![Version](https://img.shields.io/badge/Version-1.10.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.10.1-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/nginx-cli?style=flat-square)](https://github.com/cloudgen/nginx-cli)
@@ -22,7 +22,7 @@ On Termux, Git Bash, or Windows cmd, only **this login** is in play: help, local
 ## Features
 
 - **Install for yourself**: `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` (copy from this checkout; no network)
-- **Numbered list**: on a real terminal, `nginx-cli` with no arguments (or `menu` / `main`) lists live work commands; a script still gets help and never installs
+- **Numbered list**: on a real terminal, `nginx-cli` with no arguments (or `menu` / `main`) lists live work commands; a wrong number reprints this list so you can pick again; a script still gets help and never installs
 - **One-time host setup**: `setup` creates **nginx-adm** (UID/GID **1999**, home `/etc/nginx-adm`), the waiting folders, and a unit-tools sudoers file under `/etc/nginx-adm/sudoers`. It does **not** write `/etc/sudoers.d`. If sibling **sudoer-cli** is already set up, it queues a JSON grant for sudoer-adm to approve
 - **Waiting folders** under `/var/nginx-cli`: `config-request` (`2770`, group `nginx-cli-submit`), `config-approved`, `config-rejected`; the user-to-domain map stays under nginx-adm home
 - **Who may submit**: root, nginx-adm, or a login listed in `/etc/sudoers.d/nginx-cli-submit` **or** `/etc/sudoers.d/nginx-cli-<login>` **and** in group `nginx-cli-submit`
@@ -69,7 +69,7 @@ After install, on a terminal:
 
 ```text
 $ nginx-cli
-[INFO] **nginx-cli**(*1.10.0*) — numbered list of live work commands
+[INFO] **nginx-cli**(*1.10.1*) — numbered list of live work commands
 1. remove-lpu: Remove nginx-adm (confirm or --force)
 2. request: Submit dest JSON (or nginx-conf text dual)
 3. list-requests: Approving / pending list
@@ -87,7 +87,7 @@ $ nginx-cli
 99. Exit
 ```
 
-Choose a number, or type the command name. `99` exits.
+Choose a number, or type the command name. `99` exits. A number that is not on the list (for example `15`) prints an error, reprints this list, and waits again.
 
 ## Usage
 
@@ -169,4 +169,4 @@ MIT License — see [`LICENSE.md`](./LICENSE.md).
 
 ## Last Update
 
-2026-09-09 — version **1.10.0** (this-login PATH / `.profile` ensure; `requirement-shell-path-and-shell-support`).
+2026-09-13 — version **1.10.1** (invalid numbered-list choice reprints this list; `requirement-shell-cli-default-interaction` 1.2.0).

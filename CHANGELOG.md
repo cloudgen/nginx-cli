@@ -5,7 +5,25 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.10.1] - 2026-09-13
+
+### Fixed
+
+- Invalid numbered-list choice (unused **15–98**, unknown name) prints `[ERROR]`, reprints **this** list, and waits again. Does not exit the process. Dest yes/no review is not a menu layer.
+
+### Law
+
+- `requirement-shell-cli-default-interaction` **1.2.0** (invalid choice retries this layer; **AC-9**).
+
+### Tests
+
+- **TP-CLI-26** **have** (PTY unused `15` / unknown name reprint; static `out_error` loop, no `out_die`).
+
+### Changed
+
+- Ship unit **`VERSION="1.10.1"`**.
+
+## [1.10.0] - 2026-09-09
 
 ### Added
 

@@ -1,7 +1,7 @@
 # Requirement ↔ test matrix — nginx-cli
 
-**Updated:** 2026-09-09  
-**Product VERSION:** 1.10.0  
+**Updated:** 2026-09-13  
+**Product VERSION:** 1.10.1  
 **Suite:** `tests/run.sh`
 
 | Requirement key | Area | TP families | Coverage notes |
@@ -9,10 +9,10 @@
 | requirement-class-software-dev | class | TP-CLI-01, TP-CLI-11 | Syntax + stack residual; no online package |
 | requirement-bootstrap-chain | architecture | TP-CLI-04, TP-CLI-10, TP-CLI-13 | Origin cli-template; no online/archive verbs |
 | requirement-project-folder | architecture | TP-LC-01 | src/nginx-cli + user bin |
-| requirement-shell-cli-interface | shell | TP-CLI-* (incl. **15** / **16** / **17..25**) | Commands, flags, dispatch; test-purpose `fence-test`; help testers apart; `menu`/`main`; dual mention `enable-login-approval` |
+| requirement-shell-cli-interface | shell | TP-CLI-* (incl. **15** / **16** / **17..26**) | Commands, flags, dispatch; test-purpose `fence-test`; help testers apart; `menu`/`main`; dual mention `enable-login-approval` |
 | requirement-shell-script-coding | shell | TP-CLI-01 | Specialize-in home; `sh -n` |
 | requirement-shell-cli-zero-arguments | shell | TP-CLI-07, TP-CLI-17, TP-CLI-25 | Type N: off-TTY help; TTY empty argv numbered list |
-| requirement-shell-cli-default-interaction | shell | TP-CLI-17..25 | TTY list on empty argv and `menu`/`main`; off-TTY help; default style; no `$()` of `prompt_ask` |
+| requirement-shell-cli-default-interaction | shell | TP-CLI-17..26 | TTY list on empty argv and `menu`/`main`; off-TTY help; default style; no `$()` of `prompt_ask`; invalid choice retries this layer |
 | requirement-shell-local-self-management | shell | TP-LC-* (incl. **09/10** mode) | install/uninstall/where-is-me; **0755**; PATH companion **call site**. Rc bodies: `requirement-shell-path-and-shell-support` |
 | requirement-shell-path-and-shell-support | shell | TP-LC-11–14 · TP-LC-20–22 · TP-CLI-04 (`BASHRC`) | PATH / profile create; `BASHRC` temp-folder create/modify/no-op; sibling unify law. `rc-test` verb **Gap** |
 | requirement-shell-output-requirements | shell | TP-CLI-03,05,08,09 | JSON / quiet / errors |

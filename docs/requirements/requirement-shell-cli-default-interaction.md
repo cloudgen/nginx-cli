@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-cli-default-interaction.md  
-**Status**: Active (Version 1.1.1)  
+**Status**: Active (Version 1.2.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-default-interaction`  
 **id**: RQ-SHELL-CLI-DEFAULT-INTERACTION  
@@ -21,7 +21,7 @@ This requirement is the **project Single Source of Truth** for nginx-cli’s opt
 
 | Includes | Excludes |
 |----------|----------|
-| Numbered 1…N live work commands; last extra row Exit **99**; TTY empty argv; `menu` / `main` as the same handler | `help` as a row; install / uninstall / where-is-me / setup / version / about; testers; `menu`/`main` as a choice; hanging in CI |
+| Numbered 1…N live work commands; last extra row Exit **99**; TTY empty argv; `menu` / `main` as the same handler; a wrong number or name reprints **this** list | `help` as a row; install / uninstall / where-is-me / setup / version / about; testers; `menu`/`main` as a choice; hanging in CI; process exit because you typed an unused number |
 
 | Surface | What you open | What for |
 |---------|---------------|----------|
@@ -33,6 +33,7 @@ This requirement is the **project Single Source of Truth** for nginx-cli’s opt
 |---------|---------------|---------------|
 | Want the numbered list | On a real terminal, empty argv **is** the list. `menu` / `main` are the same handler. `--json` does not hide the list on a TTY. In a script you get help so the process does not wait. | `nginx-cli` |
 | Leave the list | Exit is **99** (fourteen command rows). Unused numbers 15–98 are omitted. | `99` |
+| Type a number that is not on the list | Stay on **this** list: a loud error, the list reprints, pick again. The process does not exit. Nested numbered lists (none today) retry **that** list. Dest yes/no review is not a menu layer. | `15` then `6` |
 
 ## Under command line for normal user only
 
@@ -56,7 +57,8 @@ On Termux, Git Bash, or Windows cmd, the numbered list **MUST** still omit insta
 3. **MUST NOT** draw the list off-TTY.  
 4. **MUST NOT** list `menu` / `main` as a numbered choice on its own list.  
 5. Choice **MUST** be current-shell `prompt_ask` then `PROMPT_ASK_VALUE`. **MUST NOT** `_choice=$(prompt_ask …)`.  
-6. Look **MUST** use `util_app_ident` + `out_menu_choice` (TTY explain italic + light gray).
+6. Look **MUST** use `util_app_ident` + `out_menu_choice` (TTY explain italic + light gray).  
+7. Invalid choice at **any menu layer** **MUST** `out_error`, reprint **this** layer, and re-prompt. **MUST NOT** `out_die` / process exit. Unused integers between **N** and Exit (here **15–98**) count as invalid. Nested numbered submenu: same rule on **that** layer. Empty line / failed `read` **MAY** leave this layer. **MUST NOT** treat that pick as unknown argv.
 
 ### 2.2 `menu` / `main` mode check (case 3)
 
@@ -77,8 +79,9 @@ Measure interactive capability **once in the main process, outside functions**. 
 4. **MUST NOT** list: `help`; gap / forbidden / help-only names; **`menu` / `main` itself**; **install / setup**; **self-managed** (`install`, `uninstall`, `where-is-me`); **diagnostics** (`version`, `about`); **any test-purpose** verb (`test-json-format`, `fence-test`). Those stay on `help` (testers **apart** from operational).  
 5. **MUST NOT** list the `remove-nginx-adm` alias as a second numbered row (`remove-lpu` is the live row; the alias **MAY** be accepted as typed input for that row).  
 6. Last extra row is **Exit** (not a command token). Exit number **MUST** be the smallest all-nines number **strictly greater** than **N**.  
-7. Accept a **number** or the **verb token**; run the matching handler. Exit number (or `exit` / `quit`) returns 0.  
-8. Extra fields: on TTY, prompt **one field at a time**; if a required field is empty, print `Next: nginx-cli <verb> …` and return — **MUST NOT** hang off-TTY.
+7. Accept a **number** or the **verb token**; run the matching handler. Exit number (or `exit` / `quit`) leaves **this** layer (top layer returns 0).  
+8. Extra fields: on TTY, prompt **one field at a time**; if a required field is empty, print `Next: nginx-cli <verb> …` and return — **MUST NOT** hang off-TTY.  
+9. Invalid choice (unused number, unknown name, or any input that is not listed and not Exit) **MUST** stay on **this** layer: `out_error` (not `out_die`), reprint this layer’s list, re-prompt in the current shell. Nested numbered submenu: same rule on **that** layer. EOF / failed `read` **MUST** leave this layer without spinning.
 
 ### 2.4 Why This Requirement Exists (Direct CIAO Alignment)
 
@@ -97,7 +100,7 @@ Measure interactive capability **once in the main process, outside functions**. 
 - **Caution**: No menu in pipes or CI.  
 - **Intentional**: Case 3; labels from the kept command list / help one-liners.  
 - **Anti-fragile**: Off-TTY empty argv stays help if this file is later dropped; TTY empty argv is owned with the zero-argument requirement.  
-- **Over-protect**: Exclusions (install/setup, testers, `help`, `menu` itself) and Exit **99** are sacred.
+- **Over-protect**: Exclusions (install/setup, testers, `help`, `menu` itself), Exit **99**, and invalid-choice retry (never `out_die`) are sacred.
 
 ---
 
@@ -115,6 +118,7 @@ Measure interactive capability **once in the main process, outside functions**. 
 | **N** | **14** |
 | **Exit** | **99** |
 | **Prompt helper** | `prompt_ask` (consume `TTY`; `INTERACTIVE=1` for the menu walk) |
+| **Invalid-choice retry** | **Implemented** — `app_main_menu` loops: unused **15–98**, unknown name → `out_error` + reprint + re-prompt. This product has **one** numbered layer (the main list). Dest `approve` yes/no/skip/quit is dest review, not a menu layer. Extra field empty still prints `Next:` and returns. |
 
 **Complete invocation samples (topic-owner — dual mention):**
 
@@ -175,7 +179,8 @@ Other listed verbs run with no extra operands (`approve` with no basename stays 
 7. Override empty argv with this list (case 3).  
 8. Treat interactive `nginx-cli menu --json` as JSON help.  
 9. Ignore `--json` on non-interactive `menu`/`main`.  
-10. Claim the list is live while the dispatcher still rejects `menu` / `main`.
+10. Claim the list is live while the dispatcher still rejects `menu` / `main`.  
+11. `out_die` / exit on an invalid TTY menu choice at any layer (unused number such as `15`, unknown name) — **MUST** `out_error`, reprint **this** layer, and re-prompt. **MUST NOT** treat that pick as unknown argv.
 
 **Violating this rule is a critical CLI-surface regression.**
 
@@ -193,6 +198,7 @@ Other listed verbs run with no extra operands (`approve` with no basename stays 
 | AC-6 | Non-interactive `menu --json` is JSON help |
 | AC-7 | Numbered choices omit help, install, uninstall, where-is-me, setup, version, about, testers, menu, main |
 | AC-8 | Help lists `menu` (alias `main`) |
+| AC-9 | Invalid TTY choice (unused **15–98** or unknown name) prints `[ERROR]`, reprints **this** list, waits; process does not exit |
 
 ---
 
@@ -225,6 +231,7 @@ Other listed verbs run with no extra operands (`approve` with no basename stays 
 | **TP-CLI-23** | `tests/test_cli.sh` | have | `PROMPT_ASK_VALUE`; no `$()` of `prompt_ask` |
 | **TP-CLI-24** | `tests/test_cli.sh` | have | TTY header VERSION + gray-italic explain (skip if no PTY) |
 | **TP-CLI-25** | `tests/test_cli.sh` | have | TTY empty argv numbered list (skip if no PTY) |
+| **TP-CLI-26** | `tests/test_cli.sh` | have | Invalid TTY menu choice retries this layer (`out_error` + reprint; unused **15**; not unknown argv). Skip PTY half if no PTY; static half always |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`
@@ -236,9 +243,10 @@ Other listed verbs run with no extra operands (`approve` with no basename stays 
 | 2026-08-23 | Active 1.0.0 | Case 3; `menu`/`main`; N=14; Exit 99 |
 | 2026-09-03 | Active 1.1.0 | TTY empty argv uses this list |
 | 2026-09-06 | Active 1.1.1 | Human-facing + DTV match TTY empty argv; TP-CLI-23..25 |
+| 2026-09-13 | Active 1.2.0 | Invalid choice at any menu layer retries that layer; **TP-CLI-26**; **AC-9** |
 
 ---
 
-**Last Updated**: 2026-09-06  
+**Last Updated**: 2026-09-13  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

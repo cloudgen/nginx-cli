@@ -179,7 +179,7 @@ The review verb the snippet starts is dest `approve` (owned by `requirement-doma
 | **Dest `approve` walk** | Domain SSOT — **MUST NOT** be the only healer |
 | **Fixture** | skip live `/usr/local/bin`; fixture home under `/tmp` **MAY** receive the snippet |
 | **Ship unit** | `src/nginx-cli` — `ngx_ensure_login_hook_symlink` · `ngx_enable_login_approval` · `ngx_login_hook_block` |
-| **VERSION** | ship unit `1.10.0`; this law **1.0.0** |
+| **VERSION** | ship unit `1.10.1`; this law **1.0.0** |
 
 ### 2.9 Why This Requirement Exists (Direct CIAO Alignment)
 

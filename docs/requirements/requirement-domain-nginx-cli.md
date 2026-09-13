@@ -414,7 +414,7 @@ Type 0 diagnostics (install, storage, repo) **MUST** remain.
 | **Ship unit** | `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) |
 | **Domain prefix** | `ngx_` |
-| **VERSION** | `1.10.0` (domain law 1.16.0) |
+| **VERSION** | `1.10.1` (domain law 1.16.0) |
 | **Dest Fence** | `requirement-incorrect-json-format` |
 | **Testers** | `fence-test` / `test-json-format` |
 | **Convert verbs** | `conf-to-json` → `ngx_conf_to_json`; `json-to-conf` → `ngx_json_to_conf` |

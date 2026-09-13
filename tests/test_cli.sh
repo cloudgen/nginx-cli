@@ -230,11 +230,39 @@ run_test_cli() {
         assert_contains "TP-CLI-25 TTY empty argv has Exit 99" "${_pty_empty}" "99. Exit"
         assert_contains "TP-CLI-25 TTY empty argv row 1 remove-lpu" "${_pty_empty}" "1. remove-lpu:"
         assert_not_contains "TP-CLI-25 TTY empty argv is not Usage help" "${_pty_empty}" "Usage:"
+
+        # TP-CLI-26 unused listed-gap integer retries this layer (then Exit)
+        _pty_bad=$(MENU_INPUT='15
+99
+' python3 "${_pty_py}" sh "${SCRIPT}" menu 2>/dev/null)
+        assert_contains "TP-CLI-26 TTY unused 15 is ERROR" "${_pty_bad}" "[ERROR]"
+        assert_contains "TP-CLI-26 TTY unused 15 names the pick" "${_pty_bad}" "Unknown menu choice '15'"
+        assert_contains "TP-CLI-26 TTY unused 15 says not on this list" "${_pty_bad}" "not on this list"
+        assert_not_contains "TP-CLI-26 TTY unused 15 is not unknown argv" "${_pty_bad}" "Unknown command"
+        _exit_n=$(printf '%s' "${_pty_bad}" | grep -c "99. Exit" || true)
+        if [ "${_exit_n}" -ge 2 ]; then
+            t_pass "TP-CLI-26 TTY unused 15 reprints this layer (${_exit_n} Exit rows)"
+        else
+            t_fail "TP-CLI-26 TTY unused 15 reprints this layer (Exit rows=${_exit_n}, want >=2)"
+        fi
+        _pty_name=$(MENU_INPUT='not-a-command
+99
+' python3 "${_pty_py}" sh "${SCRIPT}" menu 2>/dev/null)
+        assert_contains "TP-CLI-26 TTY unknown name is ERROR" "${_pty_name}" "[ERROR]"
+        assert_contains "TP-CLI-26 TTY unknown name names the pick" "${_pty_name}" "Unknown menu choice 'not-a-command'"
+        assert_not_contains "TP-CLI-26 TTY unknown name is not unknown argv" "${_pty_name}" "Unknown command"
+        _exit_n2=$(printf '%s' "${_pty_name}" | grep -c "99. Exit" || true)
+        if [ "${_exit_n2}" -ge 2 ]; then
+            t_pass "TP-CLI-26 TTY unknown name reprints this layer (${_exit_n2} Exit rows)"
+        else
+            t_fail "TP-CLI-26 TTY unknown name reprints this layer (Exit rows=${_exit_n2}, want >=2)"
+        fi
     else
         t_skip "TP-CLI-21 TTY menu numbered list (no PTY)"
         t_skip "TP-CLI-22 TTY menu --json still list (no PTY)"
         t_skip "TP-CLI-24 TTY menu default style (no PTY)"
         t_skip "TP-CLI-25 TTY empty argv numbered list (no PTY)"
+        t_skip "TP-CLI-26 TTY invalid choice retry (no PTY)"
     fi
 
     _ship=$(cat "${SCRIPT}")
@@ -243,4 +271,7 @@ run_test_cli() {
     assert_not_contains "TP-CLI-23 no captured prompt_ask call" "${_ship}" '_mm_choice=$(prompt_ask'
     assert_contains "TP-CLI-24 util_app_ident present" "${_ship}" "util_app_ident()"
     assert_contains "TP-CLI-24 out_menu_choice present" "${_ship}" "out_menu_choice()"
+    assert_contains "TP-CLI-26 menu invalid uses out_error" "${_ship}" 'out_error "Unknown menu choice'
+    assert_not_contains "TP-CLI-26 menu invalid does not out_die" "${_ship}" 'out_die "That is not a menu choice'
+    assert_contains "TP-CLI-26 menu layer retry loop" "${_ship}" "Invalid choice retries this layer"
 }

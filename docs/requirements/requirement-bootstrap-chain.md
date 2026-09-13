@@ -102,7 +102,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | Concern | Value |
 |---------|---------|
 | `APP_NAME` | `nginx-cli` |
-| `VERSION` | `1.10.0` (product version SSOT in ship unit) |
+| `VERSION` | `1.10.1` (product version SSOT in ship unit) |
 | Primary install story | Local copy from running ship unit → `${USER_BIN}` (default `~/.local/bin`) |
 | README one-liner | **No** `curl \| sh` channel claim |
 

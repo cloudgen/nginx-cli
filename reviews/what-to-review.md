@@ -5,8 +5,8 @@
 **Origin A:** `cli-template` (frozen at `src/cli-template`) — do not reverse-copy.  
 **Always load first:** `reviews/lessons.md`
 
-**Last plan update:** 2026-09-09  
-**Ship unit VERSION:** 1.10.0  
+**Last plan update:** 2026-09-13  
+**Ship unit VERSION:** 1.10.1  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -16,7 +16,7 @@
 | # | Check | Notes |
 |---|--------|--------|
 | P1 | Read `docs/requirements/index.md` | Class + architecture + shell + one domain SSOT |
-| P2 | Confirm ship unit `src/nginx-cli` | `APP_NAME` / `VERSION` hard-assign (**1.10.0**) |
+| P2 | Confirm ship unit `src/nginx-cli` | `APP_NAME` / `VERSION` hard-assign (**1.10.1**) |
 | P3 | Confirm origin A remains `src/cli-template` | Frozen; no reverse-copy from B |
 | P4 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P5 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
@@ -48,7 +48,7 @@
 | CLI interface | `requirement-shell-cli-interface.md` | Type 0 commands, flags, dispatch; domain pointer; `BASHRC`; `rc-test` dual mention |
 | Path / shell-rc | `requirement-shell-path-and-shell-support.md` | PATH + this-login profile; sibling unify; **TP-LC-20..22**; `rc-test` ship Gap |
 | Empty argv Type N | `requirement-shell-cli-zero-arguments.md` | TTY = numbered list; off-TTY = help; never install |
-| Numbered list | `requirement-shell-cli-default-interaction.md` | TTY empty argv + `menu`/`main` |
+| Numbered list | `requirement-shell-cli-default-interaction.md` | TTY empty argv + `menu`/`main`; invalid choice retries this layer |
 | Local self-management | `requirement-shell-local-self-management.md` | install/uninstall; mode 0755 |
 | Output SSOT | `requirement-shell-output-requirements.md` | `out_*`; JSON errors |
 | Modular design | `requirement-shell-modular-function-design.md` | Type 0 prefixes + `ngx_` |

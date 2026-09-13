@@ -108,7 +108,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | **Architectures supported** | any arch with POSIX sh and the external tools the script invokes |
 | **Git surface** | used when product is published |
 | **Ship unit / install** | yes — `src/nginx-cli` → `${USER_BIN}/nginx-cli` (default `~/.local/bin/nginx-cli`); **local-only** install (no online channel) |
-| **Product version SSOT** | `VERSION="1.10.0"` hard-assign in `src/nginx-cli` |
+| **Product version SSOT** | `VERSION="1.10.1"` hard-assign in `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) — this product is B. No live parent hop. |
 
 **Residual ownership table:**
