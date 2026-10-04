@@ -12,8 +12,10 @@
 # - requirement-bootstrap-chain.md
 # - requirement-project-folder.md
 # - requirement-shell-cli-interface.md
-# - requirement-shell-cli-zero-arguments.md  (Type N: off-TTY empty argv = help; TTY empty argv = numbered list)
-# - requirement-shell-cli-default-interaction.md  (TTY numbered list on empty argv and menu/main)
+# - requirement-shell-cli-zero-arguments.md  (interactive zero-cli-verb = main menu; non-interactive = self-install)
+# - requirement-shell-cli-default-interaction.md  (TTY main menu; switches such as --debug are not a verb)
+# - requirement-shell-cli-language.md  (menu language; thirteen codes; persistence leaf language)
+# - requirement-shell-cli-storage.md  (per-login per-process cache folder + persistence)
 # - requirement-shell-local-self-management.md
 # - requirement-shell-path-and-shell-support.md
 # - requirement-shell-cli-storage.md
@@ -37,7 +39,7 @@
 # Single-file ship unit under src/; install to ~/.local/bin (user) or /usr/local/bin (root/--global).
 #
 # APP NAME: hard-assign APP_NAME="nginx-cli"
-# VERSION: hard-assign VERSION="1.10.1"
+# VERSION: hard-assign VERSION="1.11.0"
 #
 # =============================================================================
 
@@ -52,9 +54,9 @@ APP_NAME="nginx-cli"
 : "${APP_NAME:=nginx-cli}"
 : "${APP_DESC:=Nginx least-privilege admin CLI (setup nginx-adm, request/approve site conf)}"
 : "${SHORT_DESCRIPTION:=${APP_DESC}}"
-: "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, interactive approval, submit-sudoer-request, test-json-format, fence-test, and a TTY numbered list (empty argv or menu/main).}"
+: "${DESCRIPTION:=POSIX /bin/sh CLI: Type 0 install plus nginx-adm setup, config request workflow, interactive approval, submit-sudoer-request, test-json-format, fence-test, and a TTY main menu (interactive zero-cli-verb or menu/main). Non-interactive zero-cli-verb places this CLI (self-install, local copy).}"
 # Product version SSOT (semver). Extractors use: grep '^VERSION="'
-VERSION="1.10.1"
+VERSION="1.11.0"
 : "${VERSION:=1.0.0}"
 # Repository identity SSOT (git host owner/repo for project-repository alignment).
 # Install remains local-only: SCRIPT_URL stays empty (no online curl|sh channel).
@@ -170,10 +172,10 @@ out_text() {
             ;;
     esac
 
-    local RED='' GREEN='' YELLOW='' BLUE='' DESC='' NC=''
+    local RED='' GREEN='' YELLOW='' BLUE='' BOLD='' DESC='' NC=''
     [ "${TTY:-0}" -eq 1 ] && [ "${QUIET}" -eq 0 ] && [ "${JSON}" -eq 0 ] && {
         RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-        BLUE='\033[0;34m'; DESC='\033[3;37m'; NC='\033[0m'
+        BLUE='\033[0;34m'; BOLD='\033[1m'; DESC='\033[3;37m'; NC='\033[0m'
     }
 
     case "${level}" in
@@ -185,7 +187,8 @@ out_text() {
         plain)       printf "%s\n" "${msg}" ;;
         plain_n)     printf "%s" "${msg}" ;;
         menu_choice)
-            printf '%s. %s: %b%s%b\n' "${3-}" "${4-}" "${DESC}" "${5-}" "${NC}"
+            # Number plain, short bold, long italic light gray. Off-TTY both wraps are empty.
+            printf '%s. %b%s%b: %b%s%b\n' "${3-}" "${BOLD}" "${4-}" "${NC}" "${DESC}" "${5-}" "${NC}"
             ;;
         *)           printf "%s\n" "${msg}" ;;
     esac
@@ -1004,79 +1007,202 @@ util_backup() {
 }
 
 # =============================================================================
-# util_resolve_storage() - Storage resolver
+# Cache folder resolvers — per login and per process
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# Returns the best available volatile storage directory for prompt files.
-# Prefers /dev/shm (fastest, in-memory) → /tmp → fallback to XDG_CACHE_HOME.
-# All paths include ${USERNAME} to isolate per-user storage.
-#
-# Safe Variable Defaults
-#
-# CIAO PRINCIPLES APPLIED:
-# - Caution: Must work correctly when the same computer is used by multiple
-#   different users (normal user, sudo, root, shared servers, containers).
-# - Intentionality: Never allow one user's files to be readable/writable by
-#   another user. Every directory creation must be ownership-aware.
-# - Anti-fragile: Survive permission conflicts and multi-user environments.
-#
-# CRITICAL WARNING - MULTI-USER PROBLEM AI FREQUENTLY OVERLOOKS:
-# Many good applications on a computer are run by different users over time
-# (e.g. normal user → sudo → another login account). 
-#
-# AI assistants often simply "add mkdir -p" when solving a storage task without
-# considering ownership and cross-user write privilege. This approach is
-# untested and problematic — it can create directories owned by one user that
-# another user cannot read/write, or allow unintended access between users.
-#
-# That is why we intentionally isolate folders per user (${APP_NAME}-${USERNAME})
-# and why any change to this function must preserve strict per-user isolation.
-# Rewriting this with a generic shared folder is forbidden and has caused
-# permission bugs in the past.
+# Scratch for this run lives in a cache folder named for this login and this
+# process. Linux: /dev/shm/cache, then /tmp/cache, then ${HOME}/.cache.
+# Git Bash: /tmp/cache, then AppData Local Temp. Mac: /tmp/cache, then
+# Library/Caches, then ${HOME}/cache. A missed tier is silent.
+# MUST NOT restore /dev/shm/${APP_NAME} or /dev/shm/${APP_NAME}-${USERNAME}.
 #
 # !!! DO NOT MODIFY OR SIMPLIFY THIS FUNCTION !!!
-# Designed to be reusable in other projects.
+# Dropping ${login} or $$ from a volatile leaf, or warning on a skipped tier,
+# is a cache isolation regression.
 #
 # ECHO EXCEPTION (class B – function return-via-stdout):
-# echo of storage paths is a data return for $(util_resolve_storage) capture,
-# not a product user message. Failures use out_die.
-# See requirement-shell-output-requirements.md §2.1.1.
+# Path helpers print data for $(util_resolve_storage) capture, not product UI.
+# Failures use out_die. See requirement-shell-output-requirements.md §2.1.1.
 #
-# Lessons Learned (CIAO Reflection):
-# 2026-07-13: STORAGE_DIR was bare/unset on third fallback (INC-20260713-001 P1).
-# 2026-07-14: Third fallback uses XDG_CACHE_HOME / HOME/.cache / /tmp with
-#             per-user ${APP_NAME}-${USERNAME} isolation under set -u.
-# 2026-07-16: Create chosen tier root before echo (fail-closed) for all tiers;
-#             wire from app_main (EFFECTIVE_STORAGE_DIR + TMPDIR). SM-STOR-01.
-#
-# Last reviewed: 2026-07-16
+# Last updated: 2026-10-04
 # SSOT: requirement-shell-cli-storage.md
 # =============================================================================
+util_cache_host_kind() {
+    case "${NGINX_CLI_CACHE_HOST:-}" in
+        linux|gitbash|mac)
+            printf '%s' "${NGINX_CLI_CACHE_HOST}"
+            return 0
+            ;;
+    esac
+    if [ -n "${MSYSTEM:-}" ]; then
+        printf '%s' "gitbash"
+        return 0
+    fi
+    case "$(uname -s 2>/dev/null)" in
+        MINGW*|MSYS*) printf '%s' "gitbash" ;;
+        Darwin) printf '%s' "mac" ;;
+        *) printf '%s' "linux" ;;
+    esac
+}
+
+util_cache_login() {
+    _clogin="${USERNAME:-unknown}"
+    case "${_clogin}" in
+        *[!A-Za-z0-9._-]*)
+            _clogin=$(printf '%s' "${_clogin}" | tr -c 'A-Za-z0-9._-' '_')
+            ;;
+    esac
+    [ -n "${_clogin}" ] || _clogin="unknown"
+    printf '%s' "${_clogin}"
+    unset _clogin
+}
+
+util_cache_volatile_leaf() {
+    : "${APP_NAME:=app}"
+    printf '%s' "cache-${APP_NAME}-$(util_cache_login)-$$"
+}
+
+util_cache_home_leaf() {
+    : "${APP_NAME:=app}"
+    printf '%s' "cache-${APP_NAME}-$$"
+}
+
+util_preferred_cache_dir() {
+    : "${APP_NAME:=app}"
+    : "${HOME:=/tmp}"
+    case "$(util_cache_host_kind)" in
+        gitbash|mac)
+            printf '%s' "/tmp/cache/$(util_cache_volatile_leaf)"
+            ;;
+        *)
+            printf '%s' "/dev/shm/cache/$(util_cache_volatile_leaf)"
+            ;;
+    esac
+}
+
+util_fallback_cache_dir() {
+    : "${APP_NAME:=app}"
+    : "${HOME:=/tmp}"
+    case "$(util_cache_host_kind)" in
+        gitbash)
+            printf '%s' "${HOME}/AppData/Local/Temp/$(util_cache_home_leaf)"
+            ;;
+        mac)
+            printf '%s' "${HOME}/Library/Caches/$(util_cache_home_leaf)"
+            ;;
+        *)
+            printf '%s' "/tmp/cache/$(util_cache_volatile_leaf)"
+            ;;
+    esac
+}
+
+util_fallback2_cache_dir() {
+    : "${APP_NAME:=app}"
+    : "${HOME:=/tmp}"
+    case "$(util_cache_host_kind)" in
+        gitbash)
+            printf '%s' ""
+            ;;
+        mac)
+            printf '%s' "${HOME}/cache/$(util_cache_home_leaf)"
+            ;;
+        *)
+            printf '%s' "${HOME}/.cache/$(util_cache_home_leaf)"
+            ;;
+    esac
+}
+
+# Create one cache tier. Silent on failure (caller tries the next tier).
+util_cache_try_dir() {
+    _cdir="${1:-}"
+    if [ -z "${_cdir}" ]; then
+        unset _cdir
+        return 1
+    fi
+    _cparent=$(dirname "${_cdir}")
+    case "${_cparent}" in
+        /dev/shm/cache|/tmp/cache)
+            mkdir -m 1777 -p "${_cparent}" 2>/dev/null || mkdir -p "${_cparent}" 2>/dev/null || {
+                unset _cdir _cparent
+                return 1
+            }
+            chmod 1777 "${_cparent}" 2>/dev/null || true
+            ;;
+        *)
+            mkdir -p "${_cparent}" 2>/dev/null || {
+                unset _cdir _cparent
+                return 1
+            }
+            ;;
+    esac
+    mkdir -m 0700 -p "${_cdir}" 2>/dev/null || mkdir -p "${_cdir}" 2>/dev/null || {
+        unset _cdir _cparent
+        return 1
+    }
+    if [ ! -d "${_cdir}" ] || [ ! -w "${_cdir}" ]; then
+        unset _cdir _cparent
+        return 1
+    fi
+    unset _cdir _cparent
+    return 0
+}
+
 util_resolve_storage() {
-    # --- Safe Variable Defaults ----
-    # Defensive defaults - never assume globals are set
     : "${USERNAME:=unknown}"
     : "${APP_NAME:=app}"
     : "${HOME:=/tmp}"
-    : "${XDG_CACHE_HOME:=${HOME}/.cache}"
 
-    # Pick first available tier, then create root (all tiers fail-closed)
     _storage_candidate=""
-    if [ -d "/dev/shm" ] && [ -w "/dev/shm" ]; then
-        _storage_candidate="/dev/shm/${APP_NAME}-${USERNAME}"
-    elif [ -w "/tmp" ]; then
-        _storage_candidate="/tmp/${APP_NAME}-${USERNAME}"
-    else
-        : "${STORAGE_DIR:=${XDG_CACHE_HOME}/${APP_NAME}-${USERNAME}}"
-        _storage_candidate="${STORAGE_DIR}"
+    _pref=""
+    _fb1=""
+    _fb2=""
+    if [ "${NGINX_CLI_CACHE_SKIP:-}" != "preferred" ]; then
+        _pref=$(util_preferred_cache_dir)
+        if util_cache_try_dir "${_pref}"; then
+            _storage_candidate="${_pref}"
+        fi
     fi
-
-    if ! mkdir -p "${_storage_candidate}" 2>/dev/null; then
-        out_die "Cannot create storage directory ${_storage_candidate}"
+    if [ -z "${_storage_candidate}" ]; then
+        _fb1=$(util_fallback_cache_dir)
+        if util_cache_try_dir "${_fb1}"; then
+            _storage_candidate="${_fb1}"
+        fi
+    fi
+    if [ -z "${_storage_candidate}" ]; then
+        _fb2=$(util_fallback2_cache_dir)
+        if [ -n "${_fb2}" ] && util_cache_try_dir "${_fb2}"; then
+            _storage_candidate="${_fb2}"
+        fi
+    fi
+    if [ -z "${_storage_candidate}" ]; then
+        out_die "Cannot create cache folder"
     fi
     echo "${_storage_candidate}"
-    unset _storage_candidate
+    unset _storage_candidate _pref _fb1 _fb2
+    return 0
+}
+
+util_persistent_storage_dir() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${HOME:=/tmp}"
+    printf '%s' "${HOME}/.local/${APP_NAME}"
+}
+
+util_resolve_persistent_storage() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${HOME:=/tmp}"
+    _persist=$(util_persistent_storage_dir)
+    case "${_persist}" in
+        */.local/bin|*/.local/bin/)
+            out_die "Persistence storage must not be the install bin directory ${_persist}"
+            ;;
+    esac
+    if ! mkdir -p "${_persist}" 2>/dev/null || [ ! -w "${_persist}" ]; then
+        out_die "Cannot create persistence storage ${_persist}"
+    fi
+    echo "${_persist}"
+    unset _persist
     return 0
 }
 
@@ -1464,6 +1590,57 @@ inst_local_install() {
             "mode" "${INST_MANAGED_MODE}"
     fi
     return 0
+}
+
+# =============================================================================
+# inst_self_install() - Place this CLI only (local copy, no network, no setup)
+# =============================================================================
+#
+# GENERAL PURPOSE:
+# Non-interactive zero-cli-verb and menu row 87 call this. It copies the
+# running ship unit to the privilege-correct bin, or says it is already there.
+# It does not download, does not run setup, and does not print help.
+#
+# ALIGNMENT:
+# - requirement-shell-cli-zero-arguments.md
+# - requirement-shell-local-self-management.md
+#
+# Last updated: 2026-10-04
+# =============================================================================
+inst_self_install() {
+    : "${APP_NAME:=nginx-cli}"
+    : "${VERSION:=}"
+    : "${JSON:=0}"
+    : "${FORCE:=0}"
+    : "${FORCE_REINSTALL:=0}"
+    : "${HOME:=/tmp}"
+    : "${USER_BIN:=${HOME}/.local/bin}"
+
+    if [ "${JSON}" -eq 0 ]; then
+        out_info "Starting self-install of ${APP_NAME} ${VERSION}..."
+    fi
+
+    if inst_is_installed && [ "${FORCE}" -eq 0 ] && [ "${FORCE_REINSTALL}" -eq 0 ]; then
+        _self_path=$(util_get_install_bin_path)
+        if [ "${_self_path}" = "${USER_BIN}/${APP_NAME}" ]; then
+            path_add_shell
+        fi
+        chmod "${INST_MANAGED_MODE:-0755}" "${_self_path}" 2>/dev/null || true
+        if [ "${JSON}" -eq 1 ]; then
+            out_json "self-install" "${APP_NAME} is already installed." \
+                "app" "${APP_NAME}" \
+                "path" "${_self_path}" \
+                "status" "already_installed"
+        else
+            out_success "${APP_NAME} is already installed."
+            out_info "Use --force only to replace deliberately (or run: ${APP_NAME} install --force)."
+        fi
+        unset _self_path
+        return 0
+    fi
+
+    inst_local_install
+    return $?
 }
 
 # =============================================================================
@@ -4790,7 +4967,13 @@ app_about() {
     if [ -z "${EFFECTIVE_STORAGE_DIR:-}" ]; then
         EFFECTIVE_STORAGE_DIR=$(util_resolve_storage)
     fi
-    : "${STORAGE_DIR:=${XDG_CACHE_HOME}/${APP_NAME}-${USERNAME}}"
+    _cache_preferred=$(util_preferred_cache_dir)
+    _cache_fallback=$(util_fallback_cache_dir)
+    _cache_fallback_2=$(util_fallback2_cache_dir)
+    STORAGE_DIR="${_cache_fallback}"
+    if [ -z "${PERSISTENT_STORAGE_DIR:-}" ]; then
+        PERSISTENT_STORAGE_DIR=$(util_resolve_persistent_storage)
+    fi
 
     _installed="false"
     inst_is_installed && _installed="true"
@@ -4861,6 +5044,11 @@ app_about() {
             "shell" "${_shell}" \
             "interactive" "${_interactive}" \
             "user" "${_user}" \
+            "cache_used" "${EFFECTIVE_STORAGE_DIR}" \
+            "cache_preferred" "${_cache_preferred}" \
+            "cache_fallback" "${_cache_fallback}" \
+            "cache_fallback_2" "${_cache_fallback_2}" \
+            "persistence_storage" "${PERSISTENT_STORAGE_DIR}" \
             "effective_storage" "${EFFECTIVE_STORAGE_DIR}" \
             "storage_dir" "${STORAGE_DIR}" \
             "nginx_adm_user" "${_adm_user}" \
@@ -4881,7 +5069,7 @@ app_about() {
 
     [ "${QUIET}" -eq 1 ] && return 0
 
-    out_info "=== ${APP_NAME} ${VERSION} - About / Diagnostics ==="
+    out_info "=== ${APP_NAME} ${VERSION} - $(app_menu_text about_title) ==="
     out_empty_line
     if [ "${_installed}" = "true" ]; then
         out_success "${APP_NAME} is properly installed."
@@ -4930,12 +5118,17 @@ app_about() {
         out_info "TTY / Interactive: no"
     fi
     out_empty_line
-    out_info "Storage (effective): ${EFFECTIVE_STORAGE_DIR}"
-    out_info "Storage (fallback):  ${STORAGE_DIR}"
+    out_info "$(app_menu_text cache_used) ${EFFECTIVE_STORAGE_DIR}"
+    out_info "$(app_menu_text cache_preferred) ${_cache_preferred}"
+    out_info "$(app_menu_text cache_fallback) ${_cache_fallback}"
+    if [ -n "${_cache_fallback_2}" ]; then
+        out_info "$(app_menu_text cache_fallback_2) ${_cache_fallback_2}"
+    fi
+    out_info "$(app_menu_text persist_label) ${PERSISTENT_STORAGE_DIR}"
     out_empty_line
     out_info "Useful commands:"
     out_info "   ${APP_NAME} help            → Full usage"
-    out_info "   ${APP_NAME}                  → Numbered list on a real terminal (also: menu / main)"
+    out_info "   ${APP_NAME}                  → Main menu on a real terminal (also: menu / main; --debug is still no command)"
     out_info "   ${APP_NAME} setup           → Create nginx-adm (root)"
     out_info "   ${APP_NAME} submit-sudoer-request → JSON request into /var/sudoer-cli/sudoer-request"
     out_info "   ${APP_NAME} --json          → Machine-readable output"
@@ -4962,11 +5155,12 @@ app_help() {
     out_info "${APP_NAME} — ${SHORT_DESCRIPTION}"
     out_plain "${DESCRIPTION}"
     out_empty_line
-    out_info "Usage:"
+    out_info "$(app_menu_text help_usage)"
     out_plain "  ${APP_NAME} [command] [options]"
     out_empty_line
     out_info "Lifecycle (Type 0 — local self-managed):"
     out_plain "  install              Install ${APP_NAME} (root→global, user→~/.local/bin)"
+    out_plain "  self-install         Place this CLI only (local copy; no network; no setup)"
     out_plain "  install --global     Force global path (${GLOBAL_BIN}; needs write/root)"
     out_plain "  uninstall            Remove managed binary (confirm or --force)"
     out_plain "  where-is-me          Show running and install paths"
@@ -4974,9 +5168,9 @@ app_help() {
     out_plain "  about                Show diagnostics (includes nginx-adm fields)"
     out_plain "  help                 Show this help"
     out_empty_line
-    out_info "Numbered list (real terminal; empty argv on a TTY):"
-    out_plain "  (no args)            Numbered list of live work commands on a real terminal"
-    out_plain "  menu                 Same numbered list (alias: main)"
+    out_info "$(app_menu_text help_menu_heading)"
+    out_plain "  (no command)         Main menu on a real terminal. A switch such as --debug is still no command"
+    out_plain "  menu                 Same main menu (alias: main). Off a terminal: menu needs a terminal"
     out_plain "  main                 Alias of menu"
     out_empty_line
     out_info "Host setup (Type 1 — root; internal sudo re-exec):"
@@ -5051,78 +5245,1078 @@ app_help() {
     out_plain "  ${APP_NAME} approve"
     out_plain "  sudo ${APP_NAME} remove-lpu --force"
     out_empty_line
-    out_info "Empty argv on a real terminal shows the numbered list (Type N — not install-ensure)."
-    out_info "Empty argv in a script or pipe shows help. ${APP_NAME} menu (or main) is the same list."
-    out_info "Archive-deposit and online-channel verbs are intentionally absent."
+    out_info "$(app_menu_text help_empty)"
+    out_info "Archive-deposit verbs and online-channel verbs are intentionally absent."
 }
 
 # =============================================================================
-# app_menu_choice_to_verb() - Map numbered list input to a live work command
+# Language + main menu (requirement-shell-cli-language.md · requirement-shell-cli-default-interaction.md)
 # =============================================================================
-#
-# GENERAL PURPOSE:
-# Translate a number or verb token from the case-3 menu into a dispatcher
-# token. Empty / unknown → empty string. Exit tokens → "exit".
-#
-# ALIGNMENT:
-# - requirement-shell-cli-default-interaction.md
-#
-# Last updated: 2026-08-23
-# =============================================================================
-app_menu_choice_to_verb() {
-    _mmc="${1-}"
-    case "${_mmc}" in
-        1|remove-lpu|remove-nginx-adm) printf '%s' "remove-lpu" ;;
-        2|request) printf '%s' "request" ;;
-        3|list-requests) printf '%s' "list-requests" ;;
-        4|list-approved) printf '%s' "list-approved" ;;
-        5|list-rejected) printf '%s' "list-rejected" ;;
-        6|approve) printf '%s' "approve" ;;
-        7|reject) printf '%s' "reject" ;;
-        8|enable-login-approval) printf '%s' "enable-login-approval" ;;
-        9|map-set) printf '%s' "map-set" ;;
-        10|map-unset) printf '%s' "map-unset" ;;
-        11|map-list) printf '%s' "map-list" ;;
-        12|submit-sudoer-request) printf '%s' "submit-sudoer-request" ;;
-        13|conf-to-json) printf '%s' "conf-to-json" ;;
-        14|json-to-conf) printf '%s' "json-to-conf" ;;
-        99|exit|quit) printf '%s' "exit" ;;
-        *) printf '%s' "" ;;
+# ALIGNMENT: requirement-shell-cli-language.md · requirement-shell-cli-storage.md
+# Load the language leaf once. A later call in this process is forbidden:
+# NGINX_CLI_LANG would hide a pick just saved. app_cmd_menu does not call this.
+app_lang_load() {
+    APP_LANG=en
+    if [ -z "${PERSISTENT_STORAGE_DIR:-}" ]; then
+        PERSISTENT_STORAGE_DIR=$(util_resolve_persistent_storage)
+        export PERSISTENT_STORAGE_DIR
+    fi
+    _ll_path="${PERSISTENT_STORAGE_DIR}/language"
+    if [ -f "${_ll_path}" ]; then
+        _ll_line=$(head -n 1 "${_ll_path}" 2>/dev/null || true)
+        _ll_line=$(printf '%s' "${_ll_line}" | tr -d '\r')
+        case "${_ll_line}" in
+            en|zh-Hans|zh-Hant|es|ar|fr|pt|ru|de|ja|ko|nl|el) APP_LANG="${_ll_line}" ;;
+        esac
+    fi
+    case "${NGINX_CLI_LANG-}" in
+        en|zh-Hans|zh-Hant|es|ar|fr|pt|ru|de|ja|ko|nl|el) APP_LANG="${NGINX_CLI_LANG}" ;;
     esac
+    export APP_LANG
+    unset _ll_path _ll_line
 }
 
-# =============================================================================
-# app_menu_print() - Numbered list (labels = help one-liners)
-# =============================================================================
-#
-# GENERAL PURPOSE:
-# Print the case-3 main menu. N=14 operational rows; Exit is 99.
-# MUST NOT list help, install/setup, self-managed, version/about, testers,
-# or menu/main itself.
-#
-# ALIGNMENT:
-# - requirement-shell-cli-default-interaction.md
-#
-# Last updated: 2026-08-23
-# =============================================================================
-app_menu_print() {
-    : "${APP_NAME:=nginx-cli}"
-    out_info "$(util_app_ident) — numbered list of live work commands"
-    out_menu_choice "1" "remove-lpu" "Remove nginx-adm (confirm or --force)"
-    out_menu_choice "2" "request" "Submit dest JSON (or nginx-conf text dual)"
-    out_menu_choice "3" "list-requests" "Approving / pending list"
-    out_menu_choice "4" "list-approved" "Approved archive"
-    out_menu_choice "5" "list-rejected" "Rejected archive"
-    out_menu_choice "6" "approve" "Interactive one-by-one, or approve one file"
-    out_menu_choice "7" "reject" "Reject one pending request"
-    out_menu_choice "8" "enable-login-approval" "Add or refresh as-login approve in nginx-adm ~/.bashrc (no sudo)"
-    out_menu_choice "9" "map-set" "Add user-domain-map entry (chown nginx-adm)"
-    out_menu_choice "10" "map-unset" "Remove map entry"
-    out_menu_choice "11" "map-list" "Show user-domain-map"
-    out_menu_choice "12" "submit-sudoer-request" "Queue JSON grant via sudoer-cli (needs --allow-test-local unless global install)"
-    out_menu_choice "13" "conf-to-json" "nginx-conf text → dest request JSON"
-    out_menu_choice "14" "json-to-conf" "dest request JSON → nginx-conf text"
-    out_plain "99. Exit"
+app_lang_save() {
+    _ls_code=${1-}
+    case "${_ls_code}" in
+        en|zh-Hans|zh-Hant|es|ar|fr|pt|ru|de|ja|ko|nl|el) ;;
+        *) unset _ls_code; return 1 ;;
+    esac
+    if [ -z "${PERSISTENT_STORAGE_DIR:-}" ]; then
+        PERSISTENT_STORAGE_DIR=$(util_resolve_persistent_storage)
+        export PERSISTENT_STORAGE_DIR
+    fi
+    _ls_path="${PERSISTENT_STORAGE_DIR}/language"
+    if ! printf '%s\n' "${_ls_code}" > "${_ls_path}"; then
+        unset _ls_code _ls_path
+        return 1
+    fi
+    chmod 0600 "${_ls_path}" 2>/dev/null || true
+    APP_LANG="${_ls_code}"
+    export APP_LANG
+    unset _ls_code _ls_path
+    return 0
+}
+
+# Menu copy for APP_LANG. Pure data. No input builtin.
+# A missing key prints the key. Safe inside a command substitution.
+app_menu_text() {
+    _mt_key=${1-}
+    _mt_extra=${2-}
+    _mt_lang=${APP_LANG:-en}
+    case "${_mt_lang}" in
+        zh-Hans|zh-Hant|es|ar|fr|pt|ru|de|ja|ko|nl|el) ;;
+        *) _mt_lang=en ;;
+    esac
+    _mt_out=""
+    case "${_mt_key}" in
+        cat_request)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='请求端' ;;
+                zh-Hant) _mt_out='請求端' ;;
+                es) _mt_out='solicitudes' ;;
+                ar) _mt_out='طلبات' ;;
+                fr) _mt_out='demandes' ;;
+                pt) _mt_out='pedidos' ;;
+                ru) _mt_out='запросы' ;;
+                de) _mt_out='Anfragen' ;;
+                ja) _mt_out='リクエスト' ;;
+                ko) _mt_out='요청' ;;
+                nl) _mt_out='aanvragen' ;;
+                el) _mt_out='αιτήματα' ;;
+                *) _mt_out='request-side' ;;
+            esac
+            ;;
+        cat_host)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='主机端' ;;
+                zh-Hant) _mt_out='主機端' ;;
+                es) _mt_out='anfitrión' ;;
+                ar) _mt_out='مضيف' ;;
+                fr) _mt_out='hôte' ;;
+                pt) _mt_out='anfitrião' ;;
+                ru) _mt_out='узел' ;;
+                de) _mt_out='Host' ;;
+                ja) _mt_out='ホスト' ;;
+                ko) _mt_out='호스트' ;;
+                nl) _mt_out='host' ;;
+                el) _mt_out='υπολογιστής' ;;
+                *) _mt_out='host-side' ;;
+            esac
+            ;;
+        cat_language)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='语言' ;;
+                zh-Hant) _mt_out='語言' ;;
+                es) _mt_out='idioma' ;;
+                ar) _mt_out='لغة' ;;
+                fr) _mt_out='langue' ;;
+                pt) _mt_out='idioma' ;;
+                ru) _mt_out='язык' ;;
+                de) _mt_out='Sprache' ;;
+                ja) _mt_out='言語' ;;
+                ko) _mt_out='언어' ;;
+                nl) _mt_out='taal' ;;
+                el) _mt_out='γλώσσα' ;;
+                *) _mt_out='language' ;;
+            esac
+            ;;
+        cat_self)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='自我管理' ;;
+                zh-Hant) _mt_out='自我管理' ;;
+                es) _mt_out='autogestión' ;;
+                ar) _mt_out='إدارة-ذاتية' ;;
+                fr) _mt_out='autogestion' ;;
+                pt) _mt_out='autogestão' ;;
+                ru) _mt_out='самоуправление' ;;
+                de) _mt_out='Selbstverwaltung' ;;
+                ja) _mt_out='自己管理' ;;
+                ko) _mt_out='자기관리' ;;
+                nl) _mt_out='zelfbeheer' ;;
+                el) _mt_out='αυτοδιαχείριση' ;;
+                *) _mt_out='self-management' ;;
+            esac
+            ;;
+        front_request_long)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='这个登录的 nginx 站点请求' ;;
+                zh-Hant) _mt_out='這個登入的 nginx 站點請求' ;;
+                es) _mt_out='solicitudes de sitio nginx de este inicio' ;;
+                ar) _mt_out='طلبات موقع nginx لهذا الدخول' ;;
+                fr) _mt_out='demandes de site nginx de cette session' ;;
+                pt) _mt_out='pedidos de site nginx deste login' ;;
+                ru) _mt_out='запросы сайта nginx этого входа' ;;
+                de) _mt_out='nginx-Site-Anfragen dieser Anmeldung' ;;
+                ja) _mt_out='このログインの nginx サイト依頼' ;;
+                ko) _mt_out='이 로그인의 nginx 사이트 요청' ;;
+                nl) _mt_out='nginx-siteverzoeken van deze login' ;;
+                el) _mt_out='αιτήματα ιστοτόπου nginx αυτής της σύνδεσης' ;;
+                *) _mt_out='this login'\''s nginx site requests' ;;
+            esac
+            ;;
+        front_host_long)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='这台主机上的 nginx-adm（安装、移除、登录钩子）' ;;
+                zh-Hant) _mt_out='這台主機上的 nginx-adm（安裝、移除、登入鉤子）' ;;
+                es) _mt_out='nginx-adm en este equipo (alta, baja, gancho de acceso)' ;;
+                ar) _mt_out='nginx-adm على هذا الجهاز (إعداد وإزالة وخطاف الدخول)' ;;
+                fr) _mt_out='nginx-adm sur cet hôte (mise en place, retrait, crochet de connexion)' ;;
+                pt) _mt_out='nginx-adm neste equipamento (criar, remover, gancho de login)' ;;
+                ru) _mt_out='nginx-adm на этом узле (создание, удаление, хук входа)' ;;
+                de) _mt_out='nginx-adm auf diesem Rechner (anlegen, entfernen, Login-Haken)' ;;
+                ja) _mt_out='このホストの nginx-adm（作成、削除、ログインフック）' ;;
+                ko) _mt_out='이 호스트의 nginx-adm(설정, 제거, 로그인 훅)' ;;
+                nl) _mt_out='nginx-adm op deze host (opzetten, verwijderen, login-haak)' ;;
+                el) _mt_out='nginx-adm σε αυτόν τον υπολογιστή (δημιουργία, αφαίρεση, άγκιστρο σύνδεσης)' ;;
+                *) _mt_out='nginx-adm on this host (setup, remove, login hook)' ;;
+            esac
+            ;;
+        front_language_long)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='这个菜单的显示语言' ;;
+                zh-Hant) _mt_out='這個選單的顯示語言' ;;
+                es) _mt_out='idioma de este menú' ;;
+                ar) _mt_out='لغة العرض لهذه القائمة' ;;
+                fr) _mt_out='langue d'\''affichage de ce menu' ;;
+                pt) _mt_out='idioma de exibição deste menu' ;;
+                ru) _mt_out='язык отображения этого меню' ;;
+                de) _mt_out='Anzeigesprache dieses Menüs' ;;
+                ja) _mt_out='このメニューの表示言語' ;;
+                ko) _mt_out='이 메뉴의 표시 언어' ;;
+                nl) _mt_out='weergavetaal van dit menu' ;;
+                el) _mt_out='γλώσσα εμφάνισης αυτού του μενού' ;;
+                *) _mt_out='display language for this menu' ;;
+            esac
+            ;;
+        front_sudoers_long)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='这个 CLI 的免密码 sudo 授权' ;;
+                zh-Hant) _mt_out='這個 CLI 的免密碼 sudo 授權' ;;
+                es) _mt_out='concesión sudo sin contraseña para este CLI' ;;
+                ar) _mt_out='منح sudo بدون كلمة مرور لهذا البرنامج' ;;
+                fr) _mt_out='autorisation sudo sans mot de passe pour ce CLI' ;;
+                pt) _mt_out='concessão sudo sem senha para este CLI' ;;
+                ru) _mt_out='выдача sudo без пароля для этой программы' ;;
+                de) _mt_out='passwortloses sudo für dieses CLI' ;;
+                ja) _mt_out='この CLI のパスワードなし sudo 許可' ;;
+                ko) _mt_out='이 CLI의 비밀번호 없는 sudo 허가' ;;
+                nl) _mt_out='wachtwoordloze sudo voor deze CLI' ;;
+                el) _mt_out='άδεια sudo χωρίς κωδικό για αυτό το CLI' ;;
+                *) _mt_out='passwordless sudo grant for this CLI' ;;
+            esac
+            ;;
+        front_self_long)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='这个 CLI 的安装、版本和关于' ;;
+                zh-Hant) _mt_out='這個 CLI 的安裝、版本和關於' ;;
+                es) _mt_out='instalación, versión y acerca de este CLI' ;;
+                ar) _mt_out='تثبيت هذا البرنامج وإصداره ونبذة عنه' ;;
+                fr) _mt_out='installation, version et à propos de ce CLI' ;;
+                pt) _mt_out='instalação, versão e acerca deste CLI' ;;
+                ru) _mt_out='установка, версия и сведения об этой программе' ;;
+                de) _mt_out='Installation, Version und Info zu diesem CLI' ;;
+                ja) _mt_out='この CLI のインストール、版、概要' ;;
+                ko) _mt_out='이 CLI의 설치, 버전, 개요' ;;
+                nl) _mt_out='installatie, versie en info van deze CLI' ;;
+                el) _mt_out='εγκατάσταση, έκδοση και περί αυτού του CLI' ;;
+                *) _mt_out='this CLI install, version, and about' ;;
+            esac
+            ;;
+        long_request)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='提交目标 JSON（或 nginx 配置文本）' ;;
+                zh-Hant) _mt_out='提交目標 JSON（或 nginx 設定文字）' ;;
+                es) _mt_out='Enviar JSON de destino (o texto nginx-conf)' ;;
+                ar) _mt_out='إرسال JSON الوجهة (أو نص nginx)' ;;
+                fr) _mt_out='Déposer le JSON de destination (ou le texte nginx)' ;;
+                pt) _mt_out='Enviar JSON de destino (ou texto nginx-conf)' ;;
+                ru) _mt_out='Отправить JSON назначения (или текст nginx)' ;;
+                de) _mt_out='Ziel-JSON senden (oder nginx-Text)' ;;
+                ja) _mt_out='宛先 JSON（または nginx 設定テキスト）を提出' ;;
+                ko) _mt_out='대상 JSON(또는 nginx 설정 텍스트) 제출' ;;
+                nl) _mt_out='Bestemmings-JSON indienen (of nginx-tekst)' ;;
+                el) _mt_out='Υποβολή JSON προορισμού (ή κειμένου nginx)' ;;
+                *) _mt_out='Submit dest JSON (or nginx-conf text)' ;;
+            esac
+            ;;
+        long_list_requests)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='待审批列表' ;;
+                zh-Hant) _mt_out='待審批列表' ;;
+                es) _mt_out='Lista pendiente' ;;
+                ar) _mt_out='قائمة الانتظار' ;;
+                fr) _mt_out='Liste en attente' ;;
+                pt) _mt_out='Lista pendente' ;;
+                ru) _mt_out='Очередь на одобрение' ;;
+                de) _mt_out='Warteliste' ;;
+                ja) _mt_out='承認待ち一覧' ;;
+                ko) _mt_out='승인 대기 목록' ;;
+                nl) _mt_out='Wachtlijst' ;;
+                el) _mt_out='Λίστα αναμονής' ;;
+                *) _mt_out='Approving / pending list' ;;
+            esac
+            ;;
+        long_list_approved)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='已批准归档' ;;
+                zh-Hant) _mt_out='已核准歸檔' ;;
+                es) _mt_out='Archivo aprobado' ;;
+                ar) _mt_out='أرشيف المقبول' ;;
+                fr) _mt_out='Archive approuvée' ;;
+                pt) _mt_out='Arquivo aprovado' ;;
+                ru) _mt_out='Архив одобренных' ;;
+                de) _mt_out='Genehmigtes Archiv' ;;
+                ja) _mt_out='承認済み保管' ;;
+                ko) _mt_out='승인 보관' ;;
+                nl) _mt_out='Goedgekeurd archief' ;;
+                el) _mt_out='Αρχείο εγκεκριμένων' ;;
+                *) _mt_out='Approved archive' ;;
+            esac
+            ;;
+        long_list_rejected)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='已拒绝归档' ;;
+                zh-Hant) _mt_out='已拒絕歸檔' ;;
+                es) _mt_out='Archivo rechazado' ;;
+                ar) _mt_out='أرشيف المرفوض' ;;
+                fr) _mt_out='Archive refusée' ;;
+                pt) _mt_out='Arquivo rejeitado' ;;
+                ru) _mt_out='Архив отклонённых' ;;
+                de) _mt_out='Abgelehntes Archiv' ;;
+                ja) _mt_out='却下済み保管' ;;
+                ko) _mt_out='거절 보관' ;;
+                nl) _mt_out='Afgewezen archief' ;;
+                el) _mt_out='Αρχείο απορριφθέντων' ;;
+                *) _mt_out='Rejected archive' ;;
+            esac
+            ;;
+        long_approve)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='批准一个等待文件，或逐个查看' ;;
+                zh-Hant) _mt_out='核准一個等待檔，或逐個查看' ;;
+                es) _mt_out='Aprobar un archivo en espera, o recorrerlos' ;;
+                ar) _mt_out='قبول ملف واحد قيد الانتظار، أو استعراضها' ;;
+                fr) _mt_out='Approuver un fichier en attente, ou les parcourir' ;;
+                pt) _mt_out='Aprovar um arquivo em espera, ou percorrê-los' ;;
+                ru) _mt_out='Одобрить один файл или пройти очередь' ;;
+                de) _mt_out='Eine Wartedatei genehmigen oder alle durchgehen' ;;
+                ja) _mt_out='待ちファイルを一つ承認する、または順に見る' ;;
+                ko) _mt_out='대기 파일 하나를 승인하거나 차례로 보기' ;;
+                nl) _mt_out='Een wachtbestand goedkeuren of ze aflopen' ;;
+                el) _mt_out='Έγκριση ενός αρχείου σε αναμονή ή περιήγηση' ;;
+                *) _mt_out='Approve one waiting file, or walk them' ;;
+            esac
+            ;;
+        long_reject)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='拒绝一个待处理请求' ;;
+                zh-Hant) _mt_out='拒絕一個待處理請求' ;;
+                es) _mt_out='Rechazar una solicitud pendiente' ;;
+                ar) _mt_out='رفض طلب واحد قيد الانتظار' ;;
+                fr) _mt_out='Refuser une demande en attente' ;;
+                pt) _mt_out='Rejeitar um pedido pendente' ;;
+                ru) _mt_out='Отклонить один ожидающий запрос' ;;
+                de) _mt_out='Eine wartende Anfrage ablehnen' ;;
+                ja) _mt_out='保留中の依頼を一つ却下' ;;
+                ko) _mt_out='대기 요청 하나 거절' ;;
+                nl) _mt_out='Een wachtend verzoek afwijzen' ;;
+                el) _mt_out='Απόρριψη ενός εκκρεμούς αιτήματος' ;;
+                *) _mt_out='Reject one pending request' ;;
+            esac
+            ;;
+        long_map_set)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='添加用户与域名映射' ;;
+                zh-Hant) _mt_out='新增使用者與網域對應' ;;
+                es) _mt_out='Añadir un usuario y un dominio' ;;
+                ar) _mt_out='إضافة ربط مستخدم ونطاق' ;;
+                fr) _mt_out='Ajouter un couple utilisateur-domaine' ;;
+                pt) _mt_out='Acrescentar usuário e domínio' ;;
+                ru) _mt_out='Добавить пару пользователь-домен' ;;
+                de) _mt_out='Benutzer-Domain-Eintrag hinzufügen' ;;
+                ja) _mt_out='ユーザーとドメインの対応を追加' ;;
+                ko) _mt_out='사용자-도메인 항목 추가' ;;
+                nl) _mt_out='Gebruiker-domein toevoegen' ;;
+                el) _mt_out='Προσθήκη χρήστη και τομέα' ;;
+                *) _mt_out='Add a user-domain map entry' ;;
+            esac
+            ;;
+        long_map_unset)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='删除一条映射' ;;
+                zh-Hant) _mt_out='移除一筆對應' ;;
+                es) _mt_out='Quitar una entrada del mapa' ;;
+                ar) _mt_out='إزالة ربط' ;;
+                fr) _mt_out='Retirer une entrée' ;;
+                pt) _mt_out='Remover uma entrada' ;;
+                ru) _mt_out='Удалить запись карты' ;;
+                de) _mt_out='Einen Eintrag entfernen' ;;
+                ja) _mt_out='対応を一つ削除' ;;
+                ko) _mt_out='항목 하나 제거' ;;
+                nl) _mt_out='Een vermelding verwijderen' ;;
+                el) _mt_out='Αφαίρεση μιας εγγραφής' ;;
+                *) _mt_out='Remove a map entry' ;;
+            esac
+            ;;
+        long_map_list)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='显示用户与域名映射' ;;
+                zh-Hant) _mt_out='顯示使用者與網域對應' ;;
+                es) _mt_out='Mostrar el mapa usuario-dominio' ;;
+                ar) _mt_out='عرض ربط المستخدم والنطاق' ;;
+                fr) _mt_out='Afficher la carte utilisateur-domaine' ;;
+                pt) _mt_out='Mostrar o mapa usuário-domínio' ;;
+                ru) _mt_out='Показать карту пользователь-домен' ;;
+                de) _mt_out='Benutzer-Domain-Karte zeigen' ;;
+                ja) _mt_out='ユーザーとドメインの対応を表示' ;;
+                ko) _mt_out='사용자-도메인 맵 보기' ;;
+                nl) _mt_out='De gebruiker-domeinkaart tonen' ;;
+                el) _mt_out='Εμφάνιση χάρτη χρήστη-τομέα' ;;
+                *) _mt_out='Show the user-domain map' ;;
+            esac
+            ;;
+        long_conf_to_json)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='nginx 配置文本转为目标请求 JSON' ;;
+                zh-Hant) _mt_out='nginx 設定文字轉成目標請求 JSON' ;;
+                es) _mt_out='Texto nginx a JSON de solicitud' ;;
+                ar) _mt_out='نص nginx إلى JSON الطلب' ;;
+                fr) _mt_out='Texte nginx vers JSON de demande' ;;
+                pt) _mt_out='Texto nginx para JSON do pedido' ;;
+                ru) _mt_out='Текст nginx в JSON запроса' ;;
+                de) _mt_out='nginx-Text nach Anfrage-JSON' ;;
+                ja) _mt_out='nginx 設定テキストを依頼 JSON にする' ;;
+                ko) _mt_out='nginx 텍스트를 요청 JSON으로' ;;
+                nl) _mt_out='nginx-tekst naar aanvraag-JSON' ;;
+                el) _mt_out='Κείμενο nginx σε JSON αιτήματος' ;;
+                *) _mt_out='nginx-conf text to dest request JSON' ;;
+            esac
+            ;;
+        long_json_to_conf)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='目标请求 JSON 转为 nginx 配置文本' ;;
+                zh-Hant) _mt_out='目標請求 JSON 轉成 nginx 設定文字' ;;
+                es) _mt_out='JSON de solicitud a texto nginx' ;;
+                ar) _mt_out='JSON الطلب إلى نص nginx' ;;
+                fr) _mt_out='JSON de demande vers texte nginx' ;;
+                pt) _mt_out='JSON do pedido para texto nginx' ;;
+                ru) _mt_out='JSON запроса в текст nginx' ;;
+                de) _mt_out='Anfrage-JSON nach nginx-Text' ;;
+                ja) _mt_out='依頼 JSON を nginx 設定テキストにする' ;;
+                ko) _mt_out='요청 JSON을 nginx 텍스트로' ;;
+                nl) _mt_out='Aanvraag-JSON naar nginx-tekst' ;;
+                el) _mt_out='JSON αιτήματος σε κείμενο nginx' ;;
+                *) _mt_out='dest request JSON to nginx-conf text' ;;
+            esac
+            ;;
+        long_setup)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='创建 nginx-adm（需要 root）' ;;
+                zh-Hant) _mt_out='建立 nginx-adm（需要 root）' ;;
+                es) _mt_out='Crear nginx-adm (root)' ;;
+                ar) _mt_out='إنشاء nginx-adm (جذر)' ;;
+                fr) _mt_out='Créer nginx-adm (root)' ;;
+                pt) _mt_out='Criar nginx-adm (root)' ;;
+                ru) _mt_out='Создать nginx-adm (root)' ;;
+                de) _mt_out='nginx-adm anlegen (root)' ;;
+                ja) _mt_out='nginx-adm を作る（root）' ;;
+                ko) _mt_out='nginx-adm 만들기(root)' ;;
+                nl) _mt_out='nginx-adm maken (root)' ;;
+                el) _mt_out='Δημιουργία nginx-adm (root)' ;;
+                *) _mt_out='Create nginx-adm (root)' ;;
+            esac
+            ;;
+        long_remove_lpu)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='移除 nginx-adm（确认或 --force）' ;;
+                zh-Hant) _mt_out='移除 nginx-adm（確認或 --force）' ;;
+                es) _mt_out='Quitar nginx-adm (confirmar o --force)' ;;
+                ar) _mt_out='إزالة nginx-adm (تأكيد أو --force)' ;;
+                fr) _mt_out='Retirer nginx-adm (confirmer ou --force)' ;;
+                pt) _mt_out='Remover nginx-adm (confirmar ou --force)' ;;
+                ru) _mt_out='Удалить nginx-adm (подтверждение или --force)' ;;
+                de) _mt_out='nginx-adm entfernen (bestätigen oder --force)' ;;
+                ja) _mt_out='nginx-adm を削除（確認または --force）' ;;
+                ko) _mt_out='nginx-adm 제거(확인 또는 --force)' ;;
+                nl) _mt_out='nginx-adm verwijderen (bevestigen of --force)' ;;
+                el) _mt_out='Αφαίρεση nginx-adm (επιβεβαίωση ή --force)' ;;
+                *) _mt_out='Remove nginx-adm (confirm or --force)' ;;
+            esac
+            ;;
+        long_enable_login)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='刷新 nginx-adm 登录审批（不用 sudo）' ;;
+                zh-Hant) _mt_out='重新整理 nginx-adm 登入審批（不用 sudo）' ;;
+                es) _mt_out='Actualizar la aprobación al entrar (sin sudo)' ;;
+                ar) _mt_out='تحديث موافقة الدخول (بدون sudo)' ;;
+                fr) _mt_out='Rafraîchir l'\''approbation à la connexion (sans sudo)' ;;
+                pt) _mt_out='Atualizar a aprovação no login (sem sudo)' ;;
+                ru) _mt_out='Обновить одобрение при входе (без sudo)' ;;
+                de) _mt_out='Login-Freigabe von nginx-adm auffrischen (ohne sudo)' ;;
+                ja) _mt_out='nginx-adm のログイン承認を更新（sudo なし）' ;;
+                ko) _mt_out='nginx-adm 로그인 승인 갱신(sudo 없음)' ;;
+                nl) _mt_out='Login-goedkeuring van nginx-adm verversen (geen sudo)' ;;
+                el) _mt_out='Ανανέωση έγκρισης σύνδεσης nginx-adm (χωρίς sudo)' ;;
+                *) _mt_out='Refresh nginx-adm login approval (no sudo)' ;;
+            esac
+            ;;
+        long_submit_sudoer)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='经 sudoer-cli 排队一份 JSON 授权' ;;
+                zh-Hant) _mt_out='經 sudoer-cli 排隊一份 JSON 授權' ;;
+                es) _mt_out='Encolar una concesión JSON vía sudoer-cli' ;;
+                ar) _mt_out='صف منح JSON عبر sudoer-cli' ;;
+                fr) _mt_out='Mettre en file un octroi JSON via sudoer-cli' ;;
+                pt) _mt_out='Enfileirar uma concessão JSON via sudoer-cli' ;;
+                ru) _mt_out='Поставить в очередь JSON-выдачу через sudoer-cli' ;;
+                de) _mt_out='JSON-Freigabe über sudoer-cli einreihen' ;;
+                ja) _mt_out='sudoer-cli 経由で JSON 許可を行列に入れる' ;;
+                ko) _mt_out='sudoer-cli로 JSON 허가를 대기열에 넣기' ;;
+                nl) _mt_out='Een JSON-toekenning via sudoer-cli in de wachtrij' ;;
+                el) _mt_out='Ουρά χορήγησης JSON μέσω sudoer-cli' ;;
+                *) _mt_out='Queue a JSON grant via sudoer-cli' ;;
+            esac
+            ;;
+        long_install)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='把这个 CLI 复制到本登录的 bin' ;;
+                zh-Hant) _mt_out='把這個 CLI 複製到本登入的 bin' ;;
+                es) _mt_out='Copiar este CLI al bin de este inicio' ;;
+                ar) _mt_out='نسخ هذا البرنامج إلى bin هذا الدخول' ;;
+                fr) _mt_out='Copier ce CLI dans le bin de cette session' ;;
+                pt) _mt_out='Copiar este CLI para o bin deste login' ;;
+                ru) _mt_out='Скопировать программу в bin этого входа' ;;
+                de) _mt_out='Dieses CLI in das bin dieser Anmeldung kopieren' ;;
+                ja) _mt_out='この CLI をこのログインの bin にコピー' ;;
+                ko) _mt_out='이 CLI를 이 로그인의 bin에 복사' ;;
+                nl) _mt_out='Deze CLI naar de bin van deze login kopiëren' ;;
+                el) _mt_out='Αντιγραφή αυτού του CLI στο bin αυτής της σύνδεσης' ;;
+                *) _mt_out='Copy this CLI into the bin for this login' ;;
+            esac
+            ;;
+        long_version)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='显示诊断（关于）' ;;
+                zh-Hant) _mt_out='顯示診斷（關於）' ;;
+                es) _mt_out='Mostrar diagnóstico (acerca de)' ;;
+                ar) _mt_out='عرض التشخيص (نبذة)' ;;
+                fr) _mt_out='Afficher le diagnostic (à propos)' ;;
+                pt) _mt_out='Mostrar diagnóstico (acerca de)' ;;
+                ru) _mt_out='Показать диагностику (о программе)' ;;
+                de) _mt_out='Diagnose zeigen (Info)' ;;
+                ja) _mt_out='診断を表示（概要）' ;;
+                ko) _mt_out='진단 표시(개요)' ;;
+                nl) _mt_out='Diagnose tonen (info)' ;;
+                el) _mt_out='Εμφάνιση διάγνωσης (περί)' ;;
+                *) _mt_out='Show diagnostics (about)' ;;
+            esac
+            ;;
+        long_about)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='显示诊断' ;;
+                zh-Hant) _mt_out='顯示診斷' ;;
+                es) _mt_out='Mostrar diagnóstico' ;;
+                ar) _mt_out='عرض التشخيص' ;;
+                fr) _mt_out='Afficher le diagnostic' ;;
+                pt) _mt_out='Mostrar diagnóstico' ;;
+                ru) _mt_out='Показать диагностику' ;;
+                de) _mt_out='Diagnose zeigen' ;;
+                ja) _mt_out='診断を表示' ;;
+                ko) _mt_out='진단 표시' ;;
+                nl) _mt_out='Diagnose tonen' ;;
+                el) _mt_out='Εμφάνιση διάγνωσης' ;;
+                *) _mt_out='Show diagnostics' ;;
+            esac
+            ;;
+        long_self_install)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='只放置这个 CLI（本地复制）' ;;
+                zh-Hant) _mt_out='只放置這個 CLI（本地複製）' ;;
+                es) _mt_out='Colocar solo este CLI (copia local)' ;;
+                ar) _mt_out='وضع هذا البرنامج فقط (نسخة محلية)' ;;
+                fr) _mt_out='Placer seulement ce CLI (copie locale)' ;;
+                pt) _mt_out='Colocar só este CLI (cópia local)' ;;
+                ru) _mt_out='Положить только эту программу (локальная копия)' ;;
+                de) _mt_out='Nur dieses CLI ablegen (lokale Kopie)' ;;
+                ja) _mt_out='この CLI だけを置く（ローカルコピー）' ;;
+                ko) _mt_out='이 CLI만 두기(로컬 복사)' ;;
+                nl) _mt_out='Alleen deze CLI plaatsen (lokale kopie)' ;;
+                el) _mt_out='Τοποθέτηση μόνο αυτού του CLI (τοπικό αντίγραφο)' ;;
+                *) _mt_out='Place this CLI only (local copy)' ;;
+            esac
+            ;;
+        line_back)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='0. 返回' ;;
+                zh-Hant) _mt_out='0. 返回' ;;
+                es) _mt_out='0. Atrás' ;;
+                ar) _mt_out='0. رجوع' ;;
+                fr) _mt_out='0. Retour' ;;
+                pt) _mt_out='0. Voltar' ;;
+                ru) _mt_out='0. Назад' ;;
+                de) _mt_out='0. Zurück' ;;
+                ja) _mt_out='0. 戻る' ;;
+                ko) _mt_out='0. 뒤로' ;;
+                nl) _mt_out='0. Terug' ;;
+                el) _mt_out='0. Πίσω' ;;
+                *) _mt_out='0. Back' ;;
+            esac
+            ;;
+        line_exit)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='9. 退出' ;;
+                zh-Hant) _mt_out='9. 離開' ;;
+                es) _mt_out='9. Salir' ;;
+                ar) _mt_out='9. خروج' ;;
+                fr) _mt_out='9. Quitter' ;;
+                pt) _mt_out='9. Sair' ;;
+                ru) _mt_out='9. Выход' ;;
+                de) _mt_out='9. Beenden' ;;
+                ja) _mt_out='9. 終了' ;;
+                ko) _mt_out='9. 종료' ;;
+                nl) _mt_out='9. Afsluiten' ;;
+                el) _mt_out='9. Έξοδος' ;;
+                *) _mt_out='9. Exit' ;;
+            esac
+            ;;
+        line_prompt)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='选择：' ;;
+                zh-Hant) _mt_out='選擇：' ;;
+                es) _mt_out='Elección: ' ;;
+                ar) _mt_out='اختيار: ' ;;
+                fr) _mt_out='Choix : ' ;;
+                pt) _mt_out='Escolha: ' ;;
+                ru) _mt_out='Выбор: ' ;;
+                de) _mt_out='Wahl: ' ;;
+                ja) _mt_out='選択: ' ;;
+                ko) _mt_out='선택: ' ;;
+                nl) _mt_out='Keuze: ' ;;
+                el) _mt_out='Επιλογή: ' ;;
+                *) _mt_out='Choice: ' ;;
+            esac
+            ;;
+        lang_fail)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='无法保存菜单语言' ;;
+                zh-Hant) _mt_out='無法儲存選單語言' ;;
+                es) _mt_out='No se pudo guardar el idioma del menú' ;;
+                ar) _mt_out='تعذر حفظ لغة القائمة' ;;
+                fr) _mt_out='Impossible d'\''enregistrer la langue du menu' ;;
+                pt) _mt_out='Não foi possível gravar o idioma do menu' ;;
+                ru) _mt_out='Не удалось сохранить язык меню' ;;
+                de) _mt_out='Menüsprache konnte nicht gespeichert werden' ;;
+                ja) _mt_out='メニューの言語を保存できませんでした' ;;
+                ko) _mt_out='메뉴 언어를 저장할 수 없습니다' ;;
+                nl) _mt_out='De menutaal kon niet worden opgeslagen' ;;
+                el) _mt_out='Δεν ήταν δυνατή η αποθήκευση της γλώσσας του μενού' ;;
+                *) _mt_out='Could not save the menu language' ;;
+            esac
+            ;;
+        lang_saved)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='菜单语言是简体中文' ;;
+                zh-Hant) _mt_out='選單語言是繁體中文' ;;
+                es) _mt_out='El idioma del menú es español' ;;
+                ar) _mt_out='لغة القائمة هي العربية' ;;
+                fr) _mt_out='La langue du menu est le français' ;;
+                pt) _mt_out='O idioma do menu é português' ;;
+                ru) _mt_out='Язык меню — русский' ;;
+                de) _mt_out='Die Menüsprache ist Deutsch' ;;
+                ja) _mt_out='メニューの言語は日本語です' ;;
+                ko) _mt_out='메뉴 언어는 한국어입니다' ;;
+                nl) _mt_out='De menutaal is Nederlands' ;;
+                el) _mt_out='Η γλώσσα του μενού είναι ελληνικά' ;;
+                *) _mt_out='Menu language is English' ;;
+            esac
+            ;;
+        hide_online)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='version-check、self-update、self-uninstall 不在此菜单（仅本地安装）' ;;
+                zh-Hant) _mt_out='version-check、self-update、self-uninstall 不在此選單（僅本地安裝）' ;;
+                es) _mt_out='version-check, self-update y self-uninstall no están en este menú (solo copia local)' ;;
+                ar) _mt_out='version-check وself-update وself-uninstall ليست في هذه القائمة (نسخ محلي فقط)' ;;
+                fr) _mt_out='version-check, self-update et self-uninstall ne sont pas dans ce menu (copie locale seulement)' ;;
+                pt) _mt_out='version-check, self-update e self-uninstall não estão neste menu (só cópia local)' ;;
+                ru) _mt_out='version-check, self-update и self-uninstall нет в этом меню (только локальная копия)' ;;
+                de) _mt_out='version-check, self-update und self-uninstall stehen nicht in diesem Menü (nur lokale Kopie)' ;;
+                ja) _mt_out='version-check、self-update、self-uninstall はこのメニューにありません（ローカルコピーのみ）' ;;
+                ko) _mt_out='version-check, self-update, self-uninstall 은 이 메뉴에 없습니다(로컬 복사만)' ;;
+                nl) _mt_out='version-check, self-update en self-uninstall staan niet in dit menu (alleen lokale kopie)' ;;
+                el) _mt_out='version-check, self-update και self-uninstall δεν είναι σε αυτό το μενού (μόνο τοπικό αντίγραφο)' ;;
+                *) _mt_out='version-check, self-update, and self-uninstall are not on this menu (local install only)' ;;
+            esac
+            ;;
+        about_title)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='关于 / 诊断' ;;
+                zh-Hant) _mt_out='關於 / 診斷' ;;
+                es) _mt_out='Acerca de / diagnóstico' ;;
+                ar) _mt_out='حول / تشخيص' ;;
+                fr) _mt_out='À propos / diagnostic' ;;
+                pt) _mt_out='Acerca de / diagnóstico' ;;
+                ru) _mt_out='О программе / диагностика' ;;
+                de) _mt_out='Info / Diagnose' ;;
+                ja) _mt_out='概要 / 診断' ;;
+                ko) _mt_out='개요 / 진단' ;;
+                nl) _mt_out='Info / diagnose' ;;
+                el) _mt_out='Περί / διάγνωση' ;;
+                *) _mt_out='About / Diagnostics' ;;
+            esac
+            ;;
+        cache_used)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='正在使用的缓存文件夹:' ;;
+                zh-Hant) _mt_out='正在使用的快取資料夾:' ;;
+                es) _mt_out='Carpeta de caché en uso:' ;;
+                ar) _mt_out='مجلد الذاكرة المؤقتة المستخدم:' ;;
+                fr) _mt_out='Dossier de cache utilisé :' ;;
+                pt) _mt_out='Pasta de cache em uso:' ;;
+                ru) _mt_out='Используемая папка кэша:' ;;
+                de) _mt_out='Verwendeter Cache-Ordner:' ;;
+                ja) _mt_out='使用中のキャッシュフォルダ:' ;;
+                ko) _mt_out='사용 중인 캐시 폴더:' ;;
+                nl) _mt_out='Gebruikte cachemap:' ;;
+                el) _mt_out='Φάκελος cache σε χρήση:' ;;
+                *) _mt_out='Cache folder used:' ;;
+            esac
+            ;;
+        cache_preferred)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='缓存文件夹（首选）:' ;;
+                zh-Hant) _mt_out='快取資料夾（首選）:' ;;
+                es) _mt_out='Carpeta de caché (preferida):' ;;
+                ar) _mt_out='مجلد الذاكرة المؤقتة (المفضل):' ;;
+                fr) _mt_out='Dossier de cache (préféré) :' ;;
+                pt) _mt_out='Pasta de cache (preferida):' ;;
+                ru) _mt_out='Папка кэша (предпочтительная):' ;;
+                de) _mt_out='Cache-Ordner (bevorzugt):' ;;
+                ja) _mt_out='キャッシュフォルダ（優先）:' ;;
+                ko) _mt_out='캐시 폴더(선호):' ;;
+                nl) _mt_out='Cachemap (voorkeur):' ;;
+                el) _mt_out='Φάκελος cache (προτιμώμενος):' ;;
+                *) _mt_out='Cache folder (preferred):' ;;
+            esac
+            ;;
+        cache_fallback)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='缓存文件夹（第一后备）:' ;;
+                zh-Hant) _mt_out='快取資料夾（第一後援）:' ;;
+                es) _mt_out='Carpeta de caché (1.er respaldo):' ;;
+                ar) _mt_out='مجلد الذاكرة المؤقتة (البديل 1):' ;;
+                fr) _mt_out='Dossier de cache (1er repli) :' ;;
+                pt) _mt_out='Pasta de cache (1.º recurso):' ;;
+                ru) _mt_out='Папка кэша (1-й запасной):' ;;
+                de) _mt_out='Cache-Ordner (1. Ausweich):' ;;
+                ja) _mt_out='キャッシュフォルダ（第1代替）:' ;;
+                ko) _mt_out='캐시 폴더(1차 대체):' ;;
+                nl) _mt_out='Cachemap (1e terugval):' ;;
+                el) _mt_out='Φάκελος cache (1η εφεδρική):' ;;
+                *) _mt_out='Cache folder (1st fallback):' ;;
+            esac
+            ;;
+        cache_fallback_2)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='缓存文件夹（第二后备）:' ;;
+                zh-Hant) _mt_out='快取資料夾（第二後援）:' ;;
+                es) _mt_out='Carpeta de caché (2.º respaldo):' ;;
+                ar) _mt_out='مجلد الذاكرة المؤقتة (البديل 2):' ;;
+                fr) _mt_out='Dossier de cache (2e repli) :' ;;
+                pt) _mt_out='Pasta de cache (2.º recurso):' ;;
+                ru) _mt_out='Папка кэша (2-й запасной):' ;;
+                de) _mt_out='Cache-Ordner (2. Ausweich):' ;;
+                ja) _mt_out='キャッシュフォルダ（第2代替）:' ;;
+                ko) _mt_out='캐시 폴더(2차 대체):' ;;
+                nl) _mt_out='Cachemap (2e terugval):' ;;
+                el) _mt_out='Φάκελος cache (2η εφεδρική):' ;;
+                *) _mt_out='Cache folder (2nd fallback):' ;;
+            esac
+            ;;
+        persist_label)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='持久存储:' ;;
+                zh-Hant) _mt_out='持久儲存:' ;;
+                es) _mt_out='Almacenamiento persistente:' ;;
+                ar) _mt_out='تخزين دائم:' ;;
+                fr) _mt_out='Stockage persistant :' ;;
+                pt) _mt_out='Armazenamento persistente:' ;;
+                ru) _mt_out='Постоянное хранилище:' ;;
+                de) _mt_out='Dauerhafter Speicher:' ;;
+                ja) _mt_out='永続ストレージ:' ;;
+                ko) _mt_out='영구 저장소:' ;;
+                nl) _mt_out='Blijvende opslag:' ;;
+                el) _mt_out='Μόνιμη αποθήκευση:' ;;
+                *) _mt_out='Persistence storage:' ;;
+            esac
+            ;;
+        help_usage)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='用法：' ;;
+                zh-Hant) _mt_out='用法：' ;;
+                es) _mt_out='Uso:' ;;
+                ar) _mt_out='الاستخدام:' ;;
+                fr) _mt_out='Utilisation :' ;;
+                pt) _mt_out='Uso:' ;;
+                ru) _mt_out='Использование:' ;;
+                de) _mt_out='Verwendung:' ;;
+                ja) _mt_out='使い方:' ;;
+                ko) _mt_out='사용법:' ;;
+                nl) _mt_out='Gebruik:' ;;
+                el) _mt_out='Χρήση:' ;;
+                *) _mt_out='Usage:' ;;
+            esac
+            ;;
+        help_menu_heading)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='编号菜单（真实终端；没有命令；开关仍算没有命令）：' ;;
+                zh-Hant) _mt_out='編號選單（真實終端；沒有命令；開關仍算沒有命令）：' ;;
+                es) _mt_out='Menú numerado (terminal real; sin comando; un interruptor no es un comando):' ;;
+                ar) _mt_out='قائمة مرقمة (طرفية حقيقية؛ بلا أمر؛ المفتاح ليس أمرا):' ;;
+                fr) _mt_out='Menu numéroté (vrai terminal ; sans commande ; un interrupteur n'\''est pas une commande) :' ;;
+                pt) _mt_out='Menu numerado (terminal real; sem comando; um interruptor não é um comando):' ;;
+                ru) _mt_out='Нумерованное меню (настоящий терминал; без команды; ключ — не команда):' ;;
+                de) _mt_out='Nummeriertes Menü (echtes Terminal; kein Befehl; ein Schalter ist kein Befehl):' ;;
+                ja) _mt_out='番号メニュー（実端末；コマンドなし；スイッチはコマンドではない）:' ;;
+                ko) _mt_out='번호 메뉴(실제 터미널; 명령 없음; 스위치는 명령이 아님):' ;;
+                nl) _mt_out='Genummerd menu (echte terminal; geen opdracht; een schakelaar is geen opdracht):' ;;
+                el) _mt_out='Αριθμημένο μενού (πραγματικό τερματικό· χωρίς εντολή· ο διακόπτης δεν είναι εντολή):' ;;
+                *) _mt_out='Numbered list (real terminal; no command, switches allowed):' ;;
+            esac
+            ;;
+        help_empty)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='在真实终端上，没有命令会打开此菜单（--debug 这类开关仍算没有命令）。管道，或没有命令的 --quiet / --json，会放置这个 CLI（self-install）。它不打印帮助。' ;;
+                zh-Hant) _mt_out='在真實終端上，沒有命令會打開此選單（--debug 這類開關仍算沒有命令）。管道，或沒有命令的 --quiet / --json，會放置這個 CLI（self-install）。它不列印說明。' ;;
+                es) _mt_out='En un terminal real, sin comando se abre este menú (un interruptor como --debug sigue sin ser un comando). Una tubería, o --quiet / --json sin comando, coloca este CLI (self-install). No imprime la ayuda.' ;;
+                ar) _mt_out='على طرفية حقيقية، بلا أمر تُفتح هذه القائمة (مفتاح مثل --debug يبقى بلا أمر). الأنبوب، أو --quiet / --json بلا أمر، يضع هذا البرنامج (self-install). لا يطبع المساعدة.' ;;
+                fr) _mt_out='Sur un vrai terminal, sans commande ce menu s'\''ouvre (un interrupteur comme --debug n'\''est pas une commande). Un tube, ou --quiet / --json sans commande, place ce CLI (self-install). Il n'\''affiche pas l'\''aide.' ;;
+                pt) _mt_out='Num terminal real, sem comando abre-se este menu (um interruptor como --debug continua sem comando). Um pipe, ou --quiet / --json sem comando, coloca este CLI (self-install). Não mostra a ajuda.' ;;
+                ru) _mt_out='На настоящем терминале без команды открывается это меню (ключ вроде --debug — это всё ещё не команда). Канал или --quiet / --json без команды кладёт эту программу (self-install). Справку оно не печатает.' ;;
+                de) _mt_out='An einem echten Terminal öffnet kein Befehl dieses Menü (ein Schalter wie --debug ist kein Befehl). Eine Pipe oder --quiet / --json ohne Befehl legt dieses CLI ab (self-install). Es druckt keine Hilfe.' ;;
+                ja) _mt_out='実端末でコマンドがないとこのメニューが開きます（--debug のようなスイッチはコマンドではありません）。パイプ、またはコマンドのない --quiet / --json は、この CLI を置きます（self-install）。ヘルプは出しません。' ;;
+                ko) _mt_out='실제 터미널에서 명령이 없으면 이 메뉴가 열립니다(--debug 같은 스위치는 명령이 아닙니다). 파이프, 또는 명령 없는 --quiet / --json 은 이 CLI를 둡니다(self-install). 도움말을 찍지 않습니다.' ;;
+                nl) _mt_out='Op een echte terminal opent geen opdracht dit menu (een schakelaar zoals --debug is geen opdracht). Een pijp, of --quiet / --json zonder opdracht, plaatst deze CLI (self-install). Hij drukt geen hulp.' ;;
+                el) _mt_out='Σε πραγματικό τερματικό, χωρίς εντολή ανοίγει αυτό το μενού (ένας διακόπτης όπως --debug δεν είναι εντολή). Μια σωλήνωση, ή --quiet / --json χωρίς εντολή, τοποθετεί αυτό το CLI (self-install). Δεν τυπώνει βοήθεια.' ;;
+                *) _mt_out='On a real terminal, no command opens this menu (a switch such as --debug is still no command). A pipe, or --quiet / --json with no command, places this CLI (self-install). It does not print help.' ;;
+            esac
+            ;;
+        lang_long_en)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用English' ;;
+                zh-Hant) _mt_out='此選單使用English' ;;
+                es) _mt_out='usar English en este menú' ;;
+                ar) _mt_out='استخدام English لهذه القائمة' ;;
+                fr) _mt_out='utiliser English pour ce menu' ;;
+                pt) _mt_out='usar English neste menu' ;;
+                ru) _mt_out='использовать English в этом меню' ;;
+                de) _mt_out='English für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューをEnglishにする' ;;
+                ko) _mt_out='이 메뉴에 English 사용' ;;
+                nl) _mt_out='English voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση English σε αυτό το μενού' ;;
+                *) _mt_out='use English for this menu' ;;
+            esac
+            ;;
+        lang_long_zh-Hans)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用简体中文' ;;
+                zh-Hant) _mt_out='此選單使用简体中文' ;;
+                es) _mt_out='usar 简体中文 en este menú' ;;
+                ar) _mt_out='استخدام 简体中文 لهذه القائمة' ;;
+                fr) _mt_out='utiliser 简体中文 pour ce menu' ;;
+                pt) _mt_out='usar 简体中文 neste menu' ;;
+                ru) _mt_out='использовать 简体中文 в этом меню' ;;
+                de) _mt_out='简体中文 für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューを简体中文にする' ;;
+                ko) _mt_out='이 메뉴에 简体中文 사용' ;;
+                nl) _mt_out='简体中文 voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση 简体中文 σε αυτό το μενού' ;;
+                *) _mt_out='use 简体中文 for this menu' ;;
+            esac
+            ;;
+        lang_long_zh-Hant)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用繁體中文' ;;
+                zh-Hant) _mt_out='此選單使用繁體中文' ;;
+                es) _mt_out='usar 繁體中文 en este menú' ;;
+                ar) _mt_out='استخدام 繁體中文 لهذه القائمة' ;;
+                fr) _mt_out='utiliser 繁體中文 pour ce menu' ;;
+                pt) _mt_out='usar 繁體中文 neste menu' ;;
+                ru) _mt_out='использовать 繁體中文 в этом меню' ;;
+                de) _mt_out='繁體中文 für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューを繁體中文にする' ;;
+                ko) _mt_out='이 메뉴에 繁體中文 사용' ;;
+                nl) _mt_out='繁體中文 voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση 繁體中文 σε αυτό το μενού' ;;
+                *) _mt_out='use 繁體中文 for this menu' ;;
+            esac
+            ;;
+        lang_long_es)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用Español' ;;
+                zh-Hant) _mt_out='此選單使用Español' ;;
+                es) _mt_out='usar Español en este menú' ;;
+                ar) _mt_out='استخدام Español لهذه القائمة' ;;
+                fr) _mt_out='utiliser Español pour ce menu' ;;
+                pt) _mt_out='usar Español neste menu' ;;
+                ru) _mt_out='использовать Español в этом меню' ;;
+                de) _mt_out='Español für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューをEspañolにする' ;;
+                ko) _mt_out='이 메뉴에 Español 사용' ;;
+                nl) _mt_out='Español voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση Español σε αυτό το μενού' ;;
+                *) _mt_out='use Español for this menu' ;;
+            esac
+            ;;
+        lang_long_ar)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用العربية' ;;
+                zh-Hant) _mt_out='此選單使用العربية' ;;
+                es) _mt_out='usar العربية en este menú' ;;
+                ar) _mt_out='استخدام العربية لهذه القائمة' ;;
+                fr) _mt_out='utiliser العربية pour ce menu' ;;
+                pt) _mt_out='usar العربية neste menu' ;;
+                ru) _mt_out='использовать العربية в этом меню' ;;
+                de) _mt_out='العربية für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューをالعربيةにする' ;;
+                ko) _mt_out='이 메뉴에 العربية 사용' ;;
+                nl) _mt_out='العربية voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση العربية σε αυτό το μενού' ;;
+                *) _mt_out='use العربية for this menu' ;;
+            esac
+            ;;
+        lang_long_fr)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用Français' ;;
+                zh-Hant) _mt_out='此選單使用Français' ;;
+                es) _mt_out='usar Français en este menú' ;;
+                ar) _mt_out='استخدام Français لهذه القائمة' ;;
+                fr) _mt_out='utiliser Français pour ce menu' ;;
+                pt) _mt_out='usar Français neste menu' ;;
+                ru) _mt_out='использовать Français в этом меню' ;;
+                de) _mt_out='Français für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューをFrançaisにする' ;;
+                ko) _mt_out='이 메뉴에 Français 사용' ;;
+                nl) _mt_out='Français voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση Français σε αυτό το μενού' ;;
+                *) _mt_out='use Français for this menu' ;;
+            esac
+            ;;
+        lang_long_pt)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用Português' ;;
+                zh-Hant) _mt_out='此選單使用Português' ;;
+                es) _mt_out='usar Português en este menú' ;;
+                ar) _mt_out='استخدام Português لهذه القائمة' ;;
+                fr) _mt_out='utiliser Português pour ce menu' ;;
+                pt) _mt_out='usar Português neste menu' ;;
+                ru) _mt_out='использовать Português в этом меню' ;;
+                de) _mt_out='Português für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューをPortuguêsにする' ;;
+                ko) _mt_out='이 메뉴에 Português 사용' ;;
+                nl) _mt_out='Português voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση Português σε αυτό το μενού' ;;
+                *) _mt_out='use Português for this menu' ;;
+            esac
+            ;;
+        lang_long_ru)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用Русский' ;;
+                zh-Hant) _mt_out='此選單使用Русский' ;;
+                es) _mt_out='usar Русский en este menú' ;;
+                ar) _mt_out='استخدام Русский لهذه القائمة' ;;
+                fr) _mt_out='utiliser Русский pour ce menu' ;;
+                pt) _mt_out='usar Русский neste menu' ;;
+                ru) _mt_out='использовать Русский в этом меню' ;;
+                de) _mt_out='Русский für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューをРусскийにする' ;;
+                ko) _mt_out='이 메뉴에 Русский 사용' ;;
+                nl) _mt_out='Русский voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση Русский σε αυτό το μενού' ;;
+                *) _mt_out='use Русский for this menu' ;;
+            esac
+            ;;
+        lang_long_de)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用Deutsch' ;;
+                zh-Hant) _mt_out='此選單使用Deutsch' ;;
+                es) _mt_out='usar Deutsch en este menú' ;;
+                ar) _mt_out='استخدام Deutsch لهذه القائمة' ;;
+                fr) _mt_out='utiliser Deutsch pour ce menu' ;;
+                pt) _mt_out='usar Deutsch neste menu' ;;
+                ru) _mt_out='использовать Deutsch в этом меню' ;;
+                de) _mt_out='Deutsch für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューをDeutschにする' ;;
+                ko) _mt_out='이 메뉴에 Deutsch 사용' ;;
+                nl) _mt_out='Deutsch voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση Deutsch σε αυτό το μενού' ;;
+                *) _mt_out='use Deutsch for this menu' ;;
+            esac
+            ;;
+        lang_long_ja)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用日本語' ;;
+                zh-Hant) _mt_out='此選單使用日本語' ;;
+                es) _mt_out='usar 日本語 en este menú' ;;
+                ar) _mt_out='استخدام 日本語 لهذه القائمة' ;;
+                fr) _mt_out='utiliser 日本語 pour ce menu' ;;
+                pt) _mt_out='usar 日本語 neste menu' ;;
+                ru) _mt_out='использовать 日本語 в этом меню' ;;
+                de) _mt_out='日本語 für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューを日本語にする' ;;
+                ko) _mt_out='이 메뉴에 日本語 사용' ;;
+                nl) _mt_out='日本語 voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση 日本語 σε αυτό το μενού' ;;
+                *) _mt_out='use 日本語 for this menu' ;;
+            esac
+            ;;
+        lang_long_ko)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用한국어' ;;
+                zh-Hant) _mt_out='此選單使用한국어' ;;
+                es) _mt_out='usar 한국어 en este menú' ;;
+                ar) _mt_out='استخدام 한국어 لهذه القائمة' ;;
+                fr) _mt_out='utiliser 한국어 pour ce menu' ;;
+                pt) _mt_out='usar 한국어 neste menu' ;;
+                ru) _mt_out='использовать 한국어 в этом меню' ;;
+                de) _mt_out='한국어 für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューを한국어にする' ;;
+                ko) _mt_out='이 메뉴에 한국어 사용' ;;
+                nl) _mt_out='한국어 voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση 한국어 σε αυτό το μενού' ;;
+                *) _mt_out='use 한국어 for this menu' ;;
+            esac
+            ;;
+        lang_long_nl)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用Nederlands' ;;
+                zh-Hant) _mt_out='此選單使用Nederlands' ;;
+                es) _mt_out='usar Nederlands en este menú' ;;
+                ar) _mt_out='استخدام Nederlands لهذه القائمة' ;;
+                fr) _mt_out='utiliser Nederlands pour ce menu' ;;
+                pt) _mt_out='usar Nederlands neste menu' ;;
+                ru) _mt_out='использовать Nederlands в этом меню' ;;
+                de) _mt_out='Nederlands für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューをNederlandsにする' ;;
+                ko) _mt_out='이 메뉴에 Nederlands 사용' ;;
+                nl) _mt_out='Nederlands voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση Nederlands σε αυτό το μενού' ;;
+                *) _mt_out='use Nederlands for this menu' ;;
+            esac
+            ;;
+        lang_long_el)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='此菜单使用Ελληνικά' ;;
+                zh-Hant) _mt_out='此選單使用Ελληνικά' ;;
+                es) _mt_out='usar Ελληνικά en este menú' ;;
+                ar) _mt_out='استخدام Ελληνικά لهذه القائمة' ;;
+                fr) _mt_out='utiliser Ελληνικά pour ce menu' ;;
+                pt) _mt_out='usar Ελληνικά neste menu' ;;
+                ru) _mt_out='использовать Ελληνικά в этом меню' ;;
+                de) _mt_out='Ελληνικά für dieses Menü verwenden' ;;
+                ja) _mt_out='このメニューをΕλληνικάにする' ;;
+                ko) _mt_out='이 메뉴에 Ελληνικά 사용' ;;
+                nl) _mt_out='Ελληνικά voor dit menu gebruiken' ;;
+                el) _mt_out='χρήση Ελληνικά σε αυτό το μενού' ;;
+                *) _mt_out='use Ελληνικά for this menu' ;;
+            esac
+            ;;
+        unknown_menu)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='未知的菜单选择 '\'''"${_mt_extra}"''\''。请选择列出的编号或命令名。' ;;
+                zh-Hant) _mt_out='未知的選單選擇 '\'''"${_mt_extra}"''\''。請選擇列出的編號或命令名。' ;;
+                es) _mt_out='Elección de menú desconocida '\'''"${_mt_extra}"''\''. Elija un número o un nombre listado.' ;;
+                ar) _mt_out='اختيار قائمة غير معروف '\'''"${_mt_extra}"''\''. اختر رقما أو اسما مذكورا.' ;;
+                fr) _mt_out='Choix de menu inconnu '\'''"${_mt_extra}"''\''. Choisissez un numéro ou un nom listé.' ;;
+                pt) _mt_out='Escolha de menu desconhecida '\'''"${_mt_extra}"''\''. Escolha um número ou um nome listado.' ;;
+                ru) _mt_out='Неизвестный пункт меню '\'''"${_mt_extra}"''\''. Выберите номер или имя из списка.' ;;
+                de) _mt_out='Unbekannte Menüwahl '\'''"${_mt_extra}"''\''. Wählen Sie eine gelistete Nummer oder einen Namen.' ;;
+                ja) _mt_out='不明なメニュー選択 '\'''"${_mt_extra}"''\''。一覧の番号かコマンド名を選んでください。' ;;
+                ko) _mt_out='알 수 없는 메뉴 선택 '\'''"${_mt_extra}"''\''. 목록의 번호나 명령 이름을 고르세요.' ;;
+                nl) _mt_out='Onbekende menukeuze '\'''"${_mt_extra}"''\''. Kies een genoemd nummer of een naam.' ;;
+                el) _mt_out='Άγνωστη επιλογή μενού '\'''"${_mt_extra}"''\''. Διαλέξτε έναν αριθμό ή ένα όνομα από τη λίστα.' ;;
+                *) _mt_out='Unknown menu choice '\'''"${_mt_extra}"''\''. Choose a listed number or command name.' ;;
+            esac
+            ;;
+        hide_host)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='setup 与 remove-lpu 不可用于 '"${_mt_extra}"'' ;;
+                zh-Hant) _mt_out='setup 與 remove-lpu 不可用於 '"${_mt_extra}"'' ;;
+                es) _mt_out='setup y remove-lpu no están disponibles para '"${_mt_extra}"'' ;;
+                ar) _mt_out='setup وremove-lpu غير متاحين لـ '"${_mt_extra}"'' ;;
+                fr) _mt_out='setup et remove-lpu ne sont pas disponibles pour '"${_mt_extra}"'' ;;
+                pt) _mt_out='setup e remove-lpu não estão disponíveis para '"${_mt_extra}"'' ;;
+                ru) _mt_out='setup и remove-lpu недоступны для '"${_mt_extra}"'' ;;
+                de) _mt_out='setup und remove-lpu sind nicht verfügbar für '"${_mt_extra}"'' ;;
+                ja) _mt_out='setup と remove-lpu は次では使えません: '"${_mt_extra}"'' ;;
+                ko) _mt_out='setup 와 remove-lpu 는 다음에서 쓸 수 없습니다: '"${_mt_extra}"'' ;;
+                nl) _mt_out='setup en remove-lpu zijn niet beschikbaar voor '"${_mt_extra}"'' ;;
+                el) _mt_out='setup και remove-lpu δεν είναι διαθέσιμα για '"${_mt_extra}"'' ;;
+                *) _mt_out='setup and remove-lpu are not available for '"${_mt_extra}"'' ;;
+            esac
+            ;;
+        hide_sudoers)
+            case "${_mt_lang}" in
+                zh-Hans) _mt_out='sudoers 不可用于 '"${_mt_extra}"'' ;;
+                zh-Hant) _mt_out='sudoers 不可用於 '"${_mt_extra}"'' ;;
+                es) _mt_out='sudoers no está disponible para '"${_mt_extra}"'' ;;
+                ar) _mt_out='sudoers غير متاح لـ '"${_mt_extra}"'' ;;
+                fr) _mt_out='sudoers n'\''est pas disponible pour '"${_mt_extra}"'' ;;
+                pt) _mt_out='sudoers não está disponível para '"${_mt_extra}"'' ;;
+                ru) _mt_out='sudoers недоступен для '"${_mt_extra}"'' ;;
+                de) _mt_out='sudoers ist nicht verfügbar für '"${_mt_extra}"'' ;;
+                ja) _mt_out='sudoers は次では使えません: '"${_mt_extra}"'' ;;
+                ko) _mt_out='sudoers 는 다음에서 쓸 수 없습니다: '"${_mt_extra}"'' ;;
+                nl) _mt_out='sudoers is niet beschikbaar voor '"${_mt_extra}"'' ;;
+                el) _mt_out='sudoers δεν είναι διαθέσιμο για '"${_mt_extra}"'' ;;
+                *) _mt_out='sudoers is not available for '"${_mt_extra}"'' ;;
+            esac
+            ;;
+        *) _mt_out="${_mt_key}" ;;
+    esac
+    printf '%s' "${_mt_out}"
+    unset _mt_key _mt_extra _mt_lang _mt_out
 }
 
 # =============================================================================
@@ -5236,6 +6430,7 @@ app_run_command() {
         version)                 app_version ;;
         about)                   app_about ;;
         install)                 inst_local_install ;;
+        self-install)            inst_self_install ;;
         uninstall)               inst_local_uninstall ;;
         where-is-me)             app_where_is_me ;;
         setup)                   ngx_setup ;;
@@ -5255,117 +6450,511 @@ app_run_command() {
         json-to-conf)            ngx_json_to_conf "${_arc_a}" ;;
         test-json-format)        ngx_test_json_format "${_arc_a}" ;;
         fence-test)              ngx_fence_test "${_arc_a}" ;;
-        menu|main)               app_main_menu ;;
+        menu|main)               app_cmd_menu ;;
         help|*)                  app_help ;;
     esac
 }
 
+
 # =============================================================================
-# app_main_menu() - Case 3 numbered list (verb menu/main)
+# Host class — command line for normal user only
+# =============================================================================
+# ALIGNMENT: requirement-shell-cli-interface.md · requirement-shell-cli-default-interaction.md
+ngx_is_termux() {
+    : "${PREFIX:=}"
+    if [ -n "${PREFIX}" ] && [ -d "${PREFIX}/bin" ]; then
+        case "${PREFIX}" in
+            */com.termux/*) return 0 ;;
+        esac
+    fi
+    if [ -n "${TERMUX_VERSION-}" ] || [ -d /data/data/com.termux/files/usr ]; then
+        return 0
+    fi
+    return 1
+}
+
+ngx_is_git_bash() {
+    case "${MSYSTEM-}" in
+        MINGW*|MSYS*|UCRT*|CLANG*) return 0 ;;
+    esac
+    _uname=$(uname -s 2>/dev/null || true)
+    case "${_uname}" in
+        MINGW*|MSYS*) unset _uname; return 0 ;;
+    esac
+    unset _uname
+    return 1
+}
+
+ngx_is_windows_cmd() {
+    if ngx_is_git_bash; then
+        return 1
+    fi
+    if [ -n "${WSL_DISTRO_NAME-}" ]; then
+        return 1
+    fi
+    _uname=$(uname -s 2>/dev/null || true)
+    case "${_uname}" in
+        CYGWIN*) unset _uname; return 1 ;;
+    esac
+    case "${OS-}" in
+        Windows_NT) unset _uname; return 0 ;;
+    esac
+    case "${ComSpec-}${COMSPEC-}" in
+        *[Cc][Mm][Dd].[Ee][Xx][Ee]*) unset _uname; return 0 ;;
+    esac
+    case "${_uname}" in
+        Linux) unset _uname; return 1 ;;
+    esac
+    unset _uname
+    return 1
+}
+
+ngx_is_normal_user_only_cli() {
+    if ngx_is_termux; then
+        return 0
+    fi
+    if ngx_is_git_bash; then
+        return 0
+    fi
+    if ngx_is_windows_cmd; then
+        return 0
+    fi
+    return 1
+}
+
+ngx_normal_user_only_label() {
+    if ngx_is_termux; then
+        printf '%s' "termux"
+        return 0
+    fi
+    if ngx_is_git_bash; then
+        printf '%s' "gitbash"
+        return 0
+    fi
+    if ngx_is_windows_cmd; then
+        printf '%s' "windows-cmd"
+        return 0
+    fi
+    printf '%s' ""
+}
+
+# Typed leaf token -> dispatcher verb. Numbers stay on each board.
+# version on a board runs about. help / menu / main are not leaves.
+ngx_menu_name_verb() {
+    case "${1-}" in
+        request) printf '%s' "request" ;;
+        list-requests) printf '%s' "list-requests" ;;
+        list-approved) printf '%s' "list-approved" ;;
+        list-rejected) printf '%s' "list-rejected" ;;
+        approve) printf '%s' "approve" ;;
+        reject) printf '%s' "reject" ;;
+        map-set) printf '%s' "map-set" ;;
+        map-unset) printf '%s' "map-unset" ;;
+        map-list) printf '%s' "map-list" ;;
+        conf-to-json) printf '%s' "conf-to-json" ;;
+        json-to-conf) printf '%s' "json-to-conf" ;;
+        setup) printf '%s' "setup" ;;
+        remove-lpu|remove-nginx-adm) printf '%s' "remove-lpu" ;;
+        enable-login-approval) printf '%s' "enable-login-approval" ;;
+        submit-sudoer-request) printf '%s' "submit-sudoer-request" ;;
+        install) printf '%s' "install" ;;
+        version) printf '%s' "version" ;;
+        about) printf '%s' "about" ;;
+        self-install) printf '%s' "self-install" ;;
+        *) printf '%s' "" ;;
+    esac
+}
+
+ngx_menu_trim() {
+    _mt_raw="${1-}"
+    _mt_raw=$(printf '%s' "${_mt_raw}" | tr -d '\r')
+    _mt_raw=$(printf '%s' "${_mt_raw}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    printf '%s' "${_mt_raw}"
+    unset _mt_raw
+}
+
+# Run one leaf then return. Caller redisplays the front board.
+# version on a board runs about (argv version stays a one-liner).
+ngx_menu_run() {
+    _mr_verb="${1-}"
+    if ! app_menu_collect_ops "${_mr_verb}"; then
+        unset _mr_verb
+        return 0
+    fi
+    if [ "${_mr_verb}" = "version" ]; then
+        app_about
+        unset _mr_verb
+        return 0
+    fi
+    app_run_command "${_mr_verb}" "${_mm_op1}" "${_mm_op2}"
+    unset _mr_verb
+    return 0
+}
+
+ngx_menu_warn() {
+    out_warn "$(app_menu_text unknown_menu "${1-}")"
+}
+
+app_cmd_menu_request() {
+    while true; do
+        out_info "$(util_app_ident)"
+        out_menu_choice "11" "request" "$(app_menu_text long_request)"
+        out_menu_choice "12" "list-requests" "$(app_menu_text long_list_requests)"
+        out_menu_choice "13" "list-approved" "$(app_menu_text long_list_approved)"
+        out_menu_choice "14" "list-rejected" "$(app_menu_text long_list_rejected)"
+        out_menu_choice "15" "approve" "$(app_menu_text long_approve)"
+        out_menu_choice "16" "reject" "$(app_menu_text long_reject)"
+        out_menu_choice "17" "map-set" "$(app_menu_text long_map_set)"
+        out_menu_choice "18" "map-unset" "$(app_menu_text long_map_unset)"
+        out_menu_choice "19" "map-list" "$(app_menu_text long_map_list)"
+        out_menu_choice "110" "conf-to-json" "$(app_menu_text long_conf_to_json)"
+        out_menu_choice "111" "json-to-conf" "$(app_menu_text long_json_to_conf)"
+        out_plain "$(app_menu_text line_back)"
+        out_msg_n "$(app_menu_text line_prompt)"
+        _choice=""
+        if ! read -r _choice; then
+            unset _choice
+            return 0
+        fi
+        _choice=$(ngx_menu_trim "${_choice}")
+        case "${_choice}" in
+            0|q|""|exit) unset _choice; return 0 ;;
+            11) ngx_menu_run "request"; unset _choice; return 0 ;;
+            12) ngx_menu_run "list-requests"; unset _choice; return 0 ;;
+            13) ngx_menu_run "list-approved"; unset _choice; return 0 ;;
+            14) ngx_menu_run "list-rejected"; unset _choice; return 0 ;;
+            15) ngx_menu_run "approve"; unset _choice; return 0 ;;
+            16) ngx_menu_run "reject"; unset _choice; return 0 ;;
+            17) ngx_menu_run "map-set"; unset _choice; return 0 ;;
+            18) ngx_menu_run "map-unset"; unset _choice; return 0 ;;
+            19) ngx_menu_run "map-list"; unset _choice; return 0 ;;
+            110) ngx_menu_run "conf-to-json"; unset _choice; return 0 ;;
+            111) ngx_menu_run "json-to-conf"; unset _choice; return 0 ;;
+            *)
+                _nv=$(ngx_menu_name_verb "${_choice}")
+                if [ -n "${_nv}" ]; then
+                    ngx_menu_run "${_nv}"
+                    unset _choice _nv
+                    return 0
+                fi
+                ngx_menu_warn "${_choice}"
+                unset _nv
+                ;;
+        esac
+    done
+}
+
+app_cmd_menu_host() {
+    _host_full=1
+    if ngx_is_normal_user_only_cli; then
+        _host_full=0
+    fi
+    while true; do
+        out_info "$(util_app_ident)"
+        if [ "${_host_full}" -eq 0 ]; then
+            out_info "$(app_menu_text hide_host "$(ngx_normal_user_only_label)")"
+        fi
+        if [ "${_host_full}" -eq 1 ]; then
+            out_menu_choice "21" "setup" "$(app_menu_text long_setup)"
+            out_menu_choice "22" "remove-lpu" "$(app_menu_text long_remove_lpu)"
+        fi
+        out_menu_choice "23" "enable-login-approval" "$(app_menu_text long_enable_login)"
+        out_plain "$(app_menu_text line_back)"
+        out_msg_n "$(app_menu_text line_prompt)"
+        _choice=""
+        if ! read -r _choice; then
+            unset _choice _host_full
+            return 0
+        fi
+        _choice=$(ngx_menu_trim "${_choice}")
+        case "${_choice}" in
+            0|q|""|exit) unset _choice _host_full; return 0 ;;
+            21|22)
+                if [ "${_host_full}" -eq 1 ]; then
+                    if [ "${_choice}" = "21" ]; then
+                        ngx_menu_run "setup"
+                    else
+                        ngx_menu_run "remove-lpu"
+                    fi
+                    unset _choice _host_full
+                    return 0
+                fi
+                ngx_menu_warn "${_choice}"
+                ;;
+            23) ngx_menu_run "enable-login-approval"; unset _choice _host_full; return 0 ;;
+            *)
+                _nv=$(ngx_menu_name_verb "${_choice}")
+                if [ -n "${_nv}" ]; then
+                    ngx_menu_run "${_nv}"
+                    unset _choice _nv _host_full
+                    return 0
+                fi
+                ngx_menu_warn "${_choice}"
+                unset _nv
+                ;;
+        esac
+    done
+}
+
+app_cmd_menu_sudoers() {
+    while true; do
+        out_info "$(util_app_ident)"
+        out_menu_choice "71" "submit-sudoer-request" "$(app_menu_text long_submit_sudoer)"
+        out_plain "$(app_menu_text line_back)"
+        out_msg_n "$(app_menu_text line_prompt)"
+        _choice=""
+        if ! read -r _choice; then
+            unset _choice
+            return 0
+        fi
+        _choice=$(ngx_menu_trim "${_choice}")
+        case "${_choice}" in
+            0|q|""|exit) unset _choice; return 0 ;;
+            71) ngx_menu_run "submit-sudoer-request"; unset _choice; return 0 ;;
+            *)
+                _nv=$(ngx_menu_name_verb "${_choice}")
+                if [ -n "${_nv}" ]; then
+                    ngx_menu_run "${_nv}"
+                    unset _choice _nv
+                    return 0
+                fi
+                ngx_menu_warn "${_choice}"
+                unset _nv
+                ;;
+        esac
+    done
+}
+
+app_cmd_menu_self() {
+    while true; do
+        out_info "$(util_app_ident)"
+        out_info "$(app_menu_text hide_online)"
+        out_menu_choice "81" "install" "$(app_menu_text long_install)"
+        out_menu_choice "82" "version" "$(app_menu_text long_version)"
+        out_menu_choice "83" "about" "$(app_menu_text long_about)"
+        out_menu_choice "87" "self-install" "$(app_menu_text long_self_install)"
+        out_plain "$(app_menu_text line_back)"
+        out_msg_n "$(app_menu_text line_prompt)"
+        _choice=""
+        if ! read -r _choice; then
+            unset _choice
+            return 0
+        fi
+        _choice=$(ngx_menu_trim "${_choice}")
+        case "${_choice}" in
+            0|q|""|exit) unset _choice; return 0 ;;
+            81) ngx_menu_run "install"; unset _choice; return 0 ;;
+            82) ngx_menu_run "version"; unset _choice; return 0 ;;
+            83) ngx_menu_run "about"; unset _choice; return 0 ;;
+            84|85|86)
+                ngx_menu_warn "${_choice}"
+                ;;
+            87) ngx_menu_run "self-install"; unset _choice; return 0 ;;
+            *)
+                _nv=$(ngx_menu_name_verb "${_choice}")
+                if [ -n "${_nv}" ]; then
+                    ngx_menu_run "${_nv}"
+                    unset _choice _nv
+                    return 0
+                fi
+                ngx_menu_warn "${_choice}"
+                unset _nv
+                ;;
+        esac
+    done
+}
+
+app_cmd_menu_language() {
+    while true; do
+        out_info "$(util_app_ident)"
+        out_menu_choice "51" "English" "$(app_menu_text lang_long_en)"
+        out_menu_choice "52" "简体中文" "$(app_menu_text lang_long_zh-Hans)"
+        out_menu_choice "53" "繁體中文" "$(app_menu_text lang_long_zh-Hant)"
+        out_menu_choice "54" "Español" "$(app_menu_text lang_long_es)"
+        out_menu_choice "55" "العربية" "$(app_menu_text lang_long_ar)"
+        out_menu_choice "56" "Français" "$(app_menu_text lang_long_fr)"
+        out_menu_choice "57" "Português" "$(app_menu_text lang_long_pt)"
+        out_menu_choice "58" "Русский" "$(app_menu_text lang_long_ru)"
+        out_menu_choice "59" "Deutsch" "$(app_menu_text lang_long_de)"
+        out_menu_choice "60" "日本語" "$(app_menu_text lang_long_ja)"
+        out_menu_choice "61" "한국어" "$(app_menu_text lang_long_ko)"
+        out_menu_choice "62" "Nederlands" "$(app_menu_text lang_long_nl)"
+        out_menu_choice "63" "Ελληνικά" "$(app_menu_text lang_long_el)"
+        out_plain "$(app_menu_text line_back)"
+        out_msg_n "$(app_menu_text line_prompt)"
+        _choice=""
+        if ! read -r _choice; then
+            unset _choice
+            return 0
+        fi
+        _choice=$(ngx_menu_trim "${_choice}")
+        _ls=""
+        case "${_choice}" in
+            0|q|""|exit) unset _choice _ls; return 0 ;;
+            51|en|English) _ls=en ;;
+            52|zh-Hans|简体中文) _ls=zh-Hans ;;
+            53|zh-Hant|繁體中文) _ls=zh-Hant ;;
+            54|es|Español) _ls=es ;;
+            55|ar|العربية) _ls=ar ;;
+            56|fr|Français) _ls=fr ;;
+            57|pt|Português) _ls=pt ;;
+            58|ru|Русский) _ls=ru ;;
+            59|de|Deutsch) _ls=de ;;
+            60|ja|日本語) _ls=ja ;;
+            61|ko|한국어) _ls=ko ;;
+            62|nl|Nederlands) _ls=nl ;;
+            63|el|Ελληνικά) _ls=el ;;
+            50|64|65|66|67|68|69)
+                ngx_menu_warn "${_choice}"
+                continue
+                ;;
+            *)
+                ngx_menu_warn "${_choice}"
+                continue
+                ;;
+        esac
+        if ! app_lang_save "${_ls}"; then
+            out_warn "$(app_menu_text lang_fail)"
+            unset _choice _ls
+            return 0
+        fi
+        out_info "$(app_menu_text lang_saved)"
+        unset _choice _ls
+        return 0
+    done
+}
+
+# =============================================================================
+# app_cmd_menu() - TTY numbered main menu
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# TTY: numbered list of live work commands; read a number or verb; run it.
-# Invalid choice: out_error, reprint this layer, re-prompt (MUST NOT out_die).
-# Nested numbered submenu (none today) uses the same retry on that layer.
-# Non-TTY: reuse app_help (human, or JSON when JSON=1). MUST NOT hang.
-# Interactive ignores --json. Empty argv is NOT this path.
+# Interactive zero-cli-verb and menu/main draw this tree.
+# Front: 1 request-side, 2 host-side, 5 language, 7 sudoers, 8 self-management, 9 Exit.
+# Off a terminal this fails closed. It does not hang and it does not print help.
+# Choice is a current-shell read. Do not capture read.
 #
 # ALIGNMENT:
 # - requirement-shell-cli-default-interaction.md
+# - requirement-shell-cli-language.md
 # - requirement-shell-cli-zero-arguments.md
-# - requirement-shell-interactive-vs-noninteractive.md
 #
-# Last updated: 2026-09-13
+# Last updated: 2026-10-04
 # =============================================================================
-app_main_menu() {
+app_cmd_menu() {
     : "${TTY:=0}"
     : "${JSON:=0}"
     : "${QUIET:=0}"
     : "${APP_NAME:=nginx-cli}"
-
     if [ "${TTY}" -ne 1 ]; then
-        if [ "${JSON}" -eq 1 ]; then
-            app_help
-            return $?
-        fi
-        _mm_saved_q="${QUIET}"
-        QUIET=0
-        app_help
-        _mm_ec=$?
-        QUIET="${_mm_saved_q}"
-        return "${_mm_ec}"
+        out_die "menu needs a terminal. Run a named command instead, for example: ${APP_NAME} help"
     fi
-
     _mm_saved_json="${JSON}"
     _mm_saved_quiet="${QUIET}"
     JSON=0
     QUIET=0
     INTERACTIVE=1
     export INTERACTIVE
-
-    # Invalid choice retries this layer (out_error + reprint; MUST NOT out_die).
-    while true; do
-        app_menu_print
-        prompt_ask "Choice (number or command)" ""
-        _mm_choice="${PROMPT_ASK_VALUE}"
-        _mm_choice=$(printf '%s' "${_mm_choice}" | tr -d '\r')
-        _mm_choice=$(printf '%s' "${_mm_choice}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-        if [ -z "${_mm_choice}" ]; then
-            out_info "No choice. Next: ${APP_NAME} menu"
-            JSON="${_mm_saved_json}"
-            QUIET="${_mm_saved_quiet}"
-            unset INTERACTIVE
-            return 0
-        fi
-
-        _mm_verb=$(app_menu_choice_to_verb "${_mm_choice}")
-        if [ -z "${_mm_verb}" ]; then
-            out_error "Unknown menu choice '${_mm_choice}'. That number or name is not on this list. Choose a listed number or command name, or 99 to leave."
-            continue
-        fi
-        if [ "${_mm_verb}" = "exit" ]; then
-            JSON="${_mm_saved_json}"
-            QUIET="${_mm_saved_quiet}"
-            unset INTERACTIVE
-            return 0
-        fi
-        break
-    done
-
-    if ! app_menu_collect_ops "${_mm_verb}"; then
-        JSON="${_mm_saved_json}"
-        QUIET="${_mm_saved_quiet}"
-        unset INTERACTIVE
-        return 0
+    _show_sudoers=1
+    if ngx_is_normal_user_only_cli; then
+        _show_sudoers=0
     fi
-
+    while true; do
+        out_info "$(util_app_ident)"
+        if [ "${_show_sudoers}" -eq 0 ]; then
+            out_info "$(app_menu_text hide_sudoers "$(ngx_normal_user_only_label)")"
+        fi
+        out_menu_choice "1" "$(app_menu_text cat_request)" "$(app_menu_text front_request_long)"
+        out_menu_choice "2" "$(app_menu_text cat_host)" "$(app_menu_text front_host_long)"
+        out_menu_choice "5" "$(app_menu_text cat_language)" "$(app_menu_text front_language_long)"
+        if [ "${_show_sudoers}" -eq 1 ]; then
+            out_menu_choice "7" "sudoers" "$(app_menu_text front_sudoers_long)"
+        fi
+        out_menu_choice "8" "$(app_menu_text cat_self)" "$(app_menu_text front_self_long)"
+        out_plain "$(app_menu_text line_exit)"
+        out_msg_n "$(app_menu_text line_prompt)"
+        _choice=""
+        if ! read -r _choice; then
+            break
+        fi
+        _choice=$(ngx_menu_trim "${_choice}")
+        case "${_choice}" in
+            1|request-side|請求端|请求端|solicitudes|demandes|Anfragen|リクエスト|요청|طلبات|pedidos|запросы|aanvragen|αιτήματα)
+                app_cmd_menu_request
+                ;;
+            2|host-side|主機端|主机端|anfitrión|hôte|Host|ホスト|호스트|مضيف|anfitrião|узел|host|υπολογιστής)
+                app_cmd_menu_host
+                ;;
+            5|language|語言|语言|idioma|langue|Sprache|sprache|言語|언어|لغة|язык|taal|γλώσσα)
+                app_cmd_menu_language
+                ;;
+            7|sudoers)
+                if [ "${_show_sudoers}" -eq 1 ]; then
+                    app_cmd_menu_sudoers
+                else
+                    ngx_menu_warn "${_choice}"
+                fi
+                ;;
+            8|self-management|自我管理|autogestión|autogestão|autogestion|Selbstverwaltung|selbstverwaltung|自己管理|자기관리|إدارة-ذاتية|самоуправление|zelfbeheer|αυτοδιαχείριση)
+                app_cmd_menu_self
+                ;;
+            9|99|999|exit|"")
+                break
+                ;;
+            *)
+                _nv=$(ngx_menu_name_verb "${_choice}")
+                if [ -n "${_nv}" ]; then
+                    ngx_menu_run "${_nv}"
+                    unset _nv
+                else
+                    ngx_menu_warn "${_choice}"
+                    unset _nv
+                fi
+                ;;
+        esac
+    done
     JSON="${_mm_saved_json}"
     QUIET="${_mm_saved_quiet}"
-    unset INTERACTIVE
-    app_run_command "${_mm_verb}" "${_mm_op1}" "${_mm_op2}"
+    unset INTERACTIVE _choice _show_sudoers _mm_saved_json _mm_saved_quiet
+    return 0
 }
+
+# Interactive zero-cli-verb -> menu. Non-interactive -> self-install (local copy).
+# --quiet / --json with no verb are non-interactive. --debug on a terminal is the menu.
+ngx_zero_cli_verb() {
+    : "${TTY:=0}"
+    : "${JSON:=0}"
+    : "${QUIET:=0}"
+    if [ "${TTY}" -eq 1 ] && [ "${JSON}" -eq 0 ] && [ "${QUIET}" -eq 0 ]; then
+        app_cmd_menu
+        return $?
+    fi
+    inst_self_install
+    return $?
+}
+
 
 # =============================================================================
 # app_main() - Main entrypoint and command dispatcher
 # =============================================================================
 #
 # GENERAL PURPOSE:
-# Single dispatcher for nginx-cli (Type 0 + domain).
-# Empty argv: TTY numbered list; off-TTY Type N help (not install-ensure).
-# menu/main = same numbered list.
+# Single dispatcher for nginx-cli.
+# Interactive zero-cli-verb (switches such as --debug allowed) -> main menu.
+# Non-interactive zero-cli-verb -> self-install (local copy, not help, not setup).
 #
 # ALIGNMENT:
 # - requirement-shell-cli-interface.md
 # - requirement-shell-cli-zero-arguments.md
 # - requirement-shell-cli-default-interaction.md
+# - requirement-shell-cli-language.md
+# - requirement-shell-cli-storage.md
 # - requirement-domain-nginx-cli.md
 #
-# Last updated: 2026-08-23
+# Last updated: 2026-10-04
 # =============================================================================
 app_main() {
-    : "${COMMAND:=help}"
+    COMMAND=""
     : "${QUIET:=0}"
     : "${JSON:=0}"
     : "${DEBUG:=0}"
@@ -5386,17 +6975,16 @@ app_main() {
     : "${STORAGE_DIR:=${XDG_CACHE_HOME}/${APP_NAME}-${USERNAME}}"
 
     EFFECTIVE_STORAGE_DIR=$(util_resolve_storage)
-    export EFFECTIVE_STORAGE_DIR STORAGE_DIR
+    STORAGE_DIR=$(util_fallback_cache_dir)
+    PERSISTENT_STORAGE_DIR=$(util_resolve_persistent_storage)
+    export EFFECTIVE_STORAGE_DIR STORAGE_DIR PERSISTENT_STORAGE_DIR
     export TMPDIR="${EFFECTIVE_STORAGE_DIR}"
+    app_lang_load
 
-    # Type N: empty argv → numbered list on TTY; help off-TTY (not install).
+    # No tokens: interactive -> main menu; otherwise self-install.
     if [ $# -eq 0 ]; then
-        if [ "${TTY}" -eq 1 ]; then
-            app_main_menu
-            return $?
-        fi
-        app_help
-        return 0
+        ngx_zero_cli_verb
+        return $?
     fi
 
     _op1=""
@@ -5462,7 +7050,7 @@ app_main() {
                 FENCE_EXPECT_MATCH=1
                 export FENCE_EXPECT_MATCH
                 ;;
-            version|about|help|menu|main|install|uninstall|where-is-me|setup|remove-lpu|remove-nginx-adm|request|list-requests|list-approved|list-rejected|approve|reject|enable-login-approval|map-set|map-unset|map-list|submit-sudoer-request|conf-to-json|json-to-conf|test-json-format|fence-test)
+            version|about|help|menu|main|install|self-install|uninstall|where-is-me|setup|remove-lpu|remove-nginx-adm|request|list-requests|list-approved|list-rejected|approve|reject|enable-login-approval|map-set|map-unset|map-list|submit-sudoer-request|conf-to-json|json-to-conf|test-json-format|fence-test)
                 COMMAND="$1"
                 shift
                 break
@@ -5548,6 +7136,12 @@ app_main() {
         shift
     done
 
+    # Switches only (no verb): same split. --debug stays interactive. --quiet/--json do not.
+    if [ -z "${COMMAND}" ]; then
+        ngx_zero_cli_verb
+        return $?
+    fi
+
     out_debug "dispatch command=${COMMAND} quiet=${QUIET} json=${JSON} force=${FORCE} force_global=${FORCE_GLOBAL}"
 
     app_run_command "${COMMAND}" "${_op1}" "${_op2}"
@@ -5557,6 +7151,6 @@ app_main() {
 # BOOTSTRAP
 # =============================================================================
 # Always invoke app_main. No basename gate (pipe-safe entry).
-# Product law: requirement-shell-cli-zero-arguments.md (Type N; TTY empty argv = menu).
+# Product law: requirement-shell-cli-zero-arguments.md (interactive zero-cli-verb = menu; non-interactive = self-install).
 # =============================================================================
 app_main "$@"

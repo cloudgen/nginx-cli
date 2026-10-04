@@ -1,95 +1,76 @@
 **file**: docs/requirements/requirement-shell-cli-zero-arguments.md  
-**Status**: Active (Version 1.2.1)  
+**Status**: Active (Version 1.3.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-zero-arguments`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for **zero-argument (empty argv) dispatcher behavior** of the nginx-cli POSIX shell CLI.
+This requirement is the **project Single Source of Truth** for **zero-cli-verb** behavior: no command token after switches.
 
-### 1.0 Product type
-
-| Field | Value for nginx-cli |
-|-------|-------------------------|
-| **Empty-argv type** | **Type N — Non-online-install** |
-| **Rationale** | Product is **local-only**; no `curl \| sh` channel. Empty argv **never** install-ensures. On a real terminal it opens the numbered list; in a script it shows **help**. |
-
-Type O (online-install empty-argv = install-ensure) does **not** apply.
-
-### 1.1 Human-facing
-
-**In one sentence:** On a real terminal, `nginx-cli` with no arguments opens the numbered list; in a script it shows help. It never installs.
+**In one sentence:** On a real terminal, `nginx-cli` with no command opens the main menu (a switch such as `--debug` is still no command). A pipe, `--quiet`, or `--json` with no command places this CLI (`self-install`, local copy). It does not print help and it does not run `setup`.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
-| You / this login | Empty line on a real terminal | `nginx-cli` |
-| A script / pipe | Empty line shows help | `nginx-cli </dev/null` |
-| Not this file | What the numbered list contains | `requirement-shell-cli-default-interaction` |
+| You, at a terminal | Main menu | `nginx-cli` or `nginx-cli --debug` |
+| A script / CI | Place the program | `nginx-cli` with no TTY |
+| Not this file | What the menu lists | `requirement-shell-cli-default-interaction` |
 
 | Includes | Excludes |
 |----------|----------|
-| TTY empty argv → numbered list; off-TTY empty argv → help | Empty-line install; empty-line approve |
-
-| Surface | What you open | What for |
-|---------|---------------|----------|
-| `src/nginx-cli` | ship unit | dispatcher |
-| `nginx-cli` (no args) | command | list or help by TTY |
+| Interactive menu; non-interactive local `self-install` | Online `curl \| sh`; `setup`; help as the empty-argv page; empty-line `approve` |
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
-| Open the list | You are at a real terminal. A script must not hang waiting for a number. | `nginx-cli` |
-| Read usage in CI | Off-TTY empty argv is help. | `nginx-cli` |
+| Open the menu | Real terminal, no command | `nginx-cli` |
+| Place the CLI from a script | No TTY, or `--quiet` / `--json`, no command | `nginx-cli` |
+| Read usage | Named help, not empty argv | `nginx-cli help` |
 
 ## Under command line for normal user only
 
-On Termux, Git Bash, or Windows cmd, empty argv **MUST** still follow this split (TTY list / off-TTY help) and **MUST NOT** become install-ensure or host mutate. **Admin privilege** (`setup` / `remove-lpu`) stays unused on that class.
+On Termux, Git Bash, or Windows cmd, the same split applies. Non-interactive zero-cli-verb **MUST** still be local `self-install` and **MUST NOT** run `setup` or `remove-lpu`.
 
 ---
 
 ## 2. Core Rules (Mandatory)
 
-### 2.1 Single meaning of empty argv
+### 2.1 What “no command” means
 
-1. When **argv is empty** (`$# -eq 0` at entry to `app_main`) **and** `TTY=1`, the dispatcher **MUST** route to the numbered list (`app_main_menu`). Topic owner: `requirement-shell-cli-default-interaction`.  
-2. When **argv is empty** **and** `TTY=0`, the dispatcher **MUST** route to **`help`** / usage (`app_help`). Empty argv **MUST NOT** perform install or dest `approve`.  
-3. Explicit `nginx-cli help` remains a valid full-usage path (same content family as empty argv).  
-4. Explicit `nginx-cli install` remains the only first-time local install path (plus documented force refresh).  
-5. Script entry **MUST** always call `app_main "$@"` (no basename product-name gate that blocks dispatch).
+1. `app_main` **MUST** start with `COMMAND=""`. **MUST NOT** use `: "${COMMAND:=help}"` after that clear (`:=` treats empty as unset).  
+2. Both paths use `ngx_zero_cli_verb`: `$# -eq 0` before the flag loop, and an empty `COMMAND` after switches are parsed.  
+3. `--debug`, `--force`, `--global`, and the other flags are **not** a verb.  
+4. Interactive means `TTY=1` and `JSON=0` and `QUIET=0`. That path calls the main menu.  
+5. Anything else with no verb calls `inst_self_install` (local copy). `--quiet` and `--json` set non-interactive. Off-TTY `--debug` with no verb is `self-install`.  
+6. Explicit `help` stays help. Named `menu` / `main` are not this split: off a terminal they fail closed (`requirement-shell-cli-default-interaction`).
 
-### 2.2 Normative matrix
+### 2.2 self-install (local copy)
 
-| Invocation | Behavior |
-|------------|----------|
-| `nginx-cli` (no args, `TTY=1`) | Numbered list |
-| `nginx-cli` (no args, `TTY=0`) | Show help; exit 0 |
-| `nginx-cli help` | Show help; exit 0 |
-| `nginx-cli install` | Local install ensure |
-| Flags only (e.g. `--json` with no command) | **MUST** still resolve to help (or fail with clear usage if product chooses fail-closed) — default: **help** after flag parse with no command token |
+1. Copies the **running** ship unit only. **MUST NOT** download. `SCRIPT_URL` stays empty. **MUST NOT** run `setup` or start nginx.  
+2. Root → `${GLOBAL_BIN}`; non-root → `${USER_BIN}`. Mode **0755**.  
+3. Human start line (when not JSON): `Starting self-install of ${APP_NAME} ${VERSION}...`.  
+4. Already installed and not `--force`: success, no second copy. If the target is `${USER_BIN}/${APP_NAME}`, still run the user-bin PATH companion. **MUST NOT** call `inst_local_install` on that no-op path.  
+5. First install **MAY** call `inst_local_install` after the starting line.  
+6. **MUST NOT** print help.
 
-### 2.3 Implementation Notes (this project)
+`install` remains the named local place verb. `self-install` is the zero-cli-verb and menu-87 place verb. `self-update`, `self-uninstall`, and `version-check` stay **absent**.
 
-| Item | Value |
-|------|--------|
-| **Product** | `nginx-cli` |
-| **Type** | **Type N** |
-| **Default COMMAND** | `help` |
-| **Contrast Type O** | Type O install-ensure is **not** this origin’s empty-argv law |
+### 2.3 Summary
 
-### 2.4 Why This Requirement Exists (CIAO)
-
-- **Principle 2 – Intentional**: Empty argv meaning is explicit and not left as “whatever the parent did.”  
-- **Principle 1 – Caution**: Avoid surprise install on bare invocation for an ops CLI.  
-- **Principle 16 – Interactive**: Help is the safe human default for local tools.
+| Situation | Route |
+|-----------|--------|
+| TTY, no `--quiet`, no `--json`, no verb | Main menu |
+| No TTY, or `--quiet`, or `--json`, no verb | `self-install` |
+| `help` | Help |
+| `menu` / `main` off a terminal | Fail closed, exit 1 |
 
 ---
 
 ## 3. Design Principles (CIAO / CIAO-Lite)
 
-- **Caution**: No silent ensure on empty argv.  
-- **Intentional**: Type N declared in law.  
-- **Anti-fragile**: Help works offline.  
-- **Over-protect**: Do not reintroduce Type O without reclassifying product install mode.
+- **Caution:** A script must not hang on a menu, and must not run `setup`.  
+- **Intentional:** One function owns both empty paths.  
+- **Anti-fragile:** `--debug` on a terminal still opens the menu.  
+- **Over-protect:** No network installer under the name `self-install`.
 
 ---
 
@@ -97,12 +78,11 @@ On Termux, Git Bash, or Windows cmd, empty argv **MUST** still follow this split
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
 
-1. Change empty argv to install-ensure while the product remains local-only.  
-2. Copy Type O empty-argv law wholesale without updating this file and install mode.  
-3. Make bare invocation run domain `backup`.  
-4. Change empty argv to dest `approve` or to install-ensure. Interactive empty argv **MUST** stay the numbered list; non-interactive empty argv **MUST** stay help.
-
-**Violating this rule is a critical dispatcher regression.**
+1. Send non-interactive zero-cli-verb to help.  
+2. Send interactive zero-cli-verb to `self-install` or to `setup`.  
+3. Download a script (`curl | sh`) for `self-install`.  
+4. Turn zero-cli-verb into `approve`.  
+5. Restore `: "${COMMAND:=help}"` inside `app_main`.
 
 ---
 
@@ -110,9 +90,10 @@ On Termux, Git Bash, or Windows cmd, empty argv **MUST** still follow this split
 
 | ID | Criterion |
 |----|-----------|
-| AC-1 | Off-TTY empty argv shows help and does not install; TTY empty argv is the numbered list |
-| AC-2 | Type N is the declared empty-argv type |
-| AC-3 | `install` remains an explicit command |
+| AC-1 | Off-TTY empty argv exits 0, places the user binary (isolated), and does not print `Usage:` or `9. Exit` |
+| AC-2 | TTY empty argv is the main menu |
+| AC-3 | TTY `--debug` / `--force` with no verb is the menu; off-TTY `--debug`, `--quiet`, and `--json` with no verb are `self-install` |
+| AC-4 | `--debug version` stays the one-line version |
 
 ---
 
@@ -120,36 +101,33 @@ On Termux, Git Bash, or Windows cmd, empty argv **MUST** still follow this split
 
 | Key | Relationship |
 |-----|--------------|
-| `requirement-shell-cli-interface` | Dispatcher command table |
-| `requirement-shell-cli-default-interaction` | Numbered list is TTY empty argv and `menu`/`main`; this file owns the TTY vs off-TTY split |
-| `requirement-shell-local-self-management` | Explicit install |
-| `requirement-bootstrap-chain` | Trim of Type O from parent |
+| `requirement-shell-cli-default-interaction` | Menu tree |
+| `requirement-shell-local-self-management` | `install` and local `self-install` |
+| `requirement-shell-cli-interface` | Command table |
 | `docs/requirements/index.md` | Registry |
 
 ---
 
 ## Design-time verification
 
-| TP family / ID | Suite | Status |
-|----------------|-------|--------|
-| **TP-CLI-07** | `tests/test_cli.sh` | have (off-TTY empty argv = help) |
-| **TP-CLI-25** | `tests/test_cli.sh` | have (TTY empty argv = numbered list; skip if no PTY) |
+| TP-ID | Test | Status |
+|-------|------|--------|
+| **TP-CLI-07** | `tests/test_cli.sh` | have (off-TTY empty argv = self-install) |
+| **TP-CLI-23** | `tests/test_cli.sh` | have (switch-only split) |
+| **TP-CLI-25** | `tests/test_cli.sh` | have (TTY empty argv = menu; skip if no PTY) |
 
-**Matrix:** `reviews/requirement-test-matrix.md`  
-**Map:** `reviews/test-plan.md`
+---
 
 ## 7. Status history
 
 | Date | Status | Note |
 |------|--------|------|
-| 2026-08-03 | Active | Type N for local-only folder-backup |
-| 2026-08-15 | Active 1.1.0 | Notes/examples name this product nginx-cli |
-| 2026-08-23 | Active 1.1.1 | Empty argv stays help when `menu`/`main` is added |
+| 2026-08-03 | Active | Type N help for a local-only product |
 | 2026-09-03 | Active 1.2.0 | TTY empty argv = numbered list; off-TTY help |
-| 2026-09-06 | Active 1.2.1 | Human-facing + AC-1 match TTY split; TP-CLI-25 |
+| 2026-10-04 | Active 1.3.0 | Interactive zero-cli-verb = menu; non-interactive = local self-install |
 
 ---
 
-**Last Updated**: 2026-09-06  
+**Last Updated**: 2026-10-04  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

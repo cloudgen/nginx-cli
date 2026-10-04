@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-project-folder.md  
-**Status**: Active (Version 2.1.0)  
+**Status**: Active (Version 2.1.1)  
 **Area**: architecture  
 **Key**: `requirement-project-folder`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -74,7 +74,7 @@ Rules:
 
 Rules:
 
-1. Scratch **MUST** be per-user isolated (`APP_NAME` + `USERNAME`).  
+1. Scratch **MUST** be a per-login per-process cache leaf (`cache-${APP_NAME}-${login}-$$` on volatile tiers). See `requirement-shell-cli-storage`. Persistence is `${HOME}/.local/${APP_NAME}` and is not the cache.  
 2. Temps **MUST** clean up after success/failure of install staging.  
 3. Scratch is **not** a durable backup deposit.
 

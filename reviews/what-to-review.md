@@ -6,7 +6,7 @@
 **Always load first:** `reviews/lessons.md`
 
 **Last plan update:** 2026-09-13  
-**Ship unit VERSION:** 1.10.1  
+**Ship unit VERSION:** 1.11.0  
 **Suite baseline:** see `reviews/test-plan.md`
 
 ---
@@ -16,7 +16,7 @@
 | # | Check | Notes |
 |---|--------|--------|
 | P1 | Read `docs/requirements/index.md` | Class + architecture + shell + one domain SSOT |
-| P2 | Confirm ship unit `src/nginx-cli` | `APP_NAME` / `VERSION` hard-assign (**1.10.1**) |
+| P2 | Confirm ship unit `src/nginx-cli` | `APP_NAME` / `VERSION` hard-assign (**1.11.0**) |
 | P3 | Confirm origin A remains `src/cli-template` | Frozen; no reverse-copy from B |
 | P4 | Load `reviews/lessons.md` and re-check open L-* that still apply | Skip L-SUDOERS / restore lessons as parent-only |
 | P5 | Run `./tests/run.sh` | Record PASS/FAIL/SKIP in report |
@@ -33,7 +33,7 @@
 | P20 | Login-hook / interactive review display | YAML body (`key: value`); inbound stays JSON; not a JSON object dump (**TP-NGX-55**) |
 | P12 | Prevention catalog vs invented walls | no unpublished denylist; OPEN-UNIT-TOOLS / OPEN-PASSWD-CLI |
 | P17 | Type 0 **test-purpose** `fence-test` / `test-json-format` | local test folder; no sudo; does not queue; help **Unit test** heading; xor `--file`/`--dir`; `--expect-match` only with `--dir` |
-| P18 | **`menu` / `main`** + TTY empty argv | Numbered list on a real terminal (empty argv **and** `menu`/`main`); off-TTY empty argv is help; TTY ignores `--json`; N=14 Exit 99; no testers/install/help on the list; header **nginx-cli**(*version*) |
+| P18 | **`menu` / `main`** + interactive zero-cli-verb | Layered front 1/2/5/7/8/9; inner boards; off-TTY `menu` fails closed; TTY ignores `--json`; invalid choice is `[WARN]`; header is `util_app_ident` |
 | P19 | Sibling `setup` dest-honesty | sudoer-cli / dns-cli are **not** this F6/inbound/hook; collision identity **have** (L-COLLIDE-01 closed); report `2026-08-23-sibling-setup-dns-cli-sudoer-cli` |
 
 ---
@@ -47,13 +47,14 @@
 | Project folder | `requirement-project-folder.md` | `src/nginx-cli`, bins; frozen A; no `/var/backup` |
 | CLI interface | `requirement-shell-cli-interface.md` | Type 0 commands, flags, dispatch; domain pointer; `BASHRC`; `rc-test` dual mention |
 | Path / shell-rc | `requirement-shell-path-and-shell-support.md` | PATH + this-login profile; sibling unify; **TP-LC-20..22**; `rc-test` ship Gap |
-| Empty argv Type N | `requirement-shell-cli-zero-arguments.md` | TTY = numbered list; off-TTY = help; never install |
-| Numbered list | `requirement-shell-cli-default-interaction.md` | TTY empty argv + `menu`/`main`; invalid choice retries this layer |
-| Local self-management | `requirement-shell-local-self-management.md` | install/uninstall; mode 0755 |
+| Zero-cli-verb | `requirement-shell-cli-zero-arguments.md` | Interactive menu; non-interactive local self-install; never setup |
+| Main menu | `requirement-shell-cli-default-interaction.md` | Layered boards; off-TTY fail closed; `[WARN]` reprint |
+| Menu language | `requirement-shell-cli-language.md` | Thirteen codes; persistence leaf; partial translation is honest |
+| Local self-management | `requirement-shell-local-self-management.md` | install and local self-install; mode 0755; no online verbs |
 | Output SSOT | `requirement-shell-output-requirements.md` | `out_*`; JSON errors |
 | Modular design | `requirement-shell-modular-function-design.md` | Type 0 prefixes + `ngx_` |
 | Idempotency | `requirement-shell-idempotency.md` | Re-install |
-| Storage | `requirement-shell-cli-storage.md` | Isolation |
+| Storage | `requirement-shell-cli-storage.md` | Per-process cache tiers + persistence; no XDG tier |
 | Domain | `requirement-domain-nginx-cli.md` | JSON dest **and** same-product submitter; dest Fence table; Type 0 `fence-test`; convert dual; no second nginx submitter; login hook **points** |
 | Dest Fence | `requirement-incorrect-json-format.md` | incorrect JSON format only; testers; dest-owned `submit_app` / `submit_version` |
 | Login hook | `requirement-login-interactive-review-hook.md` | `/usr/local/bin/nginx-cli-hook` → `/usr/local/bin/nginx-cli`; setup replaces old hook |

@@ -2,14 +2,14 @@
 
 Authoritative specialized product law for **nginx-cli** lives here.
 
-**Current state (2026-09-13):** Specialized **software-development** product. Left genesis. **This product is B** (`nginx-cli`). **Origin A** is `cli-template` (frozen at `src/cli-template`). Do not reverse-copy B onto A. Registry is populated — see `index.md`. Numbered list: TTY empty argv and `menu`/`main`; off-TTY empty argv stays help; invalid choice retries this layer. Login hook is an independent REQ (`requirement-login-interactive-review-hook`). Shell-rc PATH / this-login profile: `requirement-shell-path-and-shell-support`.
+**Current state (2026-10-04):** Specialized **software-development** product. Left genesis. **This product is B** (`nginx-cli`). **Origin A** is `cli-template` (frozen at `src/cli-template`). Do not reverse-copy B onto A. Registry is populated — see `index.md`. **22** Active requirements, including menu language. Interactive zero-cli-verb and `menu`/`main` open the layered main menu; non-interactive zero-cli-verb is local `self-install`; off-TTY `menu` fails closed. Login hook is an independent REQ (`requirement-login-interactive-review-hook`). Shell-rc PATH / this-login profile: `requirement-shell-path-and-shell-support`.
 
 ## Product identity (summary)
 
 | Field | Value |
 |-------|--------|
 | Product / `APP_NAME` | `nginx-cli` |
-| Version SSOT | `1.10.1` (ship unit hard-assign) |
+| Version SSOT | `1.11.0` (ship unit hard-assign) |
 | Ship unit | `src/nginx-cli` |
 | Origin A (frozen) | `src/cli-template` |
 | Default install | `~/.local/bin/nginx-cli` |

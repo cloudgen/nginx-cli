@@ -3,9 +3,9 @@
 Maps **TP-*** coverage to `tests/`.  
 **Suite entry:** `./tests/run.sh`  
 **Ship unit:** `src/nginx-cli`  
-**Product VERSION:** 1.10.1  
-**Last plan update:** 2026-09-13  
-**Last suite run:** PASS=391 FAIL=0 SKIP=0 (2026-09-13)
+**Product VERSION:** 1.11.0  
+**Last plan update:** 2026-10-04  
+**Last suite run:** PASS=473 FAIL=0 SKIP=0 (2026-10-04, `sh tests/run.sh`)
 
 Status: **have** = automated today · **todo** = needed · **optional** · **n/a** · **skip** (environment)
 
@@ -17,8 +17,10 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 |------|--------|----------|
 | Syntax `sh -n` | have | TP-CLI-01 |
 | version / help / about human + JSON | have | TP-CLI-02..06 |
-| Type N off-TTY empty argv = help; TTY empty argv = numbered list | have | TP-CLI-07, TP-CLI-25 |
-| `menu`/`main` off-TTY help; TTY numbered list; default style; no `$()` of `prompt_ask`; invalid choice retries this layer | have | TP-CLI-17..26 |
+| Interactive zero-cli-verb = menu; non-interactive = local self-install | have | TP-CLI-07, TP-CLI-23, TP-CLI-25 |
+| Layered `menu`/`main`; off-TTY fail closed; `[WARN]` reprint; inner boards | have | TP-CLI-17..22, TP-CLI-24, TP-CLI-26, TP-CLI-27 |
+| Menu language (file, reserved number, env override) | have | TP-CLI-28 |
+| Cache tiers, persistence, gitbash, silent skip | have | TP-CLI-06, TP-CLI-12 |
 | Unknown + quiet + set -u HOME | have | TP-CLI-08..11 |
 | Storage isolation | have | TP-CLI-12 |
 | No online verbs / no SCRIPT_URL UX | have | TP-CLI-04, TP-CLI-10 |
@@ -47,27 +49,29 @@ Status: **have** = automated today · **todo** = needed · **optional** · **n/a
 | TP-CLI-03 | version JSON | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-04 | help Type 0 + domain verbs + submit-sudoer-request; no online/archive verbs | test_cli | requirement-shell-cli-interface · domain | **have** |
 | TP-CLI-05 | help JSON short | test_cli | requirement-shell-output-requirements | **have** |
-| TP-CLI-06 | about JSON storage + nginx-adm + sudoer-cli fields | test_cli | requirement-shell-cli-storage · domain | **have** |
-| TP-CLI-07 | off-TTY empty argv Type N help (not install; not the list) | test_cli | requirement-shell-cli-zero-arguments | **have** |
+| TP-CLI-06 | about JSON cache fields + nginx-adm + sudoer-cli fields | test_cli | requirement-shell-cli-storage · domain | **have** |
+| TP-CLI-07 | off-TTY empty argv local self-install (not help; not the menu; not setup) | test_cli | requirement-shell-cli-zero-arguments | **have** |
 | TP-CLI-08 | unknown fail-closed | test_cli | requirement-shell-cli-interface | **have** |
 | TP-CLI-09 | quiet suppresses version | test_cli | requirement-shell-output-requirements | **have** |
 | TP-CLI-10 | online verbs rejected | test_cli | requirement-bootstrap-chain | **have** |
 | TP-CLI-11 | env -u HOME version | test_cli | class / defensive | **have** |
-| TP-CLI-12 | storage isolation | test_cli | requirement-shell-cli-storage | **have** |
+| TP-CLI-12 | cache tiers, leaf 0700, skip preferred, gitbash, persistence | test_cli | requirement-shell-cli-storage | **have** |
 | TP-CLI-13 | backup/restore/print-sudoers unknown | test_cli | requirement-bootstrap-chain · three-layer | **have** |
 | TP-CLI-14 | `nginx-ctl` unknown; help does not list it | test_cli | prevention · three-layer · interface | **have** |
 | TP-CLI-15 | Help lists `fence-test` / `test-json-format` under Unit test heading | test_cli | interface · dest Fence | **have** |
 | TP-CLI-16 | Help documents `--dir` / `--expect-match` tester flags | test_cli | interface · dest Fence | **have** |
-| TP-CLI-17 | `menu` off-TTY human help; not numbered list; off-TTY empty argv still help | test_cli | default-interaction · zero-arguments | **have** |
-| TP-CLI-18 | `menu --json` off-TTY JSON help | test_cli | default-interaction | **have** |
-| TP-CLI-19 | `main` off-TTY human help | test_cli | default-interaction | **have** |
-| TP-CLI-20 | Help lists `menu` / `main` | test_cli | interface · default-interaction | **have** |
-| TP-CLI-21 | TTY `menu` numbered list N=14 Exit 99; exclusions | test_cli | default-interaction | **have** (skip if no PTY) |
-| TP-CLI-22 | TTY `menu --json` still the list | test_cli | default-interaction | **have** (skip if no PTY) |
-| TP-CLI-23 | Menu choice reads `PROMPT_ASK_VALUE` (no `$()` of `prompt_ask`) | test_cli | default-interaction | **have** |
+| TP-CLI-17 | `menu` off-TTY exit 1, `menu needs a terminal`, not Usage | test_cli | default-interaction | **have** |
+| TP-CLI-18 | `menu --json` off-TTY is `out_error`, not JSON help | test_cli | default-interaction | **have** |
+| TP-CLI-19 | `main` off-TTY exit 1, `menu needs a terminal` | test_cli | default-interaction | **have** |
+| TP-CLI-20 | Help lists `menu` / `main` / `self-install`; not online verbs | test_cli | interface · default-interaction | **have** |
+| TP-CLI-21 | TTY front board 1/2/5/7/8 and `9. Exit`; not flat remove-lpu | test_cli | default-interaction | **have** (skip if no PTY) |
+| TP-CLI-22 | TTY `menu --json` still the front board | test_cli | default-interaction | **have** (skip if no PTY) |
+| TP-CLI-23 | Switch-only split; menu uses `read -r` (no `$()` of `prompt_ask`) | test_cli | zero-arguments · default-interaction | **have** (TTY half skip if no PTY) |
 | TP-CLI-24 | TTY menu header has VERSION; gray-italic explain | test_cli | default-interaction | **have** (skip if no PTY) |
-| TP-CLI-25 | TTY empty argv numbered list (not Usage help) | test_cli | zero-arguments · default-interaction | **have** (skip if no PTY) |
-| TP-CLI-26 | Invalid TTY menu choice retries this layer (`out_error` + reprint; unused 15 / unknown name; not unknown argv) | test_cli | default-interaction | **have** (skip PTY half if no PTY) |
+| TP-CLI-25 | TTY empty argv is the front menu (not Usage, not self-install) | test_cli | zero-arguments · default-interaction | **have** (skip if no PTY) |
+| TP-CLI-26 | Invalid front choice `[WARN]` reprints this board (unused 6 / unknown name) | test_cli | default-interaction | **have** (skip PTY half if no PTY) |
+| TP-CLI-27 | Inner boards 11, 21, 71, 81, 87; no print-sudoers; no version-check row | test_cli | default-interaction | **have** (skip if no PTY) |
+| TP-CLI-28 | Language pick 52, reserved 50, unknown line, `NGINX_CLI_LANG=ja` | test_cli | requirement-shell-cli-language | **have** (PTY half skip if no PTY) |
 
 ### TP-LC (local lifecycle)
 

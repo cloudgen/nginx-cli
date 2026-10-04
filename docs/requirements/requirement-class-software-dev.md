@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-class-software-dev.md  
-**Status**: Active (Version 1.8.3 – dest Fence + fence-test + coding-style + menu + login-hook pointer + PATH/shell-rc pointer)  
+**Status**: Active (Version 1.8.4 – dest Fence + fence-test + coding-style + layered menu + language + login-hook pointer + PATH/shell-rc pointer)  
 **Area**: class  
 **Key**: `requirement-class-software-dev`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -108,7 +108,7 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | **Architectures supported** | any arch with POSIX sh and the external tools the script invokes |
 | **Git surface** | used when product is published |
 | **Ship unit / install** | yes — `src/nginx-cli` → `${USER_BIN}/nginx-cli` (default `~/.local/bin/nginx-cli`); **local-only** install (no online channel) |
-| **Product version SSOT** | `VERSION="1.10.1"` hard-assign in `src/nginx-cli` |
+| **Product version SSOT** | `VERSION="1.11.0"` hard-assign in `src/nginx-cli` |
 | **Bootstrap origin** | `cli-template` (frozen at `src/cli-template`) — this product is B. No live parent hop. |
 
 **Residual ownership table:**
@@ -121,8 +121,9 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | Bootstrap lineage / keep-trim | `requirement-bootstrap-chain` | A = cli-template (frozen); this product is B |
 | Project layout / ship path | `requirement-project-folder` | `src/` + bin targets |
 | Type 0 CLI surface / flags / dispatch | `requirement-shell-cli-interface` | Do not duplicate |
-| Empty argv Type N | `requirement-shell-cli-zero-arguments` | TTY numbered list; off-TTY help; never install |
-| Numbered TTY list (`menu`/`main`) | `requirement-shell-cli-default-interaction` | Same list as TTY empty argv |
+| Zero-cli-verb | `requirement-shell-cli-zero-arguments` | Interactive main menu; non-interactive local `self-install`; never `setup` |
+| Main menu (`menu`/`main`) | `requirement-shell-cli-default-interaction` | Layered TTY menu; off-TTY fail closed |
+| Menu language | `requirement-shell-cli-language` | Thirteen codes; persistence leaf `language` |
 | Local self-managed lifecycle | `requirement-shell-local-self-management` | install / uninstall / where-is-me; PATH companion **call site** |
 | PATH / this-login profile / shell-rc sibling unify | `requirement-shell-path-and-shell-support` | Do not duplicate; login-hook stays a peer |
 | Output SSOT (`out_*`) | `requirement-shell-output-requirements` | Do not duplicate |
@@ -209,7 +210,8 @@ This file is **class law + residual SSOT**, not a second copy of Type 0 lifecycl
 | `requirement-privilege-prevention-set` | Closed prevention catalog |
 | `requirement-project-folder` | Layout and install locations |
 | `requirement-shell-cli-interface` | Command surface, flags, dispatch |
-| `requirement-shell-cli-zero-arguments` | Type N empty argv |
+| `requirement-shell-cli-zero-arguments` | Interactive menu; non-interactive local self-install |
+| `requirement-shell-cli-language` | Menu language |
 | `requirement-shell-cli-default-interaction` | Numbered list on `menu`/`main` |
 | `requirement-shell-local-self-management` | Local install lifecycle |
 | `requirement-shell-path-and-shell-support` | PATH / this-login profile / sibling unify |

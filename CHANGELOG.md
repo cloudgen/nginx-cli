@@ -5,6 +5,32 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.11.0] - 2026-10-04
+
+### Added
+
+- Per-login per-process cache folder (Linux `/dev/shm/cache`, then `/tmp/cache`, then `${HOME}/.cache`). Git Bash and Mac use their own tier tables. A missed tier is silent. About labels are Cache folder used / preferred / 1st fallback / 2nd fallback (omit the 2nd when there is none) and Persistence storage.
+- Layered TTY main menu: 1 request-side, 2 host-side, 5 language, 7 sudoers, 8 self-management, 9 Exit. Inner boards use 11–111, 21–23, 71, and 81 / 82 / 83 / 87. A wrong choice warns and reprints that board.
+- Menu language, thirteen codes, stored at `${HOME}/.local/nginx-cli/language`. `NGINX_CLI_LANG` overrides for one process.
+- Local `self-install`: non-interactive zero-cli-verb (no TTY, or `--quiet` / `--json` with no command) copies this script into the privilege-correct bin. No download and no `setup`.
+
+### Changed
+
+- Interactive zero-cli-verb, including `--debug` or `--force` with no command, opens the main menu. It does not install and it does not print help.
+- Named `menu` / `main` off a terminal exits 1 with `menu needs a terminal`.
+- `version-check`, `self-update`, and `self-uninstall` stay unrouted. The self-management board says they are not on this menu.
+
+### Law
+
+- Storage **1.3.0**, zero-arguments **1.3.0**, default-interaction **1.3.0**, language **1.0.0**, local self-management **1.6.0**, interface **2.9.0**.
+
+### Tests
+
+- **TP-CLI-06 / 12** cache JSON, tiers, mode 0700, skip, gitbash.
+- **TP-CLI-07 / 23 / 25** zero-cli-verb split.
+- **TP-CLI-17..22, 24, 26, 27** layered menu.
+- **TP-CLI-28** language file.
+
 ## [1.10.1] - 2026-09-13
 
 ### Fixed

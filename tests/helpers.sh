@@ -128,7 +128,14 @@ ci_bashrc_path_line() {
 ci_cleanup_env() {
     ci_cleanup_bashrc
     if [ -n "${CI_HOME:-}" ] && [ -d "${CI_HOME}" ]; then
-        rm -rf "${CI_HOME}"
+        _ci_old="${CI_HOME}"
+        # A guard refuses to delete the directory that HOME still names.
+        if [ "${HOME:-}" = "${_ci_old}" ]; then
+            HOME=/tmp
+            export HOME
+        fi
+        rm -rf "${_ci_old}"
+        unset _ci_old
         CI_HOME=
         CI_USER_BIN=
         CI_GLOBAL_BIN=

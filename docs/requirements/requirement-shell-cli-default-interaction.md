@@ -1,168 +1,89 @@
 **file**: docs/requirements/requirement-shell-cli-default-interaction.md  
-**Status**: Active (Version 1.2.0)  
+**Status**: Active (Version 1.3.0)  
 **Area**: shell  
 **Key**: `requirement-shell-cli-default-interaction`  
-**id**: RQ-SHELL-CLI-DEFAULT-INTERACTION  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
 
 ## 1. Purpose
 
-This requirement is the **project Single Source of Truth** for nginx-cli’s optional **TTY numbered list of live work commands**. The product **claims** that list. Look **MUST** be default CLI main menu style: header **nginx-cli**(*version*) then `command: what it does` with gray italic descriptions on a TTY. The zero-argument requirement assigns **interactive** empty argv to this list and keeps off-TTY empty argv as help. `menu` / `main` are the same handler.
+This requirement is the **project Single Source of Truth** for the nginx-cli **main menu**.
 
-### 1.1 Human-facing
-
-**In one sentence:** On a real terminal, type `nginx-cli` with no arguments (or `nginx-cli menu` / `main`) to get a numbered list of live work commands; a script still gets help.
+**In one sentence:** On a real terminal, `nginx-cli` (no command) or `nginx-cli menu` opens a short front board; you pick a category, then a command. A wrong pick warns and reprints that board. Off a terminal, `menu` stops with an error.
 
 | Box | Meaning | Example |
 |-----|---------|---------|
-| You / this login | Open the numbered list, pick a number or a command name | `nginx-cli` then `6` or `approve` |
-| Automation / pipes | The list does not appear; you get help (JSON help with `--json` on `menu`) | `nginx-cli </dev/null` |
-| Not this file | Off-TTY empty argv stays help and never installs | `requirement-shell-cli-zero-arguments` |
+| You | Front board, then a category | `1` then `11` |
+| Not this file | Who opens the menu vs who self-installs | `requirement-shell-cli-zero-arguments` |
 
 | Includes | Excludes |
 |----------|----------|
-| Numbered 1…N live work commands; last extra row Exit **99**; TTY empty argv; `menu` / `main` as the same handler; a wrong number or name reprints **this** list | `help` as a row; install / uninstall / where-is-me / setup / version / about; testers; `menu`/`main` as a choice; hanging in CI; process exit because you typed an unused number |
-
-| Surface | What you open | What for |
-|---------|---------------|----------|
-| `src/nginx-cli` | ship unit | live numbered list |
-| `nginx-cli` (no args, real terminal) | command | numbered list |
-| `nginx-cli` (no args, script) | command | help |
+| Layered boards, `read -r`, warn-and-reprint | Flat 1–14 plus Exit 99; `help` as a row; testers as rows; hanging in CI |
 
 | You do… | What it means | What you type |
 |---------|---------------|---------------|
-| Want the numbered list | On a real terminal, empty argv **is** the list. `menu` / `main` are the same handler. `--json` does not hide the list on a TTY. In a script you get help so the process does not wait. | `nginx-cli` |
-| Leave the list | Exit is **99** (fourteen command rows). Unused numbers 15–98 are omitted. | `99` |
-| Type a number that is not on the list | Stay on **this** list: a loud error, the list reprints, pick again. The process does not exit. Nested numbered lists (none today) retry **that** list. Dest yes/no review is not a menu layer. | `15` then `6` |
+| Open | Real terminal | `nginx-cli` or `nginx-cli menu` |
+| Leave | Front only | `9`, `99`, `999`, `exit`, or an empty line |
+| Go back | Any inner board | `0`, `q`, empty line, or `exit` |
 
 ## Under command line for normal user only
 
-On Termux, Git Bash, or Windows cmd, the numbered list **MUST** still omit install/setup and testers. Host mutate chosen from the list (`remove-lpu`, `setup` is already omitted) **MUST** fail closed if the class cannot elevate. Convert and request against local files remain list rows.
+On Termux, Git Bash, or Windows cmd the front **MUST** omit row **7** (sudoers) and say that sudoers is not available for that class **before** the numbers. The host board **MUST** omit **21** and **22** and say that `setup` and `remove-lpu` are not available. Choosing a hidden number warns and stays. This class **MUST NOT** gain sudo, apt, or `setup` from the menu.
 
 ---
 
 ## 2. Core Rules / Requirements (Mandatory)
 
-### 2.1 Claim and case (mandatory)
+### 2.1 When the menu runs
 
-| Field | Value |
-|-------|--------|
-| **Claims a default function** | **yes** (user-ordered numbered list) |
-| **Zero-argument requirement present** | **yes** — `requirement-shell-cli-zero-arguments` |
-| **Online-installable** | **no** (local-only) |
-| **Case** | **3** |
+1. Interactive zero-cli-verb and the verbs `menu` / `main` call `app_cmd_menu`.  
+2. If `TTY` is not `1`, `app_cmd_menu` **MUST** `out_die` with a message that contains `menu needs a terminal`. Exit **1**. **MUST NOT** print help.  
+3. On a terminal, `--json` and `--quiet` are cleared for the walk and restored on the way out. Interactive `menu --json` still draws the menu.  
+4. The header is `util_app_ident` (TTY: bold name, italic version) via `out_info`.  
+5. A choice is current-shell `read -r`. **MUST NOT** capture `read`. **MUST NOT** use `_choice=$(prompt_ask`. Operand prompts inside a leaf stay `prompt_ask` (`PROMPT_ASK_VALUE`). An empty required operand prints `Next:` and returns to the front.  
+6. An invalid choice is `out_warn` (stderr prefix `[WARN]`), names the token, reprints **that** board, and **MUST NOT** `out_die`.  
+7. After a finished leaf, show the front board again.
 
-1. Empty argv **MUST** follow `requirement-shell-cli-zero-arguments`: **TTY=1** this numbered list; **TTY=0** help; never install.  
-2. The numbered list **MUST** also be routed-verb **`menu`**. **`main` MUST** be the same handler (alias).  
-3. **MUST NOT** draw the list off-TTY.  
-4. **MUST NOT** list `menu` / `main` as a numbered choice on its own list.  
-5. Choice **MUST** be current-shell `prompt_ask` then `PROMPT_ASK_VALUE`. **MUST NOT** `_choice=$(prompt_ask …)`.  
-6. Look **MUST** use `util_app_ident` + `out_menu_choice` (TTY explain italic + light gray).  
-7. Invalid choice at **any menu layer** **MUST** `out_error`, reprint **this** layer, and re-prompt. **MUST NOT** `out_die` / process exit. Unused integers between **N** and Exit (here **15–98**) count as invalid. Nested numbered submenu: same rule on **that** layer. Empty line / failed `read` **MAY** leave this layer. **MUST NOT** treat that pick as unknown argv.
+### 2.2 Front board
 
-### 2.2 `menu` / `main` mode check (case 3)
+| Number | Short | Long (English) |
+|--------|-------|----------------|
+| 1 | request-side | this login's nginx site requests |
+| 2 | host-side | nginx-adm on this host (setup, remove, login hook) |
+| 5 | language | display language for this menu |
+| 7 | sudoers | passwordless sudo grant for this CLI |
+| 8 | self-management | this CLI install, version, and about |
+| 9 | *(plain line)* | `9. Exit` (the word Exit follows `APP_LANG`) |
 
-Measure interactive capability **once in the main process, outside functions**. Helpers **MUST** consume `TTY`.
+Row 7 is omitted on the normal-user-only class, with the hidden message first. Front **6** is not a row. Category shorts and longs follow `APP_LANG`. Leaf shorts stay English verbs. `where-is-me`, `help`, `menu`, `main`, `fence-test`, and `test-json-format` stay off every numbered list.
 
-| Invocation | `--json` | MUST | MUST NOT |
-|------------|----------|------|----------|
-| Interactive (`TTY=1`) `nginx-cli menu` (or `main`) | **Ignore** (even if `JSON=1`) | Show the numbered list (§2.3); read a number or a command name | Treat `--json` as JSON help; hang |
-| Non-interactive (`TTY=0`) `nginx-cli menu` (or `main`) | **Follow** | **Help**: human help when `JSON=0`; JSON help when `JSON=1` | Draw the list; hang; silent return |
+`9`, `99`, `999`, `exit`, and an empty line leave the front. EOF leaves. `q` on the front is an unknown choice.
 
-`--quiet` without a TTY is still the help path. That help path **MUST NOT** swallow help (do not return empty because `QUIET=1`). Non-interactive help **MUST** reuse `app_help` (no second JSON help catalog).
+### 2.3 Inner boards
 
-### 2.3 Numbered list (sacred)
+**1 request-side:** 11 request, 12 list-requests, 13 list-approved, 14 list-rejected, 15 approve, 16 reject, 17 map-set, 18 map-unset, 19 map-list, 110 conf-to-json, 111 json-to-conf.
 
-1. Print a **numbered list** at the beginning of the interactive menu path.  
-2. Each numbered command row is one live **operational** command that is **not** excluded below, numbered **1 … N**, in dispatcher order.  
-3. The printed line **MUST** be that command’s human-readable value: **`command: what it does`** (same wording as help’s one-liner).  
-4. **MUST NOT** list: `help`; gap / forbidden / help-only names; **`menu` / `main` itself**; **install / setup**; **self-managed** (`install`, `uninstall`, `where-is-me`); **diagnostics** (`version`, `about`); **any test-purpose** verb (`test-json-format`, `fence-test`). Those stay on `help` (testers **apart** from operational).  
-5. **MUST NOT** list the `remove-nginx-adm` alias as a second numbered row (`remove-lpu` is the live row; the alias **MAY** be accepted as typed input for that row).  
-6. Last extra row is **Exit** (not a command token). Exit number **MUST** be the smallest all-nines number **strictly greater** than **N**.  
-7. Accept a **number** or the **verb token**; run the matching handler. Exit number (or `exit` / `quit`) leaves **this** layer (top layer returns 0).  
-8. Extra fields: on TTY, prompt **one field at a time**; if a required field is empty, print `Next: nginx-cli <verb> …` and return — **MUST NOT** hang off-TTY.  
-9. Invalid choice (unused number, unknown name, or any input that is not listed and not Exit) **MUST** stay on **this** layer: `out_error` (not `out_die`), reprint this layer’s list, re-prompt in the current shell. Nested numbered submenu: same rule on **that** layer. EOF / failed `read` **MUST** leave this layer without spinning.
+**2 host-side:** 21 setup, 22 remove-lpu, 23 enable-login-approval. On the normal-user-only class hide 21 and 22. Typed alias `remove-nginx-adm` runs remove-lpu.
 
-### 2.4 Why This Requirement Exists (Direct CIAO Alignment)
+**7 sudoers:** 71 submit-sudoer-request only. **MUST NOT** add print-sudoers, generate, or remove-project-sudoers.
 
-- **CIAO Principle 1 – Caution**: Scripts never hang on the list; off-TTY empty argv stays help.  
-- **CIAO Principle 2 – Intentional**: Case 3 plus TTY empty argv assigned here; `menu` / `main` is the named opener.  
-- **CIAO Principle 6 – Single Point of Entry**: Dispatcher routes `menu` / `main`; handlers stay `app_*`.  
-- **CIAO Principle 16 – Interactive vs Non-Interactive**: TTY list; off-TTY help; interactive ignores `--json`.  
-- **CIAO Principle 17 – Help**: Non-interactive `menu` reuses `app_help`.  
-- **CIAO Principle 5 – Single Source of Output**: List and prompts go through `out_*` / `prompt_*`.  
-- **CIAO Principle 21 – Dual Policies**: Portable case table; Implementation Notes name this product.
+**8 self-management:** 81 install, 82 version (TTY runs `app_about`; argv `version` stays the one-liner `app_version`), 83 about, 87 self-install. Always say that version-check, self-update, and self-uninstall are not on this menu (local install only). **MUST NOT** route those three verbs. No rows 84, 85, 86.
+
+**5 language:** numbers and save rules are `requirement-shell-cli-language`.
+
+**0 / q / empty / EOF / exit** on an inner board returns to the front without running a leaf.
+
+### 2.4 Row look
+
+`out_menu_choice`: number plain, short bold, long italic light gray (`[3;37m`) on a TTY. Exit and Back are plain lines, not `out_menu_choice`.
 
 ---
 
 ## 3. Design Principles (CIAO / CIAO-Lite)
 
-- **Caution**: No menu in pipes or CI.  
-- **Intentional**: Case 3; labels from the kept command list / help one-liners.  
-- **Anti-fragile**: Off-TTY empty argv stays help if this file is later dropped; TTY empty argv is owned with the zero-argument requirement.  
-- **Over-protect**: Exclusions (install/setup, testers, `help`, `menu` itself), Exit **99**, and invalid-choice retry (never `out_die`) are sacred.
-
----
-
-### 2.1 Implementation Notes (this project)
-
-| Item | Value for nginx-cli |
-|------|---------------------|
-| **Product / binary** | `nginx-cli` |
-| **Claimed** | yes |
-| **Case** | **3** |
-| **Empty-argv owner** | `requirement-shell-cli-zero-arguments` (TTY = this list; off-TTY = help) |
-| **Menu verbs** | `menu` (primary); `main` (alias); TTY empty argv uses the same handler |
-| **Handler** | `app_main_menu` (`app_*`) |
-| **Ship-unit status** | **Implemented** — TTY empty argv and `menu` / `main` |
-| **N** | **14** |
-| **Exit** | **99** |
-| **Prompt helper** | `prompt_ask` (consume `TTY`; `INTERACTIVE=1` for the menu walk) |
-| **Invalid-choice retry** | **Implemented** — `app_main_menu` loops: unused **15–98**, unknown name → `out_error` + reprint + re-prompt. This product has **one** numbered layer (the main list). Dest `approve` yes/no/skip/quit is dest review, not a menu layer. Extra field empty still prints `Next:` and returns. |
-
-**Complete invocation samples (topic-owner — dual mention):**
-
-```text
-nginx-cli menu
-nginx-cli main
-nginx-cli menu --json
-nginx-cli --json menu
-```
-
-On a real terminal those four **and** empty argv show the numbered list. In a pipe / CI, empty argv and `nginx-cli menu` show human help; `nginx-cli --json menu` shows JSON help.
-
-**Normative numbered list (labels = human-readable):**
-
-```text
-1. remove-lpu: Remove nginx-adm (confirm or --force)
-2. request: Submit dest JSON (or nginx-conf text dual)
-3. list-requests: Approving / pending list
-4. list-approved: Approved archive
-5. list-rejected: Rejected archive
-6. approve: Interactive one-by-one, or approve one file
-7. reject: Reject one pending request
-8. enable-login-approval: Add or refresh as-login /usr/local/bin/nginx-cli-hook approve (no sudo)
-9. map-set: Add user-domain-map entry (chown nginx-adm)
-10. map-unset: Remove map entry
-11. map-list: Show user-domain-map
-12. submit-sudoer-request: Queue JSON grant via sudoer-cli (needs --allow-test-local unless global install)
-13. conf-to-json: nginx-conf text → dest request JSON
-14. json-to-conf: dest request JSON → nginx-conf text
-99. Exit
-```
-
-**Required fields when chosen from the list (TTY one-at-a-time):**
-
-| Verb | Fields (in order) |
-|------|-------------------|
-| `request` | Domain; file path |
-| `reject` | Request basename |
-| `map-set` | Submitter login; domain |
-| `map-unset` | Submitter login; domain |
-| `conf-to-json` | File path; purpose (optional) |
-| `json-to-conf` | File path |
-
-Other listed verbs run with no extra operands (`approve` with no basename stays the TTY one-by-one walk).
+- **Caution:** Off a terminal the named menu fails closed instead of waiting.  
+- **Intentional:** Categories first; leaves keep English command names.  
+- **Anti-fragile:** A bad number reprints the same board.  
+- **Over-protect:** Online verbs stay unnamed as rows.
 
 ---
 
@@ -170,19 +91,12 @@ Other listed verbs run with no extra operands (`approve` with no basename stays 
 
 **Future AI assistants, Grok, or maintainers MUST NOT**:
 
-1. Invent menu labels instead of `command: what it does` from help / the kept command list.  
-2. Put `help`, not-live names, `menu`/`main` itself, install/setup, self-managed verbs, version, about, or testers on the numbered list.  
-3. Number Exit as **15** (N+1). Exit **MUST** be **99**.  
-4. Draw the list in non-interactive mode.  
-5. Swallow help under `--quiet` on the non-interactive `menu`/`main` help path.  
-6. Invent a second JSON help object instead of calling `app_help`.  
-7. Override empty argv with this list (case 3).  
-8. Treat interactive `nginx-cli menu --json` as JSON help.  
-9. Ignore `--json` on non-interactive `menu`/`main`.  
-10. Claim the list is live while the dispatcher still rejects `menu` / `main`.  
-11. `out_die` / exit on an invalid TTY menu choice at any layer (unused number such as `15`, unknown name) — **MUST** `out_error`, reprint **this** layer, and re-prompt. **MUST NOT** treat that pick as unknown argv.
-
-**Violating this rule is a critical CLI-surface regression.**
+1. Flatten the tree back to 1–14 and Exit 99.  
+2. Put help, testers, `menu`, or `where-is-me` on a numbered row.  
+3. Route `version-check`, `self-update`, `self-uninstall`, `print-sudoers`, or `nginx-ctl`.  
+4. Capture `read` or drive the board with `prompt_ask`.  
+5. `out_die` on a bad menu number.  
+6. Print help when `menu` is used off a terminal.
 
 ---
 
@@ -190,15 +104,12 @@ Other listed verbs run with no extra operands (`approve` with no basename stays 
 
 | ID | Criterion |
 |----|-----------|
-| AC-1 | Case **3** recorded; empty argv remains help |
-| AC-2 | Dispatcher accepts `menu` and `main` as the same handler |
-| AC-3 | Interactive `menu` prints the §2.1 list (N=14, Exit 99) |
-| AC-4 | Interactive `menu --json` still prints that list |
-| AC-5 | Non-interactive `menu` is human help (`app_help`) |
-| AC-6 | Non-interactive `menu --json` is JSON help |
-| AC-7 | Numbered choices omit help, install, uninstall, where-is-me, setup, version, about, testers, menu, main |
-| AC-8 | Help lists `menu` (alias `main`) |
-| AC-9 | Invalid TTY choice (unused **15–98** or unknown name) prints `[ERROR]`, reprints **this** list, waits; process does not exit |
+| AC-1 | TTY front shows `1. request-side:`, `5. language:`, `8. self-management:`, `9. Exit` |
+| AC-2 | Front does not show `1. remove-lpu:` or `99. Exit` |
+| AC-3 | Choice `6` warns with `[WARN]`, names `6`, and reprints `9. Exit` |
+| AC-4 | Off-TTY `menu` and `main` exit 1 with `menu needs a terminal` and are not Usage help |
+| AC-5 | TTY `menu --json` still draws the front |
+| AC-6 | Boards 11, 21, 71, 81, and 87 exist; 84 version-check is not a row |
 
 ---
 
@@ -206,47 +117,39 @@ Other listed verbs run with no extra operands (`approve` with no basename stays 
 
 | Key | Relationship |
 |-----|--------------|
-| `requirement-shell-cli-zero-arguments` | **Owns empty argv** (help) — this file does not |
-| `requirement-shell-cli-interface` | Dual mention: `menu` / `main` on the command table |
-| `requirement-shell-interactive-vs-noninteractive` | `TTY` measure; no hang |
-| `requirement-shell-output-requirements` | `out_*` |
-| `requirement-shell-modular-function-design` | `app_main_menu` prefix |
-| `requirement-domain-nginx-cli` | Domain verbs the list may run |
-| `requirement-login-interactive-review-hook` | Topic owner of `enable-login-approval` (row 8) |
+| `requirement-shell-cli-zero-arguments` | When empty argv opens this menu |
+| `requirement-shell-cli-language` | Board 5 and translated chrome |
+| `requirement-shell-cli-interface` | Verb table |
+| `requirement-shell-output-requirements` | `out_warn` / `out_menu_choice` |
 | `docs/requirements/index.md` | Registry |
 
 ---
 
 ## Design-time verification
 
-| TP family / ID | Suite | Status | Note |
-|----------------|-------|--------|------|
-| **TP-CLI-07** | `tests/test_cli.sh` | have | off-TTY empty argv still help |
-| **TP-CLI-17** | `tests/test_cli.sh` | have | `menu` off-TTY human help; not the numbered list |
-| **TP-CLI-18** | `tests/test_cli.sh` | have | `menu --json` off-TTY JSON help |
-| **TP-CLI-19** | `tests/test_cli.sh` | have | `main` off-TTY human help |
-| **TP-CLI-20** | `tests/test_cli.sh` | have | help lists `menu` / `main` |
-| **TP-CLI-21** | `tests/test_cli.sh` | have | TTY `menu` numbered list, Exit 99, exclusions (skip if no PTY) |
-| **TP-CLI-22** | `tests/test_cli.sh` | have | TTY `menu --json` still the list (skip if no PTY) |
-| **TP-CLI-23** | `tests/test_cli.sh` | have | `PROMPT_ASK_VALUE`; no `$()` of `prompt_ask` |
-| **TP-CLI-24** | `tests/test_cli.sh` | have | TTY header VERSION + gray-italic explain (skip if no PTY) |
-| **TP-CLI-25** | `tests/test_cli.sh` | have | TTY empty argv numbered list (skip if no PTY) |
-| **TP-CLI-26** | `tests/test_cli.sh` | have | Invalid TTY menu choice retries this layer (`out_error` + reprint; unused **15**; not unknown argv). Skip PTY half if no PTY; static half always |
+| TP-ID | Test | Status |
+|-------|------|--------|
+| **TP-CLI-17** | `tests/test_cli.sh` | have (off-TTY menu fail closed) |
+| **TP-CLI-18** | `tests/test_cli.sh` | have (`--json menu` is an error off-TTY) |
+| **TP-CLI-19** | `tests/test_cli.sh` | have (off-TTY `main` fail closed) |
+| **TP-CLI-21** | `tests/test_cli.sh` | have (front rows) |
+| **TP-CLI-22** | `tests/test_cli.sh` | have (TTY `--json` still the menu) |
+| **TP-CLI-24** | `tests/test_cli.sh` | have (version header, italic long) |
+| **TP-CLI-26** | `tests/test_cli.sh` | have (`[WARN]` reprint) |
+| **TP-CLI-27** | `tests/test_cli.sh` | have (inner boards) |
 
-**Matrix:** `reviews/requirement-test-matrix.md`  
-**Map:** `reviews/test-plan.md`
+---
 
 ## 7. Status history
 
 | Date | Status | Note |
 |------|--------|------|
-| 2026-08-23 | Active 1.0.0 | Case 3; `menu`/`main`; N=14; Exit 99 |
-| 2026-09-03 | Active 1.1.0 | TTY empty argv uses this list |
-| 2026-09-06 | Active 1.1.1 | Human-facing + DTV match TTY empty argv; TP-CLI-23..25 |
-| 2026-09-13 | Active 1.2.0 | Invalid choice at any menu layer retries that layer; **TP-CLI-26**; **AC-9** |
+| 2026-08-23 | Active 1.0.0 | Flat list, Exit 99 |
+| 2026-09-13 | Active 1.2.0 | Invalid choice retries the flat list |
+| 2026-10-04 | Active 1.3.0 | Layered front 1/2/5/7/8/9; warn not error; off-TTY menu fail closed |
 
 ---
 
-**Last Updated**: 2026-09-13  
+**Last Updated**: 2026-10-04  
 **Owner**: project maintainers  
 **Alignment**: Registry `docs/requirements/index.md`; **CIAO** (https://github.com/cloudgen/ciao); CIAO-Lite (https://github.com/cloudgen/ciao-lite).

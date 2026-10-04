@@ -1,6 +1,6 @@
 # nginx-cli - Nginx least-privilege admin CLI
 
-![Version](https://img.shields.io/badge/Version-1.10.1-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-1.11.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 [![CIAO](https://img.shields.io/badge/Philosophy-CIAO%20(Caution%20%E2%80%A2%20Intentional%20%E2%80%A2%20Anti--fragile%20%E2%80%A2%20Over--engineered)-purple.svg)](https://github.com/cloudgen/ciao)
 [![Stars](https://img.shields.io/github/stars/cloudgen/nginx-cli?style=flat-square)](https://github.com/cloudgen/nginx-cli)
@@ -21,8 +21,8 @@ On Termux, Git Bash, or Windows cmd, only **this login** is in play: help, local
 
 ## Features
 
-- **Install for yourself**: `install`, `uninstall`, `where-is-me`, `version`, `about`, `help` (copy from this checkout; no network)
-- **Numbered list**: on a real terminal, `nginx-cli` with no arguments (or `menu` / `main`) lists live work commands; a wrong number reprints this list so you can pick again; a script still gets help and never installs
+- **Install for yourself**: `install`, `self-install`, `uninstall`, `where-is-me`, `version`, `about`, `help` (copy from this checkout; no network)
+- **Main menu**: on a real terminal, `nginx-cli` with no command (switches such as `--debug` still count as no command) or `menu` / `main` opens a short board: request-side, host-side, language, sudoers, self-management, Exit. A wrong number warns and reprints that board. A script with no command places this CLI (`self-install`). `menu` off a terminal stops with an error. Display language is menu row 5 (thirteen languages)
 - **One-time host setup**: `setup` creates **nginx-adm** (UID/GID **1999**, home `/etc/nginx-adm`), the waiting folders, and a unit-tools sudoers file under `/etc/nginx-adm/sudoers`. It does **not** write `/etc/sudoers.d`. If sibling **sudoer-cli** is already set up, it queues a JSON grant for sudoer-adm to approve
 - **Waiting folders** under `/var/nginx-cli`: `config-request` (`2770`, group `nginx-cli-submit`), `config-approved`, `config-rejected`; the user-to-domain map stays under nginx-adm home
 - **Who may submit**: root, nginx-adm, or a login listed in `/etc/sudoers.d/nginx-cli-submit` **or** `/etc/sudoers.d/nginx-cli-<login>` **and** in group `nginx-cli-submit`
@@ -69,25 +69,16 @@ After install, on a terminal:
 
 ```text
 $ nginx-cli
-[INFO] **nginx-cli**(*1.10.1*) — numbered list of live work commands
-1. remove-lpu: Remove nginx-adm (confirm or --force)
-2. request: Submit dest JSON (or nginx-conf text dual)
-3. list-requests: Approving / pending list
-4. list-approved: Approved archive
-5. list-rejected: Rejected archive
-6. approve: Interactive one-by-one, or approve one file
-7. reject: Reject one pending request
-8. enable-login-approval: Add or refresh as-login approve in nginx-adm ~/.bashrc (no sudo)
-9. map-set: Add user-domain-map entry (chown nginx-adm)
-10. map-unset: Remove map entry
-11. map-list: Show user-domain-map
-12. submit-sudoer-request: Queue JSON grant via sudoer-cli (needs --allow-test-local unless global install)
-13. conf-to-json: nginx-conf text → dest request JSON
-14. json-to-conf: dest request JSON → nginx-conf text
-99. Exit
+[INFO] nginx-cli(1.11.0)
+1. request-side: this login's nginx site requests
+2. host-side: nginx-adm on this host (setup, remove, login hook)
+5. language: display language for this menu
+7. sudoers: passwordless sudo grant for this CLI
+8. self-management: this CLI install, version, and about
+9. Exit
 ```
 
-Choose a number, or type the command name. `99` exits. A number that is not on the list (for example `15`) prints an error, reprints this list, and waits again.
+Choose a number, or type the category name. `9` leaves. `0` on an inner board goes back. A number that is not on that board (for example `6` on the front) prints a warning, reprints that board, and waits again. On a terminal the name is bold and the explanation is italic.
 
 ## Usage
 
@@ -169,4 +160,4 @@ MIT License — see [`LICENSE.md`](./LICENSE.md).
 
 ## Last Update
 
-2026-09-13 — version **1.10.1** (invalid numbered-list choice reprints this list; `requirement-shell-cli-default-interaction` 1.2.0).
+2026-10-04 — version **1.11.0** (layered main menu, menu language, per-process cache, local self-install for a script with no command).

@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-bootstrap-chain.md  
-**Status**: Active (Version 4.1.0)  
+**Status**: Active (Version 4.1.1)  
 **Area**: architecture  
 **Key**: `requirement-bootstrap-chain`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -76,7 +76,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | Integrity companion | **Absent** (no product channel digest law) |
 | Online lifecycle | **Absent** (`version-check`, `self-update`, `self-uninstall`, Type O, `SCRIPT_URL` UX) |
 | Local lifecycle | **Present** — `install` / `uninstall` / `where-is-me` |
-| Empty argv | **Type N** help (not Type O install-ensure) |
+| Empty argv | Interactive main menu; non-interactive **local** `self-install` (not Type O download, not help) |
 | Backup / restore / sudoers emit | **Absent** — never this product’s domain |
 | Type 0 `submit-sudoer-request` | **Present** on B — sibling compose; not print-sudoers |
 
@@ -90,7 +90,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | Storage resolve | **Keep** | Scratch only |
 | Idempotency / interactive modes | **Keep** | Lifecycle only |
 | Online channel | **Absent** | Not install source; not help/about product UX |
-| Type O empty argv | **Absent** | Empty argv = Type N help |
+| Type O empty argv | **Absent** | Non-interactive empty argv = local copy only |
 | Domain backup + restore | **Absent** | Not this product’s domain |
 | Sudoers print / install-script / remove-draft | **Absent** | Not this product’s domain |
 | `submit-sudoer-request` | **Present** | Type 0 compose to sibling sudoer-cli |
@@ -102,7 +102,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | Concern | Value |
 |---------|---------|
 | `APP_NAME` | `nginx-cli` |
-| `VERSION` | `1.10.1` (product version SSOT in ship unit) |
+| `VERSION` | `1.11.0` (product version SSOT in ship unit) |
 | Primary install story | Local copy from running ship unit → `${USER_BIN}` (default `~/.local/bin`) |
 | README one-liner | **No** `curl \| sh` channel claim |
 
@@ -158,7 +158,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | AC-2 | This ship unit is `src/nginx-cli`; origin reference remains `src/cli-template` (do not reverse-copy) |
 | AC-3 | Help does not list backup / restore / print-sudoers |
 | AC-4 | Unknown domain verbs fail closed |
-| AC-5 | Empty argv is Type N help |
+| AC-5 | Non-interactive empty argv is local `self-install`, not a download and not help |
 | AC-6 | Product maps and class law do **not** name selfmanaged or folder-backup as origin |
 
 ---
@@ -182,7 +182,7 @@ These are **this product’s** structural contracts, inherited from origin A. Th
 | TP family / ID | Suite | Status | Note |
 |----------------|-------|--------|------|
 | **TP-CLI-04,10,13** | `tests/test_cli.sh` | have | no online verbs; backup/restore/sudoers unknown |
-| **TP-CLI-07** | `tests/test_cli.sh` | have | Type N empty argv |
+| **TP-CLI-07** | `tests/test_cli.sh` | have | Off-TTY empty argv is local self-install |
 
 **Matrix:** `reviews/requirement-test-matrix.md`  
 **Map:** `reviews/test-plan.md`

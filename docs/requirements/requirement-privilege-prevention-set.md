@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-privilege-prevention-set.md  
-**Status**: Active (Version 1.6.1)  
+**Status**: Active (Version 1.6.2)  
 **Area**: architecture  
 **Key**: `requirement-privilege-prevention-set`  
 **id**: RQ-PRIVILEGE-PREVENTION-SET  
@@ -117,7 +117,7 @@ On Termux, Git Bash, or Windows cmd, walls that assume root (`useradd`, `/etc/su
 
 | ID | What is stopped | Who / when | How it stops | Owner |
 |----|-----------------|------------|--------------|-------|
-| **PREV-EMPTY-INT** | Empty argv becoming `approve` | any uid | Empty argv is Type N help | CLI · zero-arguments · domain |
+| **PREV-EMPTY-INT** | Empty argv becoming `approve` or `setup` | any uid | Interactive zero-cli-verb is the main menu; non-interactive is local `self-install` | CLI · zero-arguments · domain |
 | **PREV-HELP** | Listing a verb in `help` that has no dispatcher arm; listing `print-sudoers` / `backup` / `nginx-ctl` | help | Must not list. **Must** list `submit-sudoer-request`, `conf-to-json`, `json-to-conf` | CLI · domain |
 | **PREV-SUBMIT-OS-TOOL** | Type 0 compose JSON that lists OS tools, `approve`, `setup`, or `kind=login-hook-elev` | Type 0 compose | Fail closed | sudoer-json-file |
 | **PREV-HANG** | Prompt or hang when `TTY` is not `1`; login hook hanging `scp` / CI | `approve` / hook | Fail closed; hook skips when `PS1` unset | interactive · domain |

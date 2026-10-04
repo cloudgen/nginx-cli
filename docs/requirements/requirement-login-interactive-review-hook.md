@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-login-interactive-review-hook.md  
-**Status**: Active (Version 1.0.0)  
+**Status**: Active (Version 1.0.1)  
 **Area**: architecture  
 **Key**: `requirement-login-interactive-review-hook`  
 **id**: RQ-LOGIN-INTERACTIVE-REVIEW-HOOK  
@@ -102,7 +102,7 @@ After every create or rewrite of those files, owner **MUST** be nginx-adm (write
 | **Binary** | `/usr/local/bin/nginx-cli-hook approve` — **as-login**. **MUST NOT** copy live `$GLOBAL_BIN`. **MUST NOT** wrap `sudo` or `sudo -n` (`OPEN-ADM-NOSUDO` / `PREV-HOOK-SUDO`) |
 | **Approve fail** | Warning on stderr; login **continues** (`exit` forbidden) |
 | **Idempotent file** | Begin/end markers; do not append twice |
-| **Empty argv** | Hook **MUST** call explicit `approve`. Empty argv of this CLI stays the numbered list on a TTY and help off-TTY |
+| **Empty argv** | Hook **MUST** call explicit `approve`. Empty argv of this CLI stays the main menu on an interactive terminal and local `self-install` otherwise |
 | **Tokens** | **MUST NOT** appear in rc |
 | **Family 1 JSON** | Needs `kind=login-hook-elev` for **password** `sudo nginx-cli <verb>` after dest approve. That grant **MUST NOT** wrap the login hook in sudo. Body: `requirement-sudoer-json-file`. Queue: `requirement-three-layer-privilege-model` |
 
@@ -179,7 +179,7 @@ The review verb the snippet starts is dest `approve` (owned by `requirement-doma
 | **Dest `approve` walk** | Domain SSOT — **MUST NOT** be the only healer |
 | **Fixture** | skip live `/usr/local/bin`; fixture home under `/tmp` **MAY** receive the snippet |
 | **Ship unit** | `src/nginx-cli` — `ngx_ensure_login_hook_symlink` · `ngx_enable_login_approval` · `ngx_login_hook_block` |
-| **VERSION** | ship unit `1.10.1`; this law **1.0.0** |
+| **VERSION** | ship unit `1.11.0`; this law **1.0.1** |
 
 ### 2.9 Why This Requirement Exists (Direct CIAO Alignment)
 

@@ -16,8 +16,8 @@ Exit **0** when all assertions pass; **1** on failure; **2** if ship unit missin
 |------|--------|-------------|
 | `run.sh` | Entrypoint | — |
 | `helpers.sh` | Asserts + isolated HOME | — |
-| `helpers/pty_feed.py` | PTY feed for TTY `menu` / empty-argv / invalid-choice tests | **TP-CLI-21..22, 24..26** |
-| `test_cli.sh` | CLI surface, Type N empty argv (off-TTY help / TTY list), `menu`/`main`, offline reject | **TP-CLI-*** |
+| `helpers/pty_feed.py` | PTY feed for TTY `menu` / empty-argv / invalid-choice / language tests | **TP-CLI-21..28** |
+| `test_cli.sh` | CLI surface, interactive menu / non-interactive self-install, cache, language, offline reject | **TP-CLI-*** |
 | `test_local_lifecycle.sh` | install / uninstall / where-is-me / PATH + `BASHRC` fixture | **TP-LC-*** (incl. **11..14**, **20..22**) |
 | `test_domain.sh` | request/approve/reject fixture (no host useradd); dest Fence testers; YAML review display; login-hook heal | **TP-NGX-*** (incl. **TP-NGX-55**) · **TP-HOOK-02,03,08,09** |
 | `fixtures/fence-test/pass/` | Dest-legal JSON (sibling `submit_app` dest-legal) | **TP-NGX-35/41/44/46/47/48/49** |

@@ -3,9 +3,9 @@
 **Product:** nginx-cli  
 **Ship unit:** `src/nginx-cli`  
 **Dispatcher:** `app_main`  
-**Scan date:** 2026-08-23  
+**Scan date:** 2026-10-04  
 **Mode:** full (no previous table)  
-**Copied:** 0 · **Re-checked:** 26 live + 9 not-yet-wired  
+**Copied:** 0 · **Re-checked:** 27 live + 9 not-yet-wired  
 
 Inventory is from the dispatcher, not from help. Human-readable is `command: what it does` (explain from `app_help`).
 
@@ -17,6 +17,7 @@ Inventory is from the dispatcher, not from help. Human-readable is `command: wha
 | about | `app_about` | you | 2026-08-13 | `about: Show diagnostics (includes nginx-adm fields)` |
 | help | `app_help` | you | 2026-08-23 | `help: Show this help` |
 | install | `inst_local_install` | you | 2026-08-09 | `install: Install nginx-cli (root→global, user→~/.local/bin)` |
+| self-install | `inst_self_install` | you | 2026-10-04 | `self-install: Place this CLI only (local copy; no network; no setup)` |
 | uninstall | `inst_local_uninstall` | you | 2026-08-03 | `uninstall: Remove managed binary (confirm or --force)` |
 | where-is-me | `app_where_is_me` | you | 2026-08-03 | `where-is-me: Show running and install paths` |
 | setup | `ngx_setup` | change-the-computer | missing | `setup: Create nginx-adm (UID 1999), queues, /etc/nginx-adm/sudoers, Family 1 JSON` |
@@ -37,8 +38,8 @@ Inventory is from the dispatcher, not from help. Human-readable is `command: wha
 | json-to-conf | `ngx_json_to_conf` | you | missing | `json-to-conf: dest request JSON → nginx-conf text` |
 | test-json-format | `ngx_test_json_format` | you | missing | `test-json-format: Dest JSON-format fence against a local JSON file (no sudo; does not queue)` |
 | fence-test | `ngx_fence_test` | you | missing | `fence-test: Dest fence list against a local JSON file (no sudo; does not queue)` |
-| menu | `app_main_menu` | you | 2026-08-23 | `menu: Numbered list of live work commands (alias: main)` |
-| main | `app_main_menu` | you | 2026-08-23 | `main: Alias of menu` |
+| menu | `app_cmd_menu` | you | 2026-10-04 | `menu: Layered main menu on a real terminal (alias: main)` |
+| main | `app_cmd_menu` | you | 2026-10-04 | `main: Alias of menu` |
 
 ## Not-yet-wired
 
@@ -56,4 +57,4 @@ Inventory is from the dispatcher, not from help. Human-readable is `command: wha
 
 **Honesty:** live rows are dispatcher tokens. `missing` dates mean the handler comment block has no `Last updated:` / `Last reviewed:` (section-level dates are not copied onto every `ngx_*` helper). Forbidden rows stay so the next scan re-checks they did not return.
 
-**Main menu (case 3):** empty argv stays help. Numbered choices are the live operational rows that are not install/setup, self-managed, diagnostics, test-purpose, `help`, or `menu`/`main`. That is **N=14** (remove-lpu through json-to-conf in live order, omitting the `remove-nginx-adm` alias). Exit number **99**.
+**Main menu:** interactive zero-cli-verb and `menu`/`main` draw the layered front (1 request-side, 2 host-side, 5 language, 7 sudoers, 8 self-management, 9 Exit). Leaves keep English verbs on inner boards. Off a terminal, `menu`/`main` exit 1. Non-interactive zero-cli-verb is `self-install`. `self-update`, `self-uninstall`, and `version-check` stay forbidden.

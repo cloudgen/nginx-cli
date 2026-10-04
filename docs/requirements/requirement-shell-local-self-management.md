@@ -1,5 +1,5 @@
 **file**: docs/requirements/requirement-shell-local-self-management.md  
-**Status**: Active (Version 1.5.0)  
+**Status**: Active (Version 1.6.0)  
 **Area**: shell  
 **Key**: `requirement-shell-local-self-management`  
 **Philosophy**: CIAO **v2.10.2** / CIAO-Lite (Caution • Intentional • Anti-fragile • Over-engineered / Over-protect)
@@ -52,7 +52,9 @@ On Termux, Git Bash, or Windows cmd, **local** `install` / `uninstall` / `where-
 | Local refresh | **`install --force`** | Replace managed binary from **this** running ship unit |
 | Where-is-me | **`where-is-me`** | Report running path + managed install path + installed flag |
 
-**Forbidden primary verbs for this product:** `self-install`, `self-uninstall`, `self-update`, `version-check`.
+**Local place verbs:** `install` (named) and `self-install` (zero-cli-verb and menu 87). Both copy the running ship unit. No network.
+
+**Forbidden primary verbs for this product:** `self-uninstall`, `self-update`, `version-check`.
 
 ### 2.2 Local diagnostics (required companions)
 
@@ -113,7 +115,7 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 | Variable | Role | Default / note |
 |----------|------|----------------|
 | `APP_NAME` | Binary basename SSOT | hard-assign `nginx-cli` |
-| `VERSION` | Local version SSOT | hard-assign in ship unit (`1.10.1`) |
+| `VERSION` | Local version SSOT | hard-assign in ship unit (`1.11.0`) |
 | `GLOBAL_BIN` | System-wide bin | `/usr/local/bin` |
 | `USER_BIN` | Per-user bin | `${HOME}/.local/bin` |
 | `FORCE` | Replace / skip confirm | `0` |
@@ -156,7 +158,7 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 
 1. Replace local `uninstall` with online `self-uninstall` as the primary remove verb.  
 2. Require `SCRIPT_URL` for install.  
-3. Make empty argv install-ensure while this product remains local-only (Type N owns empty argv).  
+3. Turn non-interactive zero-cli-verb into a network installer, or into `setup`. Local `self-install` (copy only) is allowed. Interactive zero-cli-verb stays the menu.  
 4. Delete user data or unrelated paths during uninstall.  
 5. Fetch remote version inside `version`.  
 6. Install the managed binary with execute-only group/other bits (`0711` / `chmod +x` after `0600` stage) — **must** keep absolute **`0755`** so global install remains multi-user runnable for a shell ship unit.  
@@ -188,7 +190,7 @@ This product ships as a **POSIX shell script** (interpreted). Execution by any n
 | Key | Relationship |
 |-----|--------------|
 | `requirement-shell-cli-interface` | Command table + flags |
-| `requirement-shell-cli-zero-arguments` | Type N empty argv |
+| `requirement-shell-cli-zero-arguments` | Interactive menu; non-interactive local `self-install` |
 | `requirement-project-folder` | Path defaults |
 | `requirement-shell-idempotency` | Already installed / uninstalled |
 | `requirement-shell-path-and-shell-support` | PATH / profile bodies; sibling unify; `rc-test` |
